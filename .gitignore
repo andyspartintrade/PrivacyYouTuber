@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# Δεδομένα χρήστη (προσωπικά — ΠΟΤΕ στο repo)
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/thumbs/
+data/avatars/
+data/error.log
+
+# Backups (τοπικά μόνο)
+backups/
+
+# Build artifacts
+dist/
+build/
+*.spec.bak
+
+# Dependencies (node)
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+

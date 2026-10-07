@@ -1,0 +1,4251 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy YouTuber</title>
+<link rel="stylesheet" href="fonts/manrope.css">
+<style>
+  :root {
+    --bg: #0d1017;
+    --card: #171c26;
+    --border: #242b38;
+    --text: #e6ebf2;
+    --muted: #8b94a6;
+    --accent: #6c8cff;
+    --accent2: #22d3a5;
+    --danger: #ff6b6b;
+    /* Χρώμα γραμμάτων ΠΑΝΩ στο accent (active buttons/chips) */
+    --accent-fg: #000000;
+    /* Παράγωγα χρώματα (hover / inputs / αστέρια) — για να αλλάζουν κι αυτά με το θέμα */
+    --hover: #1a202c;
+    --dragging: #1e2634;
+    --input-bg: #0d1017;
+    --star-off: #3a4456;
+    /* Κίτρινο των κατηγοριών (dark: κλασικό κίτρινο, light: σκούρο πορτοκαλί) */
+    --cat: #facc15;
+    --cat-rgb: 250, 204, 21;
+    /* Αστέρια ★ / pin 📌 / rating (dark: αμβαρ κίτρινο, light: μπλε) */
+    --star: #fbbf24;
+    --star-rgb: 251, 191, 36;
+  }
+  /* 🌞 Light theme — ίδιες μεταβλητές, φωτεινές τιμές */
+  [data-theme="light"] {
+    --bg: #f4f6fb;
+    --card: #ffffff;
+    --border: #dfe4ee;
+    --text: #1b2230;
+    --muted: #66708a;
+    --accent: #3b5bf0;
+    --accent2: #0ea57e;
+    --danger: #e03e3e;
+    /* Στο light, το accent είναι ΣΚΟΥΡΟ μπλε → άσπρα γράμματα πάνω του (καλό contrast) */
+    --accent-fg: #ffffff;
+    --hover: #eef1f8;
+    --dragging: #e3e8f2;
+    --input-bg: #ffffff;
+    --star-off: #c4cadd;
+    /* Σκούρο μπορντό για τις κατηγορίες στο light (αντί κίτρινου) */
+    --cat: #9f1239;
+    --cat-rgb: 159, 18, 57;
+    /* Σκούρο μπορντό αστέρια/pin/rating στο light (αντί αμβαρ) */
+    --star: #9f1239;
+    --star-rgb: 159, 18, 57;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Manrope', -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text);
+    background-image: radial-gradient(circle at 15% -10%, rgba(108,140,255,.10), transparent 40%),
+                      radial-gradient(circle at 90% 0%, rgba(34,211,165,.07), transparent 45%);
+    background-attachment: fixed;
+    line-height: 1.5; padding: 32px 20px; max-width: 960px; margin: 0 auto;
+    transition: background .3s ease, color .3s ease;
+  }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  h1 { font-size: 28px; letter-spacing: -0.5px; white-space: nowrap; font-weight: 800; }
+  .lock {
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+  }
+  .tagline { color: var(--muted); font-size: 14px; margin-bottom: 12px; }
+  .privacy-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(34, 211, 165, 0.1); color: var(--accent2);
+    border: 1px solid rgba(34, 211, 165, 0.3); border-radius: 999px;
+    padding: 3px 12px; font-size: 12px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .privacy-badge .sep { opacity: .4; }
+  .privacy-badge b { color: var(--accent2); font-size: 12.5px; }
+  /* Backup / Update / Subscriptions — ΔΕΥΤΕΡΗ ΓΡΑΜΜΗ: Update αριστερά (κάτω από το P), τα υπόλοιπα δεξιά. */
+  .backup-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-basis: 100%; justify-content: space-between; }
+  .backup-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .backup-btn {
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    transition: border-color .12s, color .12s;
+  }
+  .backup-btn:hover { border-color: var(--accent); color: var(--accent); }
+  /* 🌙/☀️ Διακόπτης θέματος */
+  .theme-toggle {
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 999px; padding: 4px 10px; font-size: 15px; cursor: pointer;
+    line-height: 1; transition: border-color .12s, color .12s, transform .12s; flex-shrink: 0;
+  }
+  .theme-toggle:hover { border-color: var(--accent); transform: scale(1.08); }
+  .backup-status { font-size: 12.5px; color: var(--muted); }
+  /* Popup επιλογής import (αντικατάσταση / συγχώνευση) */
+  .import-pop {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,.55);
+    display: flex; align-items: center; justify-content: center;
+    animation: fade-in .15s ease;
+  }
+  .import-pop-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 22px 24px; max-width: 420px; width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  .import-pop-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .import-pop-sub { font-size: 13px; color: var(--muted); margin: 0 0 16px; line-height: 1.5; }
+  .import-pop-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .import-pop-actions .imp-replace { border-color: var(--danger); color: var(--danger); }
+  .import-pop-actions .imp-replace:hover { border-color: var(--danger); color: #fff; background: rgba(239,68,68,.15); }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  /* Tabs (Κανάλια / Κατηγορίες) */
+  .tabs { display: flex; gap: 8px; margin: 4px 0 0; border-bottom: 1px solid var(--border); }
+  .tab {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    color: var(--muted); font-size: 15px; font-weight: 600; cursor: pointer;
+    padding: 10px 18px; transition: color .15s, border-color .15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .cat-toolbar { margin: 8px 0 4px; }
+  .cat-add { display: flex; gap: 8px; margin-bottom: 8px; }
+  .cat-add input {
+    flex: 1; min-width: 0; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 14px;
+  }
+  .cat-add button {
+    flex-shrink: 0; background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 0 18px; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .cat-add button:hover { background: #5a7af0; }
+  /* Κατηγορία (στήλη user_category) επικεφαλίδα στο tab Κατηγορίες */
+  .cat-group { margin: 12px 0; }
+  .cat-head {
+    display: flex; align-items: center; gap: 10px; padding: 14px 14px;
+    cursor: pointer; border: 1px solid var(--border); font-size: 17px; font-weight: 700;
+    border-radius: 14px; background: var(--card);
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+  }
+  .cat-head:hover {
+    border-color: var(--cat);
+    box-shadow: 0 8px 24px rgba(0,0,0,.3);
+    transform: translateY(-2px);
+  }
+  .cat-head .cat-chevron { font-size: 16px; transition: transform .25s cubic-bezier(.4,0,.2,1); color: var(--muted); }
+  /* Το βελάκι αλλάζει ΜΟΝΟ μέσω glyph (▸ κλειστό / ▾ ανοιχτό) — ΟΧΙ rotate. */
+  .cat-head .cat-name { flex: 1; }
+  .cat-head .cat-count { color: var(--muted); font-size: 13px; font-weight: 400; }
+  .cat-head .cat-del { color: var(--muted); font-size: 18px; cursor: pointer; padding: 0 6px; }
+  .cat-head .cat-del:hover { color: var(--danger); }
+  .cat-body .vrow { margin-left: 36px; border-left: 1px solid var(--border); padding-left: 14px; }
+  .cat-group.collapsed .cat-body { display: none; }
+  .cat-chip {
+    display: inline-block; background: rgba(var(--cat-rgb), 0.15); border: 1px solid rgba(var(--cat-rgb), 0.4);
+    color: var(--cat); border-radius: 12px; padding: 1px 8px; font-size: 11px; font-weight: 600; margin-left: 6px;
+  }
+  .note-chip {
+    display: inline-block; background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+    color: var(--accent); border-radius: 12px; padding: 1px 8px; font-size: 11px; font-weight: 700; margin-left: 6px;
+    cursor: default;
+  }
+  .cat-head .cat-name { color: var(--cat); }
+  .cat-head .cat-count { color: rgba(var(--cat-rgb), 0.6); }
+  /* Tags (προσωπικό σύστημα) */
+  .tag-filter {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border);
+  }
+  .tag-filter .lbl { color: var(--muted); font-size: 12px; font-weight: 600; margin-right: 2px; }
+  .tag-chk {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 999px;
+    padding: 3px 10px; font-size: 12px; cursor: pointer; user-select: none;
+  }
+  .tag-chk:hover { border-color: var(--accent); }
+  .tag-chk input { accent-color: var(--accent); cursor: pointer; }
+  .tag-chk.on { border-color: var(--accent); background: rgba(108,140,255,0.12); }
+  /* Πράσινα (accent2) κόμπακτ tag bubbles — όπως οι πρασινοποιημένες κατηγορίες */
+  .tag-chk.green { border-color: rgba(34,211,165,0.35); background: rgba(34,211,165,0.08); }
+  .tag-chk.green.on { border-color: var(--accent2); background: rgba(34,211,165,0.18); }
+  .tag-chk.green input { accent-color: var(--accent2); }
+  /* Κίτρινα category bubbles (όπως οι κίτρινες κατηγορίες) */
+  .tag-chk.yellow { border-color: rgba(var(--cat-rgb),0.35); background: rgba(var(--cat-rgb),0.08); }
+  .tag-chk.yellow.on { border-color: var(--cat); background: rgba(var(--cat-rgb),0.16); }
+  .tag-chk.yellow input { accent-color: var(--cat); }
+  .tag-chk.yellow .tag-filter-x { color: var(--cat); }
+  .tag-filter-x {
+    margin-left: 2px; cursor: pointer; color: var(--muted); font-size: 15px; line-height: 1;
+    width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+  }
+  .tag-filter-x:hover { color: var(--danger); background: rgba(239,68,68,0.15); }
+  .tag-filter-count-title { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: var(--accent2); }
+  .tag-filter-count { color: var(--accent2); font-weight: 700; }
+  .tag-active-count { color: var(--muted); font-weight: 500; font-size: 12px; }
+  /* --- Πτυχωτό πάνελ φίλτρου + κατηγορίες (accordion) --- */
+  .tag-filter-head {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+    padding: 4px 10px; border: 1px solid rgba(34,211,165,0.4); border-radius: 999px;
+    background: rgba(34,211,165,0.12); user-select: none;
+  }
+  .tag-filter-head:hover { border-color: var(--accent2); }
+  /* Κίτρινο κουμπί κατηγοριών (όπως οι κίτρινες κατηγορίες) */
+  .tag-filter-head.cat { border-color: rgba(var(--cat-rgb),0.4); background: rgba(var(--cat-rgb),0.1); }
+  .tag-filter-head.cat:hover { border-color: var(--cat); }
+  .tag-filter-head.cat .cat-title { color: var(--cat); }
+  .tag-filter-head.cat .tag-filter-count { color: var(--cat); }
+  .tag-filter-active { color: var(--accent); font-weight: 700; }
+  .tag-filter-panel {
+    margin-top: 6px; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; background: var(--card); max-height: 320px; overflow-y: auto;
+    display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+  }
+  .tag-mini-search { margin-bottom: 8px; }
+  .tag-mini-search input {
+    width: 100%; box-sizing: border-box; background: var(--bg, #0f1216);
+    border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px;
+    color: var(--fg); font-size: 13px;
+  }
+  .cat-group { margin-bottom: 4px; }
+  .cat-head {
+    display: flex; align-items: center; gap: 6px; cursor: pointer;
+    padding: 5px 8px; border-radius: 6px; user-select: none;
+    font-weight: 600; font-size: 13px;
+  }
+  .cat-head:hover { background: var(--hover); }
+  .cat-chevron { color: var(--muted); font-size: 12px; width: 12px; text-align: center; }
+  .cat-name { color: var(--fg); }
+  .cat-count { color: var(--muted); font-size: 11px; font-weight: 400; }
+  .cat-body { padding: 4px 4px 6px 20px; }
+  .tag-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 6px;
+  }
+  .tag-new-input {
+    background: var(--card); border: 1px dashed var(--border); border-radius: 999px;
+    padding: 5px 12px; font-size: 13px; color: var(--text); width: 150px;
+  }
+  .tag-new-input:focus { outline: none; border-color: var(--accent); }
+
+  /* Tag chips πάνω στα βίντεο */
+  .tag-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    background: rgba(34,211,165,0.12); color: var(--accent2); border: 1px solid rgba(34,211,165,0.3);
+    border-radius: 999px; padding: 1px 8px; font-size: 11px; font-weight: 600;
+    transition: background .15s ease, color .15s ease;
+  }
+  .tag-chip:hover { background: rgba(34,211,165,0.22); }
+
+  /* Inline confirm διαγραφής tag */
+  .del-confirm {
+    position: fixed; z-index: 2000; width: 280px;
+    background: var(--card); border: 1px solid var(--danger); border-radius: 10px;
+    padding: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); font-size: 13px;
+  }
+  /* Κεντραρισμένο spring popup (για διαγραφή βίντεο). */
+  .del-confirm.center {
+    left: 50%; top: 50%;
+    margin-left: -140px; margin-top: -60px;
+    animation: center-pop .3s cubic-bezier(.18,.9,.32,1.4);
+  }
+  @keyframes center-pop {
+    0%   { transform: scale(.82); opacity: 0; }
+    60%  { transform: scale(1.05); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .del-confirm .dc-msg { color: var(--fg); line-height: 1.45; }
+  .del-confirm .dc-msg b { color: var(--danger); }
+  .del-confirm .dc-warn { color: var(--muted); font-size: 11px; }
+  .del-confirm .dc-btns { display: flex; gap: 8px; margin-top: 10px; }
+  .del-confirm .dc-yes { background: var(--danger); color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-weight: 600; cursor: pointer; }
+  .del-confirm .dc-yes:hover { filter: brightness(1.1); }
+  .del-confirm .dc-no { background: var(--card); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  .del-confirm .dc-no:hover { background: var(--border); }
+
+  /* Popover για tagging */
+  .tag-pop {
+    position: fixed; z-index: 1000; width: 220px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); display: none;
+  }
+  .tag-pop.open { display: block; animation: pop-in .28s cubic-bezier(.18,.9,.32,1.45); }
+  .tag-pop.closing { display: block; animation: pop-out .16s ease forwards; }
+  @keyframes pop-in {
+    0%   { opacity: 0; transform: scale(.6) translateY(-10px); }
+    60%  { opacity: 1; transform: scale(1.08) translateY(0); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes pop-out {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(.7) translateY(-6px); }
+  }
+  .tag-pop-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .tag-pop-close { cursor: pointer; color: var(--muted); border: none; background: none; font-size: 16px; }
+  .tag-pop-close:hover { color: var(--danger); }
+  .tag-pop-list { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto; }
+  .tag-pop-item { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 4px 6px; border-radius: 6px; }
+  .tag-pop-item:hover { background: var(--hover); }
+  .tag-pop-label { display: flex; align-items: center; gap: 6px; flex: 1; cursor: pointer; }
+  .tag-pop-item input { accent-color: var(--accent); cursor: pointer; }
+  .tag-del {
+    flex-shrink: 0; cursor: pointer; color: var(--muted); border: none; background: none;
+    font-size: 16px; line-height: 1; width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+  }
+  .tag-del:hover { color: var(--danger); background: rgba(239,68,68,0.12); }
+  .tag-pop-new { margin-top: 8px; display: flex; gap: 6px; }
+  .tag-pop-new input {
+    flex: 1; min-width: 0; background: var(--input-bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 8px; color: var(--text); font-size: 13px;
+  }
+  .tag-pop-new button {
+    flex-shrink: 0; background: var(--accent); color: #fff; border: none; border-radius: 6px;
+    padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s;
+  }
+  .tag-pop-new button:hover { background: #5a78e8; }
+  .tag-pop-new button:active { background: #4761c4; }
+  .tag-pop-cat { margin-top: 6px; display: flex; gap: 6px; align-items: center; }
+  /* 📌 Pin popup — 3 states */
+  .pin-pop-list { display: flex; flex-direction: column; gap: 4px; }
+  .pin-option {
+    display: flex; align-items: center; gap: 9px; padding: 9px 10px; border-radius: 8px;
+    cursor: pointer; font-size: 13px; color: var(--text);
+    transition: background .15s ease;
+    border: 1px solid transparent;
+  }
+  .pin-option:hover { background: var(--hover); }
+  .pin-option.current { background: color-mix(in srgb, var(--star) 12%, transparent); border-color: var(--star); }
+  .pin-option .po-icon { font-size: 16px; width: 20px; text-align: center; }
+  .pin-option .po-icon.top { color: #ef4444; }   /* κόκκινο βελάκι = πάνω-πάνω */
+  .icon-btn.ch-pin.top { color: #ef4444; }        /* κόκκινο στο κουμπί όταν top */
+  .pin-option .po-label { flex: 1; }
+  .tag-pop-cat select {
+    flex: 1; min-width: 0; background: var(--input-bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 8px; color: var(--text); font-size: 12px;
+  }
+  .tag-pop-cat input {
+    flex: 1; min-width: 0; background: var(--input-bg); border: 1px dashed var(--border);
+    border-radius: 6px; padding: 5px 8px; color: var(--text); font-size: 12px;
+  }
+
+  /* Stars rating */
+  .stars { display: inline-flex; gap: 1px; cursor: pointer; }
+  .stars .st {
+    font-size: 18px; color: var(--star-off); transition: color .1s; line-height: 1;
+    background: none; border: none; padding: 0; margin: 0; cursor: pointer; outline: none;
+  }
+  .stars .st.on { color: var(--star); }
+  .stars:hover .st { color: var(--star); }
+  h2 { font-size: 17px; margin-bottom: 14px; letter-spacing: -0.3px; }
+  section { margin-bottom: 32px; }
+  .row-head { display: flex; align-items: center; gap: 8px; }
+  .list-head { display: flex; align-items: center; gap: 10px; margin: 16px 0 8px; }
+  .list-head-lbl { font-size: 14px; font-weight: 600; color: var(--muted); }
+  .list-head-count { font-weight: 400; color: var(--muted); opacity: 0.75; }
+  /* Αριθμός βίντεο που βρέθηκαν στο ενεργό φίλτρο (αντί για την μπλε μπάρα). */
+  .filter-count {
+    margin-left: 6px; font-weight: 600; color: var(--accent);
+    font-size: 13px; white-space: nowrap;
+  }
+  /* RSS Watchdog (panel μέσα στο κανάλι) */
+  .rss-panel {
+    margin: 4px 0 6px 36px; padding: 10px 12px;
+    border: 1px solid var(--accent); border-left: 3px solid var(--accent);
+    border-radius: 8px; background: rgba(99,102,241,.05);
+    animation: rss-in .25s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes rss-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes rss-out {
+    from { opacity: 1; transform: translateY(0); max-height: 400px; margin: 4px 0 6px 36px; padding: 10px 12px; }
+    to   { opacity: 0; transform: translateY(-6px); max-height: 0; margin: 0; padding: 0; }
+  }
+  .rss-panel.closing {
+    animation: rss-out .22s cubic-bezier(.4,0,.2,1) forwards;
+    overflow: hidden;
+    border-width: 0;
+  }
+  .rss-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .rss-title { font-size: 13.5px; font-weight: 600; }
+  .rss-count { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+  .rss-total {
+    font-size: 12.5px; color: var(--muted); font-weight: 600;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+    /* σταθερό πλάτος (χωράει "(+999)") → δεν κουνάει τα −/num/+ δεξιά του */
+    min-width: 6ch; width: 6ch; text-align: left; display: inline-block;
+  }
+  /* σταθερό πλάτος 3 ψηφίων → τα −/+ ΔΕΝ μετακινούνται όταν αλλάζει ο αριθμός */
+  .rss-num {
+    font-weight: 700; color: var(--accent);
+    min-width: 3ch; width: 3ch; text-align: center;
+    font-variant-numeric: tabular-nums;
+    display: inline-block;
+  }
+  .rss-countbtn {
+    width: 26px; height: 26px; cursor: pointer; font-size: 16px; line-height: 1;
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  }
+  .rss-countbtn:hover { border-color: var(--accent); color: var(--accent); }
+  /* ⬆️⬇️ Σκρολ μέσα στο News Feed. Το ύψος (πόσα «χωράνε» πριν το scroll) ορίζεται δυναμικά
+     από το −/+ (inline max-height στο .rss-list) → βλ. renderRssPanel(). Λεπτή μπάρα, ταιριάζει
+     στο theme, και σταματά να τραβάει όλη τη σελίδα όταν είναι πολλά. */
+  .rss-list {
+    display: flex; flex-direction: column;
+    max-height: 280px;
+    overflow-y: auto;
+    padding-right: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .rss-list::-webkit-scrollbar { width: 8px; }
+  .rss-list::-webkit-scrollbar-thumb {
+    background: var(--border); border-radius: 6px;
+  }
+  .rss-list::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+  .rss-list::-webkit-scrollbar-track { background: transparent; }
+  .new-row {
+    display: flex; align-items: center; gap: 12px; padding: 8px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .new-row:last-child { border-bottom: none; }
+  .new-row .thumb { width: 84px; height: 47px; }
+  .rss-loading, .rss-empty, .rss-more { font-size: 13px; color: var(--muted); padding: 6px 0; }
+  /* ⏳ Λoading: spinner + indeterminate progress μπάρα (το panel «δουλεύει» και το δείχνει) */
+  .rss-loading { display: flex; align-items: center; gap: 9px; padding: 10px 2px; }
+  .rss-loading .spin {
+    width: 16px; height: 16px; flex: 0 0 auto;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: rss-spin .7s linear infinite;
+  }
+  @keyframes rss-spin { to { transform: rotate(360deg); } }
+  .rss-progress {
+    height: 3px; margin: 6px 0 2px; border-radius: 3px; overflow: hidden;
+    background: var(--border); position: relative;
+  }
+  .rss-progress::after {
+    content: ""; position: absolute; top: 0; left: -40%; height: 100%; width: 40%;
+    background: var(--accent); border-radius: 3px;
+    animation: rss-slide 1.1s ease-in-out infinite;
+  }
+  @keyframes rss-slide { to { left: 100%; } }
+  /* 🔔 καμπάνα — ΓΥΜΝΗ (χωρίς περίγραμμα): state μόνο από χρώμα + σχήμα */
+  .watch-tgl { border-color: transparent !important; background: transparent !important; transition: color .15s ease, filter .15s ease, transform .15s ease; }
+  .watch-tgl.on { color: var(--accent); filter: drop-shadow(0 0 6px rgba(108,140,255,.55)); }
+  .watch-tgl:not(.on) { color: var(--muted); }
+  /* loading = η καμπάνα «χτυπάει» (κουνιέται σαν να καμπανίζει) */
+  .watch-tgl.loading { animation: bell-ring .5s ease-in-out infinite; transform-origin: top center; }
+  @keyframes bell-ring {
+    0%, 100% { transform: rotate(0deg); }
+    20% { transform: rotate(16deg); }
+    40% { transform: rotate(-14deg); }
+    60% { transform: rotate(10deg); }
+    80% { transform: rotate(-6deg); }
+  }
+  .toggle-all {
+    flex-shrink: 0; cursor: pointer; background: var(--card);
+    color: var(--muted); border: 1px solid var(--border); border-radius: 8px;
+    width: 44px; height: 36px; line-height: 1;
+    font-size: 30px; display: flex; align-items: center; justify-content: center;
+    transition: color .15s, border-color .15s;
+  }
+  .toggle-all:hover { color: var(--text); border-color: var(--accent); }
+  .toggle-all.all-closed { color: var(--accent); border-color: var(--accent); }
+  .refresh {
+    margin-left: auto; background: transparent; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px;
+    font-size: 13px; cursor: pointer;
+  }
+  .refresh:hover { color: var(--text); border-color: var(--accent); }
+  .hint { color: var(--muted); font-size: 12px; margin-bottom: 12px; }
+  .add-box { display: flex; gap: 8px; margin-bottom: 8px; }
+  .add-box input {
+    flex: 1; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 14px;
+    transition: border-color .18s ease, box-shadow .18s ease;
+  }
+  .add-box input:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(108,140,255,.14);
+  }
+  .add-box button {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .add-box button:hover { opacity: .9; }
+
+  /* Βιβλιοθήκη — group ανά κανάλι */
+  .channel-group { margin-bottom: 8px; }
+  .channel-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border: 1px solid var(--border); border-radius: 14px; margin-bottom: 8px;
+    cursor: pointer; user-select: none; line-height: 1; min-height: 0;
+    background: var(--card);
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease, background .18s ease;
+  }
+  .channel-head:hover {
+    border-color: var(--accent);
+    box-shadow: 0 10px 28px rgba(0,0,0,.32);
+    transform: translateY(-2px);
+  }
+  .channel-head:hover .channel-name { color: var(--accent); }
+  .chevron { color: var(--muted); font-size: 16px; transition: transform .25s cubic-bezier(.4,0,.2,1); flex-shrink: 0; }
+  .channel-group.collapsed .chevron { transform: rotate(-90deg); }
+  /* 🟣 Κανάλια με ανοιχτό News Feed (watched) → μωβ banner (κάρτα) */
+  .channel-group.watched .channel-head {
+    background: linear-gradient(90deg, rgba(139, 92, 246, .16), rgba(139, 92, 246, .05));
+    border-color: rgba(139, 92, 246, .45);
+  }
+  .channel-group.watched .channel-head:hover {
+    border-color: #8b5cf6;
+    box-shadow: 0 10px 28px rgba(139, 92, 246, .25);
+  }
+  /* 🔵 Νέο κανάλι (μόλις προστέθηκε) — ίδιο μπλε με τα «νέα» βίντεα (.vrow.unseen) */
+  .channel-group.new .channel-head {
+    background: linear-gradient(90deg, rgba(59, 130, 246, .16), rgba(56, 189, 248, .07));
+    border-color: rgba(59, 130, 246, .45);
+  }
+  .channel-group.new .channel-head:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 10px 28px rgba(59, 130, 246, .25);
+  }
+  /* 🟠 Εισαγμένο κανάλι (από subscriptions) — πορτοκαλί/κεχριμπαρένιο banner */
+  .channel-group.imported .channel-head {
+    background: linear-gradient(90deg, rgba(245, 158, 11, .16), rgba(251, 191, 36, .06));
+    border-color: rgba(245, 158, 11, .45);
+  }
+  .channel-group.imported .channel-head:hover {
+    border-color: #f59e0b;
+    box-shadow: 0 10px 28px rgba(245, 158, 11, .25);
+  }
+  /* Accordion animation: ξεδίπλωμα/μάζεμα του σώματος (βίντεα + rss) */
+  .channel-body {
+    max-height: 4000px;
+    overflow: hidden;
+    transition: max-height .3s cubic-bezier(.4,0,.2,1), opacity .22s ease;
+    opacity: 1;
+    padding: 4px 6px 6px 6px;
+  }
+  .channel-group.collapsed .channel-body {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  /* Tree layout: τα βίντεο μπαίνουν «ένα βήμα μέσα» με γραμμή, σαν file tree */
+  .channel-group .vrow {
+    margin-left: 36px;
+    border-left: 1px solid var(--border);
+    padding-left: 14px;
+    border-radius: 0 8px 8px 0;
+  }
+  .channel-head .avatar-wrap { width: 68px; height: 68px; border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+  .channel-name { font-weight: 700; font-size: 17px; line-height: 1; letter-spacing: -0.2px; }
+  .chan-link {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; color: inherit; line-height: 1; min-height: 0;
+  }
+  .chan-link:hover .channel-name { text-decoration: underline; }
+  .head-spacer { flex: 1; }
+  .vrow {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 4px; border-bottom: 1px solid var(--border);
+    cursor: grab; border-radius: 8px; transition: background .18s ease, transform .18s ease;
+  }
+  .vrow:hover { background: var(--hover); }
+  .vrow.dragging { opacity: .45; background: var(--dragging); cursor: grabbing; }
+  /* Βίντεο που πρόσθεσες με ➕ αλλά ΔΕΝ έχεις δει ακόμα → απαλό ΜΠΛΕ φόντο (ξεμοβίζει χειροκίνητα) */
+  .vrow.unseen { background: linear-gradient(90deg, rgba(59, 130, 246, .14), rgba(56, 189, 248, .09)); }
+  .vrow.unseen:hover { background: linear-gradient(90deg, rgba(59, 130, 246, .22), rgba(56, 189, 248, .15)); }
+  .new-badge {
+    display: inline-block; margin-left: 8px; padding: 1px 7px;
+    font-size: 10px; font-weight: 700; letter-spacing: .4px;
+    color: #fff; background: linear-gradient(135deg, #3b82f6, #38bdf8);
+    border-radius: 999px; vertical-align: middle; text-transform: uppercase;
+  }
+  .drag-handle { color: var(--muted); cursor: grab; user-select: none; font-size: 16px; padding: 0 2px; }
+  .thumb {
+    width: 112px; height: 63px; object-fit: cover; border-radius: 6px;
+    border: 1px solid var(--border); flex-shrink: 0; background: #000;
+  }
+  .vinfo { flex: 1; min-width: 0; }
+  .vtitle { color: var(--text); text-decoration: none; font-size: 14px; font-weight: 500; display: block; }
+  .vtitle:hover { color: var(--accent); }
+  .vmeta { display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 12.5px; flex-wrap: wrap; }
+  .avatar-wrap { position: relative; width: 22px; height: 22px; flex-shrink: 0; }
+  .avatar-fallback {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: var(--hover); color: var(--text); font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .avatar {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    border-radius: 50%; object-fit: cover; border: 1px solid var(--border);
+  }
+  .cat {
+    color: var(--accent); cursor: pointer; border-bottom: 1px dashed var(--accent);
+    padding: 1px 2px; white-space: nowrap;
+  }
+  .cat:hover { opacity: .8; }
+  .vright { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .count { color: var(--accent2); font-weight: 600; font-size: 14px; }
+  .pinned { color: var(--star); font-size: 12px; }
+  .icon-btn {
+    background: transparent; color: var(--muted); border: 1px solid var(--border);
+    border-radius: 10px; width: 42px; height: 42px; font-size: 22px; line-height: 1;
+    cursor: pointer; flex-shrink: 0;
+    transition: color .15s ease, border-color .15s ease, background .15s ease, transform .15s ease;
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--accent); transform: translateY(-1px); }
+  .icon-btn:active { transform: translateY(0); }
+  .icon-btn.del:hover { color: var(--danger); border-color: var(--danger); }
+  .icon-btn.pin.active { color: var(--star); border-color: var(--star); background: color-mix(in srgb, var(--star) 12%, transparent); }
+  .icon-btn.pin.pinning { animation: pin-pop .5s cubic-bezier(.18,.9,.32,1.35); }
+  .icon-btn.ch-pin.pinning { animation: pin-pop .5s cubic-bezier(.18,.9,.32,1.35); }
+  @keyframes pin-pop {
+    0%   { transform: scale(1) rotate(0deg); }
+    35%  { transform: scale(1.35) rotate(-14deg); }
+    65%  { transform: scale(.9) rotate(5deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  .icon-btn.seen-btn { color: #3b82f6; border-color: rgba(59, 130, 246, .4); }
+  .icon-btn.seen-btn:hover { color: #3b82f6; border-color: #3b82f6; background: rgba(59, 130, 246, .12); }
+  /* ✓ «Το είδα» — όλο το row κάνει απαλό dissolve (χωρίς transform/max-height → κανένα κενό). */
+  .vrow.seen-out {
+    animation: seen-out .3s ease forwards;
+  }
+  @keyframes seen-out {
+    to { opacity: 0; }
+  }
+  /* Ομαλή διαγραφή: το row «λιώνει» ΚΑΙ καταρρέει το ύψος (κλείνει η λίστα χωρίς κενό). */
+  .vrow.deleting {
+    animation: deleting .32s ease forwards;
+    overflow: hidden;
+  }
+  @keyframes deleting {
+    0%   { opacity: 1; max-height: 400px; margin: 0; padding: 10px 4px; }
+    100% { opacity: 0; max-height: 0; margin: 0; padding-top: 0; padding-bottom: 0; border-bottom-width: 0; }
+  }
+
+  /* Θέματα */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 999px;
+    padding: 7px 8px 7px 15px; font-size: 14px;
+  }
+  .chip.hl { border-color: var(--accent); color: #aebfff; }
+  .chip-x {
+    background: transparent; color: var(--muted); border: none; cursor: pointer;
+    font-size: 14px; line-height: 1; padding: 0 2px;
+  }
+  .chip-x:hover { color: var(--danger); }
+
+  /* Προτάσεις */
+  .sugg-block { margin-bottom: 18px; }
+  .sugg-term { font-weight: 600; color: var(--accent); margin-bottom: 8px; font-size: 15px; }
+  .sugg-links { display: flex; flex-direction: column; gap: 6px; }
+  .sugg-item { display: flex; align-items: center; gap: 8px; }
+  .sugg-item a {
+    flex: 1; color: var(--text); text-decoration: none; font-size: 14px;
+    padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); transition: border-color .15s, background .15s;
+  }
+  .sugg-item a:hover { border-color: var(--accent); background: var(--hover); }
+  .sugg-item a::before { content: "🔎 "; }
+
+  .empty { color: var(--muted); font-size: 14px; }
+  .loading { color: var(--muted); font-size: 13px; }
+  .muted { color: var(--muted); }
+  .search-box { margin: 4px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .search-box input {
+    flex: 1; min-width: 200px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 14px;
+    transition: border-color .18s ease, box-shadow .18s ease;
+  }
+  .search-box input:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(108,140,255,.14), 0 8px 24px rgba(0,0,0,.25);
+  }
+  /* 🔍 Search buttons — Apple round-glass: κυκλικό, γυάλινο, με soft glow στο hover. */
+  .search-box button {
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--card);
+    color: var(--muted); font-size: 17px; line-height: 1;
+    cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    transition: color .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
+  }
+  .search-box button:hover {
+    color: var(--text); border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, var(--card));
+    box-shadow: 0 0 0 4px rgba(108,140,255,.12), 0 6px 18px rgba(0,0,0,.22);
+    transform: translateY(-1px);
+  }
+  .search-box button:active { transform: translateY(0); }
+  .rating-filter {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    height: 40px; padding: 0 12px; flex-shrink: 0;
+  }
+  .rating-filter .stars { display: inline-flex; gap: 1px; cursor: pointer; }
+  .rating-filter .st { font-size: 18px; color: var(--star-off); transition: color .1s; line-height: 1; }
+  .rating-filter .st.on { color: var(--star); }
+  /* Ακυρώνουμε το global hover εδώ — ΟΧΙ mouse-over φωτισμό στο φίλτρο */
+  .rating-filter .stars:hover .st { color: var(--star-off); }
+  .rating-filter .stars:hover .st.on { color: var(--star); }
+  .rating-filter .rf-clear { color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; }
+  .rating-filter .rf-clear:hover { color: var(--danger); }
+  .search-clear {
+    background: var(--danger); color: #fff; border: none; border-radius: 50%;
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    transition: transform .12s ease, filter .12s ease;
+  }
+  .search-clear:hover { filter: brightness(1.15); transform: scale(1.06); }
+  /* Στρογγυλό × για το search field (μπροστά από τη λούπα) — απαλό, μόλις γράψεις λέξη. */
+  .input-clear {
+    background: var(--card); color: var(--muted); border: 1px solid var(--border);
+    border-radius: 50%; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    transition: color .12s ease, border-color .12s ease, transform .12s ease;
+  }
+  .input-clear:hover { color: var(--danger); border-color: var(--danger); transform: scale(1.06); }
+  /* --- Match highlight (δείχνει ΠΟΥ ταίριαξε κάθε βίντεο στο φίλτρο) --- */
+  .match-thumb { box-shadow: 0 0 0 2px var(--danger); }
+  .match-stars { box-shadow: 0 0 0 2px var(--danger); border-radius: 4px; }
+  .match-chip { box-shadow: 0 0 0 2px var(--danger); }
+  .vtitle mark.hl { color: var(--danger); font-weight: 700; background: none; }
+  .search-result {
+    display: flex; align-items: center; gap: 10px; padding: 8px 4px;
+    border-bottom: 1px solid var(--border); text-decoration: none; color: inherit;
+  }
+  .search-result:hover { background: rgba(108,140,255,0.06); }
+  .search-mode-banner {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: rgba(108,140,255,0.1); border: 1px solid rgba(108,140,255,0.35);
+    border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-size: 13px;
+  }
+  .search-mode-banner .smb-lbl { font-weight: 600; color: var(--accent); }
+  .smb-chips { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .fc { padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+  .fc-q { background: rgba(140,180,255,0.15); border: 1px solid rgba(140,180,255,0.4); }
+  .fc-tag { background: rgba(108,140,255,0.15); border: 1px solid rgba(108,140,255,0.4); color: var(--accent); }
+  .fc-rate { background: rgba(var(--star-rgb),0.15); border: 1px solid rgba(var(--star-rgb),0.5); color: var(--star); }
+  .fc-and { color: var(--muted); font-weight: 700; }
+  .fc-x { color: var(--muted); cursor: pointer; font-weight: 700; margin-left: 4px; padding: 0 2px; }
+  .fc-x:hover { color: var(--danger); }
+  .search-mode-banner .smb-exit {
+    margin-left: auto; background: var(--accent); color: #fff; border: none;
+    border-radius: 6px; padding: 6px 14px; font-weight: 600; font-size: 13px; cursor: pointer;
+  }
+  .search-mode-banner .smb-exit:hover { background: #5a7af0; }
+  .smb-kbd {
+    background: var(--card); border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 6px; font-size: 11px; color: var(--muted); font-family: monospace;
+  }
+  .search-result .sr-title { flex: 1; font-size: 14px; }
+  .search-result .sr-sub { font-size: 12px; color: var(--muted); }
+
+  /* Προσβασιμότητα: σεβασμός στο «μείωσε την κίνηση» του λειτουργικού */
+  @media (prefers-reduced-motion: reduce) {
+    .channel-body, .chevron, .rss-panel, .watch-tgl.loading {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+
+  /* 🎬 Floating player (lightbox) — sexy, μοντέρνο, βίντεο "στον αέρα" */
+  .lb {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    animation: lb-fade .18s ease;
+  }
+  @keyframes lb-fade { from { opacity: 0; } to { opacity: 1; } }
+  .lb-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, .55);
+    backdrop-filter: blur(14px) saturate(1.1);
+    -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  }
+  .lb-dialog {
+    position: relative; z-index: 1; width: min(900px, 94vw);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.55), 0 2px 10px rgba(0,0,0,.35);
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 12px;
+    animation: lb-pop .2s cubic-bezier(.18,.9,.32,1.1);
+  }
+  @keyframes lb-pop {
+    from { transform: scale(.94) translateY(14px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  .lb-close {
+    position: absolute; top: -12px; right: -12px;
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--card);
+    color: var(--text); font-size: 16px; font-weight: 700;
+    cursor: pointer; z-index: 2; box-shadow: 0 4px 14px rgba(0,0,0,.4);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .12s, background .12s;
+  }
+  .lb-close:hover { transform: scale(1.1); background: var(--hover); }
+  .lb-frame { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 10px; overflow: hidden; }
+  .lb-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .lb-loading {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 14px;
+  }
+  .lb-blocked {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+    background: radial-gradient(circle at 50% 40%, #1a1f2b, #000);
+    padding: 20px; text-align: center;
+  }
+  .lb-blocked-thumb { max-width: 60%; max-height: 45%; border-radius: 8px; border: 1px solid var(--border); }
+  .lb-blocked-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.35; }
+  .lb-blocked-btn {
+    padding: 10px 22px; border-radius: 999px; border: none;
+    background: var(--accent); color: var(--accent-fg); font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: transform .12s, filter .12s;
+  }
+  .lb-blocked-btn:hover { transform: scale(1.05); filter: brightness(1.08); }
+  .lb-info { display: flex; flex-direction: column; gap: 4px; min-height: 20px; }
+  .lb-info .lb-title { font-size: 15px; font-weight: 700; line-height: 1.35; }
+  .lb-info .lb-sub { font-size: 12.5px; color: var(--muted); }
+  .lb-controls {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+  }
+  .lb-nav {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--card);
+    color: var(--text); font-size: 17px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .12s, background .12s, opacity .12s;
+  }
+  .lb-nav:hover { transform: scale(1.08); background: var(--hover); }
+  .lb-nav:disabled { opacity: .3; cursor: default; transform: none; }
+  .lb-pos { font-size: 13px; color: var(--muted); min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; }
+  .lb-add {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--accent); background: var(--accent);
+    color: var(--accent-fg); font-size: 19px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,.3);
+    transition: transform .12s, filter .12s;
+  }
+  .lb-add:hover { transform: scale(1.1); filter: brightness(1.08); }
+  /* Το «magic moment»: όταν προστίθεται ένα βίντεο, το ➕ γίνεται ✓ με spring + draw. */
+  .lb-add.added {
+    background: #22c55e;
+    border-color: #22c55e;
+    color: #fff;
+    animation: add-pop .55s cubic-bezier(.18,.9,.32,1.35);
+  }
+  @keyframes add-pop {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.4); }
+    60%  { transform: scale(.86); }
+    80%  { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+  @keyframes check-draw { to { stroke-dashoffset: 0; } }
+  .lb-add.added svg, .lb-add.added .add-check { display: block; }
+  .lb-dismiss {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--danger, #e5533d); background: var(--danger, #e5533d);
+    color: #fff; font-size: 17px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,.3);
+    transition: transform .12s, filter .12s;
+  }
+  .lb-dismiss:hover { transform: scale(1.1); filter: brightness(1.08); }
+  .lb-note-btn {
+    height: 44px; padding: 0 16px; border-radius: 22px;
+    border: 1px solid var(--accent); background: var(--card); color: var(--text);
+    font-size: 14px; cursor: pointer; white-space: nowrap;
+    display: flex; align-items: center; gap: 6px;
+    transition: background .12s, transform .12s;
+  }
+  .lb-note-btn:hover { background: var(--hover); transform: translateY(-1px); }
+  .lb-notes { margin-top: 14px; max-height: 180px; overflow-y: auto; font-size: 13px; }
+  .lb-note-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 9px;
+    padding: 9px 12px; margin-bottom: 8px; text-align: left;
+  }
+  .lb-note-ts {
+    flex: 0 0 auto; padding: 2px 8px; border-radius: 12px;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--accent); font-weight: 700; font-size: 12px;
+    font-variant-numeric: tabular-nums; cursor: pointer;
+    white-space: nowrap;
+  }
+  .lb-note-body { flex: 1; min-width: 0; }
+  .lb-note-title { font-weight: 600; margin-bottom: 2px; }
+  .lb-note-text { color: var(--muted); word-wrap: break-word; }
+  .lb-note-del {
+    flex: 0 0 auto; border: none; background: none; color: var(--muted);
+    cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 4px;
+  }
+  .lb-note-del:hover { color: var(--danger, #e5533d); background: var(--hover); }
+  .lb-note-empty { color: var(--muted); padding: 6px 2px; }
+  /* φόρμα note */
+  .lb-note-form {
+    background: var(--card); border: 1px solid var(--accent); border-radius: 10px;
+    padding: 12px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;
+    text-align: left;
+  }
+  .lb-note-form input, .lb-note-form textarea {
+    background: var(--bg, #0e1116); border: 1px solid var(--border); border-radius: 7px;
+    color: var(--text); font-size: 13px; padding: 8px 10px; width: 100%;
+    font-family: inherit;
+  }
+  .lb-note-form textarea { min-height: 56px; resize: vertical; }
+  .lb-note-form-row { display: flex; gap: 8px; align-items: center; }
+  .lb-note-form .ts-label { color: var(--accent); font-weight: 700; font-size: 12px; white-space: nowrap; }
+  .lb-note-form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .lb-note-form-actions button {
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    border-radius: 7px; padding: 7px 14px; cursor: pointer; font-size: 13px;
+  }
+  .lb-note-form-actions button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+
+
+  /* 🔍 YouTube Αναζήτηση (tab) */
+  .yt-search-box { max-width: 760px; margin-bottom: 14px; }
+  .yt-search-status { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+  .yt-search-status { display: flex; align-items: center; gap: 10px; }
+  .yt-search-status .spin {
+    width: 16px; height: 16px; flex: 0 0 auto;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: rss-spin .7s linear infinite;
+  }
+  .yt-empty { color: var(--muted); font-size: 15px; padding: 24px 0; text-align: center; }
+  .yt-sec-title {
+    font-size: 15px; font-weight: 700; margin: 16px 0 8px; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .yt-videos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 1240px; }
+  .yt-video {
+    display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 14px;
+    background: var(--card); border: 1px solid var(--border);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  .yt-video:hover {
+    transform: translateY(-4px); border-color: var(--accent);
+    box-shadow: 0 16px 40px rgba(0,0,0,.4);
+  }
+  .yt-thumb-wrap { position: relative; width: 100%; aspect-ratio: 16/9; cursor: pointer; }
+  .yt-thumb { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: block; }
+  .yt-play-icon {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 34px; color: #fff; opacity: 0; transition: opacity .15s;
+    background: rgba(0,0,0,.25); border-radius: 8px; text-shadow: 0 2px 10px rgba(0,0,0,.6);
+  }
+  .yt-thumb-wrap:hover .yt-play-icon { opacity: 1; }
+  .yt-dur {
+    position: absolute; right: 6px; bottom: 6px; background: rgba(0,0,0,.8);
+    color: #fff; font-size: 12px; padding: 2px 6px; border-radius: 4px;
+  }
+  .yt-video-title {
+    font-size: 14.5px; font-weight: 600; line-height: 1.35;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .yt-video-meta { font-size: 12.5px; color: var(--muted); }
+  .yt-add-btn { align-self: flex-start; }
+  .yt-btn {
+    padding: 7px 14px; border-radius: 999px; border: none; cursor: pointer;
+    font-size: 13px; font-weight: 700; transition: transform .12s, filter .12s;
+  }
+  .yt-btn.add { background: var(--accent); color: var(--accent-fg); }
+  .yt-btn.watch { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .yt-btn.watched { background: var(--card); color: var(--accent); border: 1px solid var(--accent); cursor: default; animation: watch-pop .35s cubic-bezier(.18,.9,.32,1.3); }
+  @keyframes watch-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.12); }
+    100% { transform: scale(1); }
+  }
+  .yt-btn:hover { transform: scale(1.04); filter: brightness(1.06); }
+  .yt-search-sticky {
+    position: sticky; top: 0; z-index: 30;
+    background: transparent;   /* ίδιο με το φόντο — χωρίς χρωματική διαφορά */
+    padding: 8px 20px 6px;
+    /* 🌫️ Frosted glass: θολώνει ό,τι περνά από κάτω του ΌΤΑΝ σκρολάρει (.scrolled). */
+    backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
+    transition: backdrop-filter .25s ease, -webkit-backdrop-filter .25s ease;
+  }
+  /* Full-bleed frost σε ξεχωριστό layer (absolute, εκτός flow) — πίσω από το κεντραρισμένο περιεχόμενο. */
+  .yt-search-sticky::before {
+    content: ""; position: absolute; z-index: -1;
+    left: calc(50% - 50vw); right: calc(50% - 50vw);
+    top: 0; bottom: 0;
+    background: var(--bg); opacity: 0; pointer-events: none;
+    transition: opacity .25s ease;
+  }
+  .yt-search-sticky.scrolled {
+    backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+  .yt-search-sticky.scrolled::before {
+    opacity: 0.5;
+    /* Λεπτή ανοιχτόχρωμη γραμμή (glow) στο κάτω άκρο — ανάλογα με το θέμα. */
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 12px 28px -10px color-mix(in srgb, var(--border) 80%, transparent);
+  }
+  /* 🧊 Κοινό frosted-glass sticky για όλα τα tabs (Κανάλια / Κατηγορίες / Αναζήτηση). */
+  .sticky-head {
+    position: sticky; top: 0; z-index: 30;
+    background: transparent;
+    padding: 8px 20px 6px;
+    backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
+    transition: backdrop-filter .25s ease, -webkit-backdrop-filter .25s ease;
+  }
+  .sticky-head::before {
+    content: ""; position: absolute; z-index: -1;
+    left: calc(50% - 50vw); right: calc(50% - 50vw);
+    top: 0; bottom: 0;
+    background: var(--bg); opacity: 0; pointer-events: none;
+    transition: opacity .25s ease;
+  }
+  .sticky-head.scrolled {
+    backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+  .sticky-head.scrolled::before {
+    opacity: 0.5;
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 12px 28px -10px color-mix(in srgb, var(--border) 80%, transparent);
+  }
+  .yt-recent {
+    position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.4); padding: 6px; z-index: 40;
+  }
+  .yt-recent-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: 7px; cursor: pointer; font-size: 14px;
+  }
+  .yt-recent-item:hover { background: color-mix(in srgb, var(--card) 60%, var(--accent) 14%); }
+  .yt-recent-head {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+    padding: 4px 10px 6px;
+  }
+  .yt-search-box { position: relative; }
+
+  .yt-modes { display: flex; gap: 8px; margin: 0 0 14px; max-width: 1240px; }
+  .yt-mode {
+    padding: 7px 16px; border-radius: 999px; border: 1px solid transparent;
+    background: transparent; color: var(--text); font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all .12s;
+  }
+  .yt-mode.active { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .yt-mode:hover { border-color: var(--accent); }
+
+  /* 🫧 Bubble Field — αιωρούμενα θέματα (trending) στην αρχική σελίδα αναζήτησης */
+  #bubble-field {
+    position: relative;
+    width: 100%;
+    height: 460px;
+    border-radius: 0;       /* ίδιο φόντο με τη σελίδα — αόρατο */
+    overflow: hidden;
+    margin: 4px 0 18px;
+    background: transparent;  /* ΚΑΝΕΝΑ φόντο → τα bubbles «βγαίνουν από το πουθενά» */
+    cursor: default;
+  }
+  #bubble-field canvas { position: absolute; inset: 0; display: block; }
+  #bubble-field .bf-hint { display: none; }
+
+
+  .yt-channels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; max-width: 1240px; }
+  .yt-channel {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    padding: 18px 12px; border-radius: 14px;
+    background: var(--card); border: 1px solid var(--border);
+    cursor: pointer; text-align: center;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  .yt-channel:hover {
+    transform: translateY(-4px); border-color: var(--accent);
+    box-shadow: 0 16px 40px rgba(0,0,0,.4);
+  }
+  .yt-channel-logo-wrap { width: 100%; display: flex; justify-content: center; }
+  .yt-channel-avatar { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; }
+  .yt-channel-name {
+    font-size: 14px; font-weight: 600; line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .yt-channel:hover { border-color: var(--accent); background: color-mix(in srgb, var(--card) 70%, var(--accent) 12%); }
+  .yt-add-btn { align-self: center; }
+  .yt-next-wrap { display: flex; justify-content: center; margin: 20px 0 8px; max-width: 1240px; }
+  .yt-loading {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 18px 0; color: var(--muted); font-size: 14px;
+  }
+  .yt-loading .spin {
+    width: 16px; height: 16px; flex: 0 0 auto;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: rss-spin .7s linear infinite;
+  }
+  /* ⏳ Loading indicator που δείχνει ότι η λίστα «ξαναχτίζεται» (μετά από add/delete). */
+  #list-loading {
+    display: none; align-items: center; justify-content: center; gap: 10px;
+    padding: 22px 0; color: var(--muted); font-size: 14px;
+  }
+  #list-loading.show { display: flex; }
+  #list-loading .spin {
+    width: 20px; height: 20px; flex: 0 0 auto;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: rss-spin .7s linear infinite;
+  }
+
+  /* 👁️ Channel window (eye) — σαν το video lightbox */
+  .cw-dialog {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    width: min(560px, 92vw); max-height: 82vh; overflow-y: auto;
+    padding: 22px; position: relative; box-shadow: 0 24px 80px rgba(0,0,0,.5);
+  }
+  .cw-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .cw-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+  .cw-title { flex: 1; font-size: 18px; font-weight: 700; line-height: 1.3; min-width: 0; }
+  .cw-videos-title { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+  .cw-videos { display: flex; flex-direction: column; gap: 8px; }
+  .cw-video { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; background: var(--bg, #111); cursor: pointer; }
+  .cw-video:hover { background: color-mix(in srgb, var(--card) 60%, var(--accent) 14%); }
+  .cw-video-thumb { width: 96px; aspect-ratio: 16/9; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+  .cw-video-title { font-size: 13.5px; font-weight: 500; line-height: 1.3; }
+
+  /* 📱 Responsive: βίντεο 3 (ευρύ) → 2 → 1 · κανάλια 4 (ευρύ) → 3 → 2 → 1 */
+  @media (max-width: 1200px) {
+    .yt-channels { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 1000px) {
+    .yt-videos { grid-template-columns: repeat(2, 1fr); }
+    .yt-channels { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .yt-videos { grid-template-columns: 1fr; }
+    .yt-channels { grid-template-columns: 1fr; }
+    .yt-video-title { -webkit-line-clamp: 2; }
+  }
+  /* 📱 Tablet/κινητό: το search γίνεται sticky ΚΑΤΩ (όπως Pinterest) */
+  @media (max-width: 900px) {
+    .yt-search-sticky {
+      position: sticky; top: auto; bottom: 0;
+      border-top: 1px solid var(--border);
+      padding: 8px 0 6px;
+    }
+    .yt-recent { top: auto; bottom: calc(100% + 4px); }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Privacy <span class="lock">YouTuber</span></h1>
+    <span class="privacy-badge" id="privacy-badge">🔒 100% τοπικά</span>
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Αλλαγή θέματος (σκοτεινό / φωτεινό)">🌙</button>
+    <div class="backup-bar">
+      <button class="backup-btn" id="update-btn" onclick="checkUpdate()" title="Έλεγχος για νέα έκδοση">🔄 Update</button>
+      <div class="backup-right">
+        <button class="backup-btn" id="export-btn" onclick="doExport()">📦 Εξαγωγή</button>
+        <button class="backup-btn" id="import-btn" onclick="doImport()">📥 Εισαγωγή</button>
+        <button class="backup-btn" id="import-subs-btn" onclick="doImportSubscriptions()">📡 Subscriptions</button>
+        <span class="backup-status" id="backup-status"></span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" id="tab-search" onclick="switchTab('search')">🔍 Αναζήτηση</button>
+    <button class="tab" id="tab-channels" onclick="switchTab('channels')">📺 Κανάλια</button>
+    <button class="tab" id="tab-categories" onclick="switchTab('categories')">📁 Κατηγορίες</button>
+  </nav>
+
+  <section id="view-channels" style="display:none">
+    <div class="sticky-head" id="channels-head">
+    <div class="add-box">
+      <input type="text" id="add-url" placeholder="Επικόλλησε ένα YouTube link εδώ…" onkeydown="if(event.key==='Enter')addVideo()">
+      <button onclick="addVideo()">➕ Πρόσθεσε</button>
+    </div>
+    <div class="search-box">
+      <input type="text" id="search-input" placeholder="Ψάξε στο ιστορικό σου (τίτλος, κανάλι, tag, κατηγορία)…" oninput="doSearch(this.value)" onkeydown="if(event.key==='Enter')doSearchNow()">
+      <button class="input-clear" id="input-clear" title="Καθάρισε τη λέξη" onclick="clearSearchText()" style="display:none">✕</button>
+      <button id="search-btn" onclick="doSearchNow()">🔍</button>
+      <span class="rating-filter" id="rating-filter" title="Φίλτρο βάσει αστεριών">
+        <span class="stars" id="search-stars">
+          <span class="st" onclick="setSearchRating(1)">★</span>
+          <span class="st" onclick="setSearchRating(2)">★</span>
+          <span class="st" onclick="setSearchRating(3)">★</span>
+          <span class="st" onclick="setSearchRating(4)">★</span>
+          <span class="st" onclick="setSearchRating(5)">★</span>
+        </span>
+      </span>
+      <button class="search-clear" id="search-clear" title="Καθάρισε το φίλτρο αστεριών" onclick="setSearchRating(0)" style="display:none">✕</button>
+    </div>
+    <div class="list-head">
+      <button class="toggle-all" id="toggle-all" title="Άνοιξε/κλείσε ΟΛΑ τα κανάλια" onclick="toggleAllChannels()">▾</button>
+      <span class="list-head-lbl">Κανάλια <span class="list-head-count" id="list-head-count"></span><span class="filter-count" id="filter-count"></span></span>
+      <button class="tag-filter-head" id="tag-filter-head" onclick="toggleTagPanel()">
+        <span class="tag-filter-count-title">🏷️ Tags <span class="tag-filter-count" id="tag-total">(0)</span> <span class="tag-active-count" id="tag-active">· 0 ενεργά</span></span>
+        <span class="cat-chevron" id="tag-chevron">▾</span>
+      </button>
+    </div>
+    <div class="tag-filter-panel" id="tag-filter-panel" style="display:none"></div>
+    </div>
+    <div id="list-loading"><span class="spin"></span> Φορτώνω τη λίστα…</div>
+    <div id="videos"></div>
+  </section>
+
+  <section id="view-categories" style="display:none">
+    <div class="sticky-head" id="categories-head">
+    <div class="cat-toolbar">
+      <div class="cat-add">
+        <input type="text" id="cat-new-input" placeholder="＋ νέα κατηγορία (π.χ. Χόμπι, Εργασία)…" onkeydown="if(event.key==='Enter')addCategory()">
+        <button onclick="addCategory()">Add</button>
+      </div>
+    </div>
+    <div class="search-box">
+      <input type="text" id="cat-search-input" placeholder="Ψάξε στις κατηγορίες (τίτλος, κανάλι, tag)…" oninput="doCatSearch(this.value)" onkeydown="if(event.key==='Enter')doCatSearchNow()">
+      <button id="cat-search-btn" onclick="doCatSearchNow()">🔍</button>
+      <span class="rating-filter" title="Φίλτρο βάσει αστεριών">
+        <span class="stars" id="cat-search-stars">
+          <span class="st" onclick="setCatSearchRating(1)">★</span>
+          <span class="st" onclick="setCatSearchRating(2)">★</span>
+          <span class="st" onclick="setCatSearchRating(3)">★</span>
+          <span class="st" onclick="setCatSearchRating(4)">★</span>
+          <span class="st" onclick="setCatSearchRating(5)">★</span>
+        </span>
+        <span class="rf-clear" id="cat-rating-clear" onclick="setCatSearchRating(0)" style="display:none">×</span>
+      </span>
+      <button class="search-clear" id="cat-search-clear" title="Καθάρισε τα πάντα" onclick="clearCatSearch()" style="display:none">✕</button>
+    </div>
+    <div class="list-head">
+      <button class="toggle-all" id="toggle-all-cat" title="Άνοιξε/κλείσε ΟΛΕΣ τις κατηγορίες" onclick="toggleAllCategories()">▾</button>
+      <span class="list-head-lbl">Κατηγορίες <span class="list-head-count" id="list-head-cat-count"></span></span>
+      <button class="tag-filter-head cat" id="cat-filter-head" onclick="toggleCatPanel()">
+        <span class="tag-filter-count-title cat-title">📁 Κατηγορίες <span class="tag-filter-count" id="cat-total">(0)</span> <span class="tag-active-count" id="cat-active">· 0 ενεργά</span></span>
+        <span class="cat-chevron" id="cat-chevron">▾</span>
+      </button>
+    </div>
+    <div class="tag-filter-panel" id="cat-filter-panel" style="display:none"></div>
+    </div>
+    <div id="categories-list"></div>
+  </section>
+
+  <section id="view-search">
+    <div class="yt-search-sticky">
+      <div class="search-box yt-search-box">
+        <input type="text" id="yt-search-input" placeholder="Ψάξε στο YouTube…" autocomplete="off" onfocus="showRecentSearches()" oninput="if(!this.value.trim()){document.getElementById('yt-search-results').innerHTML='';refreshBubbleField();}" onkeydown="if(event.key==='Enter')doYouTubeSearch()">
+        <button id="yt-search-btn" onclick="doYouTubeSearch()">🔍</button>
+        <div class="yt-recent" id="yt-recent" style="display:none"></div>
+      </div>
+      <div class="yt-modes" id="yt-modes">
+        <button class="yt-mode active" id="ym-videos" onclick="setSearchMode('videos')">🎬 Βίντεο</button>
+        <button class="yt-mode" id="ym-channels" onclick="setSearchMode('channels')">📺 Κανάλια</button>
+        <button class="yt-mode" id="ym-both" onclick="setSearchMode('both')">✦ Και τα δύο</button>
+      </div>
+    </div>
+    <div class="yt-search-status" id="yt-search-status" style="display:none"></div>
+    <div id="bubble-field" style="display:none">
+      <canvas id="bubble-canvas"></canvas>
+    </div>
+    <div id="yt-search-results"></div>
+  </section>
+
+  <!-- Popover για tagging -->
+  <div class="tag-pop" id="tag-pop">
+    <div class="tag-pop-head">🏷️ Tags <button class="tag-pop-close" onclick="closeTagPop()">×</button></div>
+    <div class="tag-pop-list" id="tag-pop-list"></div>
+    <div class="tag-pop-new">
+      <input type="text" id="tag-pop-new-input" placeholder="+ νέο tag" onkeydown="if(event.key==='Enter')addNewTag()">
+      <button onclick="addNewTag()">Add</button>
+    </div>
+  </div>
+
+  <!-- Popover για κατηγορίες -->
+  <div class="tag-pop" id="cat-pop">
+    <div class="tag-pop-head">📁 Κατηγορία <button class="tag-pop-close" onclick="closeCatPop()">×</button></div>
+    <div class="tag-pop-list" id="cat-pop-list"></div>
+    <div class="tag-pop-new">
+      <input type="text" id="cat-pop-new-input" placeholder="+ νέα κατηγορία" onkeydown="if(event.key==='Enter')saveVideoCategory()">
+      <button onclick="saveVideoCategory()">Add</button>
+    </div>
+  </div>
+
+  <!-- Popover για pin (3 states) -->
+  <div class="tag-pop" id="pin-pop">
+    <div class="tag-pop-head">📌 Καρφίτσωμα <button class="tag-pop-close" onclick="closePinPop()">×</button></div>
+    <div class="pin-pop-list" id="pin-pop-list"></div>
+  </div>
+
+<script>
+const MUTED_TOPICS = () => new Set(JSON.parse(localStorage.getItem("mutedTopics") || "[]"));
+
+async function load() {
+  // ⏳ Δείξε το spinner την ώρα που φορτώνει η λίστα (μετά από add/delete/κλπ).
+  let loadingEl = document.getElementById("list-loading");
+  if (loadingEl) loadingEl.classList.add("show");
+  const d = await (await fetch("/api/dashboard")).json();
+
+  // Στατιστικά ΜΕΣΑ στο privacy bubble (κλειδαριά · 100% · βίντεο · κανάλια — ΟΧΙ προβολές)
+  const s = d.stats || {};
+  document.getElementById("privacy-badge").innerHTML =
+    `🔒 100% τοπικά` +
+    `<span class="sep">·</span><b>${s.videos ?? 0}</b> βίντεο` +
+    `<span class="sep">·</span><b>${s.top_channel_count ?? 0}</b> κανάλια`;
+
+  // Βιβλιοθήκη — group ανά κανάλι (με tag filter)
+  allVideos = d.videos || [];
+  ALL_TAGS = d.all_tags || [];
+  CHANNEL_TAGS = d.channel_tags || {};
+  ALL_CATEGORIES = d.all_categories || [];
+  // 🎯 Memory state:
+  //   - Κανάλια ΜΕ ανοιχτό News Feed (watched) → κλειστά ΜΟΝΟ στο αρχικό load (εξοικονόμηση πόρων).
+  //   - Στα επόμενα re-render (add/remove/κλπ) → ΣΕΒΕΤΑΙ την τρέχουσα κατάσταση του χρήστη.
+  WATCHED_CHANNELS = d.channel_watch || {};
+  WATCHED_META = d.channel_watch_meta || {};
+  const savedCollapsed = new Set(d.collapsed || []);
+  if (!_initialized) {
+    // Πρώτο load: watched → κλειστό, αλλιώς θυμάται το d.collapsed.
+    collapsedChannels = new Set();
+    (d.videos || []).forEach(v => {
+      const key = v.channel_id || v.channel || "__unknown__";
+      if (WATCHED_CHANNELS[key] === 1) {
+        collapsedChannels.add(key);          // watched → κλειστό (μόνο αρχικά)
+      } else if (savedCollapsed.has(key)) {
+        collapsedChannels.add(key);          // θυμάται: είχε κλείσει
+      }
+      // αλλιώς → ανοιχτό
+    });
+    _initialized = true;
+  } else {
+    // Re-render (add/remove/κλπ): ΜΗΝ πειράξεις ΚΑΘΟΛΟΥ το collapsedChannels.
+    // Ο χρήστης έχει τον πλήρη έλεγχο μετά το αρχικό load.
+    // (Τα ολοκαίνουρια κανάλια μένουν όπως τα δηλώνει το backend μετά το επόμενο restart.)
+  }
+  channelOrder = d.order || [];
+  catOrder = d.cat_order || [];
+  collapsedCats = new Set(d.cat_collapsed || []);
+  rssShown = (typeof d.rss_shown === "number" && d.rss_shown >= 1) ? d.rss_shown : 6;
+  // ⏱️ Φόρτωσε τα timestamp notes όλων των βίντεο (για τα cards) — async, μετά re-render.
+  const _vids = d.videos || [];
+  if (_vids.length) {
+    const ids = _vids.map(v => v.video_id).join(",");
+    fetch(`/api/all-video-notes?ids=${encodeURIComponent(ids)}`).then(r => r.json()).then(n => {
+      VIDEO_NOTES = n.notes || {};
+      renderCurrent();
+    }).catch(() => {});
+  }
+  renderTagFilter();
+  renderCurrent();
+  renderCategories();
+  // ξαναζωγράφισε τα RSS panels που είχαν ήδη φορτωθεί (χάνονται στο re-render)
+  Object.keys(RSS_DATA).forEach(cid => {
+    if (RSS_DATA[cid] !== undefined) renderRssPanel(cid);
+  });
+  // ⏳ Κρύψε το spinner — η λίστα φορτώθηκε.
+  loadingEl = document.getElementById("list-loading");
+  if (loadingEl) loadingEl.classList.remove("show");
+}
+
+function shortDate(iso) {
+  const d = new Date(iso || Date.now());
+  return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+}
+
+/* --- Full-text search στο ιστορικό (τίτλος, κανάλι, tags, κατηγορία) --- */
+let searchTimer = null;
+let searchRating = 0;  // 0 = κανένα φίλτρο αστεριών, 1-5 = min rating
+
+function setSearchRating(n) {
+  searchRating = n;
+  // ενημέρωσε τα αστεράκια (μόνο όσα πατήθηκαν ανάβουν)
+  const stars = document.querySelectorAll("#search-stars .st");
+  stars.forEach((s, i) => s.classList.toggle("on", i < n));
+  document.getElementById("search-clear").style.display = n ? "inline-flex" : "none";
+  // ξανασχεδίασε και τα tag chips (ώστε να κρυφτεί ο × όταν μπαίνουμε σε search mode)
+  renderTagFilter();
+  renderCurrent();
+}
+
+// Έξοδος από search/filter mode: καθαρίζει κείμενο + rating.
+function clearSearch() {
+  const inp = document.getElementById("search-input");
+  if (inp) inp.value = "";
+  setSearchRating(0);
+  renderCurrent();
+}
+
+// Το ΕΝΙΑΙΟ σημείο rendering — ΠΡΟΣΘΕΤΙΚΟ (OR): κάθε κριτήριο ΠΡΟΣΘΕΤΕΙ αποτελέσματα.
+// Ένα βίντεο εμφανίζεται αν ταιριάζει σε ΟΠΟΙΟΔΗΠΟΤΕ ενεργό κριτήριο (tag Ή rating Ή κείμενο).
+function renderCurrent() {
+  const q = document.getElementById("search-input").value.trim();
+  // Αν υπάρχει κείμενο → ασύγχρονη αναζήτηση στο backend (και εκεί OR).
+  if (q) {
+    runSearch(q);
+    return;
+  }
+  // Χωρίς κείμενο: προσθετική ένωση (rating + tags).
+  let res = unionFilters(allVideos);
+  const hasFilter = searchRating > 0 || selectedTags.size > 0;
+  ACTIVE_FILTER = hasFilter;
+  document.getElementById("videos").innerHTML = renderVideos(res);
+  setupDrag();
+  updateToggleAllBtn();
+  updateSearchClearBtn();
+  if (hasFilter) showUnifiedBanner(res.length);
+  else hideFilterBanner();
+  staggerFade();
+}
+
+// ⚡ Στιγμιαία εμφάνιση (χωρίς stagger/fade) — το αίτημα για «flawless ταχύτητα».
+function staggerFade() {
+  // No-op: τα βίντεα εμφανίζονται άμεσα, χωρίς καθυστέρηση.
+}
+
+// Ενώνει (OR) τα αποτελέσματα από κάθε ενεργό tag + το rating.
+function unionFilters(res) {
+  const active = searchRating > 0 || selectedTags.size > 0;
+  if (!active) return res;
+  const seen = new Set();
+  const out = [];
+  for (const v of res) {
+    let match = false;
+    for (const t of selectedTags) {
+      if (videoTags(v).includes(t)) { match = true; break; }
+    }
+    if (!match && searchRating && (v.rating || 0) === searchRating) match = true;
+    if (match && !seen.has(v.video_id)) {
+      seen.add(v.video_id);
+      out.push(v);
+    }
+  }
+  return out;
+}
+
+// Άμεση αναζήτηση (button / Enter) — χωρίς debounce.
+async function doSearchNow() {
+  clearTimeout(searchTimer);
+  const inp = document.getElementById("search-input");
+  const q = inp ? inp.value : "";
+  await runSearch(q);
+}
+
+// Live αναζήτηση καθώς πληκτρολογείς (με μικρό debounce).
+function doSearch(q) {
+  // Άμεση εμφάνιση του στρογγυλού × (χωρίς να περιμένει το debounce).
+  const el = document.getElementById("input-clear");
+  if (el) el.style.display = (q && q.trim()) ? "inline-flex" : "none";
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => runSearch(q), 150);
+}
+
+// Αναζήτηση με κείμενο (backend) — γράφει στο #videos, με εικονίδια. ΠΡΟΣΘΕΤΙΚΟ (OR):
+// ένωση των αποτελεσμάτων κειμένου με τα tag/rating αποτελέσματα.
+async function runSearch(q) {
+  const qs = (q || "").trim();
+  if (!qs) {
+    // χωρίς κείμενο → γύρνα στο τοπικό φίλτρο (rating/tags)
+    renderCurrent();
+    return;
+  }
+  try {
+    const d = await (await fetch("/api/search?q=" + encodeURIComponent(qs))).json();
+    const textResults = d.results || [];
+    // Προσθετική ένωση: κείμενο + tags + rating (χωρίς διπλότυπα).
+    const seen = new Set();
+    let out = [];
+    const push = (arr) => {
+      for (const v of arr) {
+        if (!seen.has(v.video_id)) { seen.add(v.video_id); out.push(v); }
+      }
+    };
+    push(textResults);
+    if (searchRating > 0 || selectedTags.size > 0) {
+      push(unionFilters(allVideos));
+    }
+    // 🎯 Αναζήτηση = ενεργό φίλτρο → όλα τα matching κανάλια ΑΝΟΙΓΟΥΝ.
+    ACTIVE_FILTER = true;
+    document.getElementById("videos").innerHTML = renderVideos(out);
+    setupDrag();
+    updateToggleAllBtn();
+    updateSearchClearBtn();
+    showUnifiedBanner(out.length);
+  } catch {
+    document.getElementById("videos").innerHTML = '<span class="empty">σφάλμα δικτύου</span>';
+  }
+}
+
+// Ενεργό φίλτρο: αντί για μπλε μπάρα, δείχνει τον αριθμό βίντεο ΜΕΣΑ στο «Κανάλια».
+function showUnifiedBanner(count) {
+  hideFilterBanner();
+  const fc = document.getElementById("filter-count");
+  if (fc) fc.textContent = `· ${count} βίντεο`;
+}
+
+// Ένα chip ανά ενεργό κριτήριο, το καθένα με δικό του × (αφαιρεί ΜΟΝΟ αυτό το κριτήριο).
+function activeFilterChips() {
+  const q = document.getElementById("search-input").value.trim();
+  const out = [];
+  if (q) out.push(`<span class="fc fc-q">🔎 ${esc(q)} <span class="fc-x" onclick="removeSearchText()" title="Αφαίρεσε μόνο τη λέξη">×</span></span>`);
+  for (const t of selectedTags) out.push(`<span class="fc fc-tag">#${esc(t)} <span class="fc-x" onclick="removeFilterTag('${esc(t)}')" title="Αφαίρεσε μόνο αυτό το tag">×</span></span>`);
+  if (searchRating) out.push(`<span class="fc fc-rate">${"★".repeat(searchRating)} <span class="fc-x" onclick="removeRating()" title="Αφαίρεσε μόνο το rating">×</span></span>`);
+  return out.length ? out.join('<span class="fc-and">ή</span>') : '';
+}
+
+// Αφαιρεί ΜΟΝΟ τη λέξη αναζήτησης (κρατά τα tags/rating).
+function removeSearchText() {
+  document.getElementById("search-input").value = "";
+  renderCurrent();
+}
+
+// Αφαιρεί ΜΟΝΟ αυτό το tag από το ΦΙΛΤΡΟ (δεν αγγίζει το tagging system).
+function removeFilterTag(tag) {
+  selectedTags.delete(tag);
+  renderTagFilter();
+  renderCurrent();
+}
+
+// Αφαιρεί ΜΟΝΟ το rating φίλτρο.
+function removeRating() {
+  setSearchRating(0);
+}
+
+/* --- Προσωπικό TAG system + rating --- */
+let allVideos = [];
+let SEARCH_VIDEOS = [];   // τελευταία αποτελέσματα αναζήτησης (για το floating player)
+let SEARCH_MODE = "videos";  // "videos" | "channels" | "both"
+let SEARCH_OFFSET = 0;        // σελίδα (offset) για τα βίντεο
+let SEARCH_QUERY = "";        // τελευταίο query
+let SEARCH_HAS_MORE = false;  // υπάρχει επόμενη σελίδα;
+let NEW_CHANNELS = new Set(); // κανάλια που προστέθηκαν πρόσφατα (μπλε banner)
+let RECENT_SEARCHES = [];     // πρόσφατες αναζητήσεις (από τον server/SQLite)
+let VIDEO_NOTES = {};         // video_id -> [notes] (για τα cards)
+let ALL_TAGS = [];
+let CHANNEL_TAGS = {};
+let ALL_CATEGORIES = [];   // ταξινομημένη λίστα ονομάτων (από τη βάση)
+let selectedTags = new Set();  // φίλτρο (κενό = όλα)
+let tagPopTarget = null;
+let tagPopBtn = null;
+let catPopTarget = null;   // {type='video', id} για το popover κατηγορίας
+let catPopBtn = null;
+let currentTab = 'search';  // 'search' | 'channels' | 'categories'
+let collapsedCats = new Set(); // κατηγορίες που έκλεισε ο χρήστης στο tab Κατηγορίες
+let selectedCats = new Set();  // κατηγορίες τσεκαρισμένες ως ΦΙΛΤΡΟ (κενό = όλες)
+let catOrder = [];             // σειρά κατηγοριών (από τη βάση, επιμένει)
+let collapsedChannels = new Set();  // από τη βάση (επιμένει & στο incognito)
+let ACTIVE_FILTER = false;          // true όταν τρέχει φίλτρο (αναζήτηση/αστεράκια/tag) → matching ανοιχτά
+let _initialized = false;           // true μετά το πρώτο load (ο κανόνας "watched→κλειστό" ισχύει μόνο αρχικά)
+let channelOrder = [];              // από τη βάση (επιμένει & στο incognito)
+let WATCHED_CHANNELS = {};          // map channel_id -> 1/0 (RSS watchdog toggle)
+let WATCHED_META = {};              // map channel_id -> {enabled, name} (εισαγμένα subscriptions)
+let RSS_DATA = {};                  // channel_id -> [νέα βίντεο που σου ξέφυγαν] (cache από /check_new)
+let rssShown = 6;                   // ΠΟΣΑ νέα βίντεα δείχνει το feed (ΚΟΙΝΟ για όλα τα κανάλια, επιμένει στη βάση)
+
+// --- Εικονίδια καμπάνας (emoji) ---
+function bellIcon() { return "🔔"; }      // ανοιχτό (ενεργό)
+function bellOffIcon() { return "🔕"; }    // κλειστό (διαγραμμένο)
+function watchBellHtml(on) { return on ? bellIcon() : bellOffIcon(); }
+
+function videoTags(v) {
+  const set = new Set(v.my_tags || []);
+  const key = v.channel_id || v.channel || "__unknown__";
+  for (const t of (CHANNEL_TAGS[key] || [])) set.add(t);
+  return [...set];
+}
+
+// Ποιo κριτήριο ταίριαξε σε αυτό το βίντεο (για το match-highlight).
+// Επιστρέφει { tagChannel, tagVideo, rating, titleMatch }.
+function matchInfo(v) {
+  const q = (document.getElementById("search-input").value || "").trim().toLowerCase();
+  const info = { tagChannel: false, tagVideo: false, rating: false, titleMatch: null };
+  // tags
+  for (const t of selectedTags) {
+    const key = v.channel_id || v.channel || "__unknown__";
+    if ((CHANNEL_TAGS[key] || []).includes(t)) info.tagChannel = true;
+    if ((v.my_tags || []).includes(t)) info.tagVideo = true;
+  }
+  // rating
+  if (searchRating && (v.rating || 0) === searchRating) info.rating = true;
+  // τίτλος (λέξη του search)
+  if (q) {
+    const title = (v.title || "");
+    const idx = title.toLowerCase().indexOf(q);
+    if (idx >= 0) info.titleMatch = { idx, len: q.length };
+  }
+  return info;
+}
+
+// Τονίζει τη λέξη αναζήτησης στον τίτλο (bold κόκκινο).
+function highlightTitle(title, info) {
+  if (!info.titleMatch) return esc(title);
+  const { idx, len } = info.titleMatch;
+  const before = esc(title.slice(0, idx));
+  const hit = esc(title.slice(idx, idx + len));
+  const after = esc(title.slice(idx + len));
+  return `${before}<mark class="hl">${hit}</mark>${after}`;
+}
+
+function renderTagFilter() {
+  const panel = document.getElementById("tag-filter-panel");
+  const totalEl = document.getElementById("tag-total");
+  const activeEl = document.getElementById("tag-active");
+  if (!panel) return;
+
+  // Ενημέρωση κουμπιού: σύνολο + ενεργά.
+  const total = ALL_TAGS.length;
+  const active = selectedTags.size;
+  if (totalEl) totalEl.textContent = `(${total})`;
+  if (activeEl) activeEl.textContent = active > 0 ? `· ${active} ενεργά` : "";
+
+  if (!ALL_TAGS.length) {
+    panel.innerHTML = '<span class="lbl" style="font-size:12px">🏷️ Πάτα το 🏷️ σε ένα βίντεο ή κανάλι για να φτιάξεις tags.</span>';
+    return;
+  }
+  const inSearch = isSearchMode();
+  const tags = [...ALL_TAGS].sort();
+  panel.innerHTML = tags.map(t => {
+    const on = selectedTags.has(t);
+    const delBtn = inSearch
+      ? ''
+      : `<span class="tag-filter-x" title="Διαγραφή του tag «${esc(t)}» από παντού" onclick="confirmDeleteTag('${esc(t)}', this); event.stopPropagation();">×</span>`;
+    return `<label class="tag-chk green ${on ? 'on' : ''}">
+      <input type="checkbox" ${on ? 'checked' : ''} onchange="toggleFilterTag('${esc(t)}', this.checked)">${esc(t)}
+      ${delBtn}
+    </label>`;
+  }).join('');
+}
+
+function toggleTagPanel() {
+  const panel = document.getElementById("tag-filter-panel");
+  if (!panel) return;
+  const show = panel.style.display === "none";
+  panel.style.display = show ? "block" : "none";
+  const chev = document.getElementById("tag-chevron");
+  if (chev) chev.textContent = show ? "▴" : "▾";
+}
+
+// Είμαστε σε search mode αν υπάρχει κείμενο, rating Ή επιλεγμένο tag.
+function isSearchMode() {
+  const q = document.getElementById("search-input").value.trim();
+  return !!(q || searchRating > 0 || selectedTags.size > 0);
+}
+
+function toggleFilterTag(tag, on) {
+  if (on) selectedTags.add(tag); else selectedTags.delete(tag);
+  renderTagFilter();
+  renderCurrent();
+}
+
+function hideFilterBanner() {
+  const b = document.getElementById("filter-banner");
+  if (b) b.remove();
+  const fc = document.getElementById("filter-count");
+  if (fc) fc.textContent = "";
+}
+
+function clearAllFilters() {
+  clearSearch();
+  selectedTags.clear();
+  renderTagFilter();
+  renderCurrent();
+}
+
+// Εμφανίζει/κρύβει το «✕ Clear All» ανάλογα με το αν υπάρχει ενεργό φίλτρο.
+function updateSearchClearBtn() {
+  const q = document.getElementById("search-input").value.trim();
+  const el = document.getElementById("input-clear");
+  if (el) el.style.display = q ? "inline-flex" : "none";
+  const rc = document.getElementById("search-clear");
+  if (rc) rc.style.display = (searchRating > 0) ? "inline-flex" : "none";
+}
+
+// Αδειάζει ΜΟΝΟ τη λέξη του search field (κρατά αστεράκια + tags).
+function clearSearchText() {
+  const inp = document.getElementById("search-input");
+  if (inp) inp.value = "";
+  renderCurrent();
+}
+
+/* --- Tag popover --- */
+function openTagPop(btn, type, id) {
+  const pop = document.getElementById("tag-pop");
+  // Toggle: αν είναι ήδη ανοιχτό για το ίδιο target → κλείσε με pop-out.
+  if (pop.classList.contains("open") && tagPopTarget && tagPopTarget.type === type && tagPopTarget.id === id) {
+    closeTagPop();
+    return;
+  }
+  tagPopTarget = { type, id };
+  tagPopBtn = btn;
+  const currentTags = type === 'video'
+    ? (allVideos.find(x => x.video_id === id)?.my_tags || [])
+    : (CHANNEL_TAGS[id] || []);
+  renderTagPopList(currentTags);
+  // σβήσε τυχόν closing class + inline display πριν το νέο άνοιγμα
+  pop.classList.remove("closing");
+  pop.style.display = "";
+  pop.classList.add("open");
+  repositionTagPop();
+}
+
+function repositionTagPop() {
+  const pop = document.getElementById("tag-pop");
+  if (!pop.classList.contains("open") || !tagPopBtn) return;
+  const r = tagPopBtn.getBoundingClientRect();
+  // αν το button βγει από το viewport (πάνω ή κάτω), κλείσε το popover
+  if (r.bottom < 0 || r.top > window.innerHeight) {
+    pop.classList.remove("open");
+    tagPopTarget = null;
+    tagPopBtn = null;
+    return;
+  }
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 236)) + "px";
+  pop.style.top = Math.min(r.bottom + 6, window.innerHeight - pop.offsetHeight - 8) + "px";
+}
+
+function renderTagPopList(currentTags) {
+  const list = document.getElementById("tag-pop-list");
+  if (!ALL_TAGS.length) {
+    list.innerHTML = '<span class="muted" style="font-size:12px">Γράψε το πρώτο σου tag 👇</span>';
+    return;
+  }
+  list.innerHTML = ALL_TAGS.map(t => `
+    <div class="tag-pop-item">
+      <label class="tag-pop-label">
+        <input type="checkbox" value="${esc(t)}" ${currentTags.includes(t) ? 'checked' : ''} onchange="toggleTag()">${esc(t)}
+      </label>
+      <button class="tag-del" title="Διαγραφή του tag «${esc(t)}» από παντού" onclick="confirmDeleteTag('${esc(t)}', this)">×</button>
+    </div>
+  `).join("");
+}
+
+function confirmDeleteTag(tag, btn) {
+  // κλείσε τυχόν προηγούμενο confirm
+  closeDeleteConfirm();
+  const rect = btn.getBoundingClientRect();
+  const pop = document.createElement("div");
+  pop.className = "del-confirm";
+  pop.id = "del-confirm";
+  pop.innerHTML = `
+    <div class="dc-msg">Θα σβηστεί το tag <b>${esc(tag)}</b> από <b>ΟΛΑ</b> τα βίντεο και κανάλια.<br><span class="dc-warn">Δεν ξαναγυρίζει.</span></div>
+    <div class="dc-btns">
+      <button class="dc-yes" onclick="doDeleteTag('${esc(tag)}')">✓ Ναι, σβήστο</button>
+      <button class="dc-no" onclick="closeDeleteConfirm()">✕ Άκυρο</button>
+    </div>`;
+  document.body.appendChild(pop);
+  // τοποθέτησε δίπλα στο κουμπί (αν χωράει κάτω, αλλιώς πάνω)
+  const popW = 280, popH = 96;
+  let left = rect.left;
+  let top = rect.bottom + 6;
+  if (top + popH > window.innerHeight) top = rect.top - popH - 6;
+  if (left + popW > window.innerWidth) left = window.innerWidth - popW - 8;
+  pop.style.left = Math.max(8, left) + "px";
+  pop.style.top = Math.max(8, top) + "px";
+}
+
+function closeDeleteConfirm() {
+  const p = document.getElementById("del-confirm");
+  if (p) p.remove();
+}
+
+function doDeleteTag(tag) {
+  closeDeleteConfirm();
+  fetch("/delete_tag", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tag }),
+  }).then(() => {
+    // ενημέρωση τοπικά
+    ALL_TAGS = ALL_TAGS.filter(t => t !== tag);
+    selectedTags.delete(tag);
+    for (const v of allVideos) {
+      if (v.my_tags) v.my_tags = v.my_tags.filter(t => t !== tag);
+    }
+    for (const k in CHANNEL_TAGS) {
+      CHANNEL_TAGS[k] = (CHANNEL_TAGS[k] || []).filter(t => t !== tag);
+    }
+    // ξανασχεδίασε τα πάντα
+    renderTagFilter();
+    renderCurrent();
+    // κλείσε το popover (το target μπορεί να έχει χάσει το tag)
+    closeTagPop();
+  });
+}
+
+function toggleTag() {
+  if (!tagPopTarget) return;
+  const checked = [...document.querySelectorAll("#tag-pop-list input:checked")].map(i => i.value);
+  const url = tagPopTarget.type === 'video' ? '/set_video_tags' : '/set_channel_tags';
+  const body = tagPopTarget.type === 'video'
+    ? { video_id: tagPopTarget.id, tags: checked }
+    : { channel_id: tagPopTarget.id, tags: checked };
+  fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (tagPopTarget.type === 'video') {
+    const v = allVideos.find(x => x.video_id === tagPopTarget.id);
+    if (v) v.my_tags = checked;
+  } else {
+    CHANNEL_TAGS[tagPopTarget.id] = checked;
+  }
+  // ξανατρέξε το ενεργό φίλτρο (αν υπάρχει) με τα νέα tags
+  renderCurrent();
+}
+
+function addNewTag() {
+  const input = document.getElementById("tag-pop-new-input");
+  const name = input.value.trim();
+  if (!name) return;
+  if (!ALL_TAGS.includes(name)) ALL_TAGS.push(name);
+  input.value = "";
+
+  if (tagPopTarget) {
+    const current = tagPopTarget.type === 'video'
+      ? (allVideos.find(x => x.video_id === tagPopTarget.id)?.my_tags || [])
+      : (CHANNEL_TAGS[tagPopTarget.id] || []);
+    if (!current.includes(name)) current.push(name);
+    renderTagPopList(current);
+    toggleTag();
+  }
+  renderTagFilter();
+}
+
+function closeTagPop() {
+  const pop = document.getElementById("tag-pop");
+  // Pop-out animation πριν το πραγματικό κλείσιμο.
+  if (pop.classList.contains("open") && !pop.classList.contains("closing")) {
+    pop.classList.remove("open");
+    pop.classList.add("closing");
+    setTimeout(() => {
+      pop.classList.remove("closing");
+      pop.style.display = "none";
+      tagPopTarget = null;
+      tagPopBtn = null;
+      load();
+    }, 150);
+    return;
+  }
+  pop.classList.remove("open");
+  tagPopTarget = null;
+  tagPopBtn = null;
+  load();
+}
+
+document.addEventListener("click", (e) => {
+  const pop = document.getElementById("tag-pop");
+  if (pop.classList.contains("open") && !pop.contains(e.target) && !e.target.closest(".tag-btn")) {
+    closeTagPop();
+  }
+  const cpop = document.getElementById("cat-pop");
+  if (cpop.classList.contains("open") && !cpop.contains(e.target) && !e.target.closest(".cat-btn")) {
+    closeCatPop();
+  }
+});
+
+// Το popover ακολουθεί το button καθώς σκρολάρεις· κλείνει μόνο όταν βγει από το viewport.
+window.addEventListener("scroll", repositionTagPop, true);
+window.addEventListener("scroll", repositionCatPop, true);
+
+/* --- Rating --- */
+function rateVideo(videoId, rating) {
+  fetch("/set_video_rating", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ video_id: videoId, rating }),
+  }).then(() => {
+    const v = allVideos.find(x => x.video_id === videoId);
+    if (v) v.rating = rating;
+    // ξανασχεδίασε το ΣΩΣΤΟ tab (κανάλια ή κατηγορίες)
+    if (currentTab === "categories") renderCategories();
+    else renderCurrent();
+  });
+}
+
+/* --- Seen (άνοιξε το βίντεο → ιστορικό, ΟΧΙ ξεμόβισμα του ΝΕΟ) --- */
+function markSeen(videoId) {
+  // Καταγράφει ΜΟΝΟ το last_watched_at (ιστορικό) — ΣΙΩΠΗΛΑ, χωρίς re-render.
+  // (Ο λόγος: καλείται όταν ανοίγει το lightbox· το re-render εδώ θα «διπλώσει»
+  //  όλα τα κανάλια και θα κλείσει το News Feed — λάθος UX.)
+  fetch("/mark_seen", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ video_id: videoId }),
+  }).catch(() => {});
+}
+
+/* --- ✓ το είδα — ξεμοβίζει ΧΕΙΡΟΚΙΝΗΤΑ το «ΝΕΟ» βίντεο --- */
+function markVideoSeen(videoId) {
+  fetch("/mark_unseen_off", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ video_id: videoId }),
+  }).then(() => {
+    const v = allVideos.find(x => x.video_id === videoId);
+    if (v) v.unseen = 0;
+    // ⚡ Στιγμιαία αφαίρεση (χωρίς fade/delay).
+    if (currentTab === "categories") renderCategories();
+    else renderCurrent();
+  });
+}
+
+/* --- Backup: Εξαγωγή / Εισαγωγή --- */
+function backupStatus(msg, isError) {
+  const el = document.getElementById("backup-status");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = isError ? "var(--danger)" : "var(--muted)";
+}
+
+function doExport() {
+  backupStatus("….φτιάχνω το export…");
+  fetch("/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+    .then(r => r.json())
+    .then(d => {
+      if (d.cancelled) { backupStatus(""); return; }
+      if (!d.ok) { backupStatus("⚠️ Σφάλμα: " + (d.error || "άγνωστο"), true); return; }
+      backupStatus("✅ Αποθηκεύτηκε: " + d.path);
+    })
+    .catch(e => backupStatus("⚠️ Δεν απαντά ο server", true));
+}
+
+// 🔄 Έλεγχος για ενημέρωση — ρωτάει το backend (/update_check), που τσεκάρει το GitHub.
+function checkUpdate() {
+  const btn = document.getElementById("update-btn");
+  if (btn) { btn.disabled = true; btn.textContent = "…έλεγχος…"; }
+  fetch("/update_check", { method: "GET" })
+    .then(r => r.json())
+    .then(d => {
+      if (btn) { btn.disabled = false; btn.textContent = "🔄 Ενημέρωση"; }
+      if (!d.ok) {
+        showUpdatePopup(false, d.current, null, d.error || "Δεν κατάφερα να ελέγξω.");
+        return;
+      }
+      showUpdatePopup(true, d.current, d);
+    })
+    .catch(e => {
+      if (btn) { btn.disabled = false; btn.textContent = "🔄 Ενημέρωση"; }
+      showUpdatePopup(false, null, null, "Δεν απαντά ο server.");
+    });
+}
+
+function showUpdatePopup(ok, current, data, errMsg) {
+  closeUpdatePopup();
+  const pop = document.createElement("div");
+  pop.className = "del-confirm center";
+  pop.id = "update-pop";
+  let inner = "";
+  if (ok && data && data.newer) {
+    inner = `
+      <div class="dc-msg">🆕 <b>Νέα έκδοση διαθέσιμη!</b><br>
+      <span class="muted">Τρέχουσα: v${esc(current)} · Τελευταία: v${esc(data.latest)}</span><br>
+      ${data.notes ? `<span class="dc-warn">${esc(data.notes)}</span>` : ""}</div>
+      <div class="dc-btns">
+        <button class="dc-yes" onclick="window.open('${esc(data.url || "")}', '_blank')">⬇ Κατέβασε</button>
+        <button class="dc-no" onclick="closeUpdatePopup()">Αργότερα</button>
+      </div>`;
+  } else if (ok) {
+    inner = `
+      <div class="dc-msg">✅ <b>Έχεις την τελευταία έκδοση</b><br>
+      <span class="muted">v${esc(current)}</span></div>
+      <div class="dc-btns">
+        <button class="dc-no" onclick="closeUpdatePopup()">Οκ</button>
+      </div>`;
+  } else {
+    inner = `
+      <div class="dc-msg">⚠️ <b>Έλεγχος απέτυχε</b><br>
+      <span class="muted">${esc(errMsg || "άγνωστο σφάλμα")}</span><br>
+      ${current ? `<span class="muted">Τρέχουσα: v${esc(current)}</span>` : ""}</div>
+      <div class="dc-btns">
+        <button class="dc-no" onclick="closeUpdatePopup()">Οκ</button>
+      </div>`;
+  }
+  pop.innerHTML = inner;
+  document.body.appendChild(pop);
+}
+
+function closeUpdatePopup() {
+  const p = document.getElementById("update-pop");
+  if (p) p.remove();
+}
+
+function doImport() {
+  showImportModePopup(mode => {
+    if (!mode) { backupStatus(""); return; }
+    backupStatus(mode === "replace" ? "….εισαγωγή (αντικατάσταση)…" : "….εισαγωγή (συγχώνευση)…");
+    fetch("/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode }),
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.cancelled) { backupStatus(""); return; }
+        if (!d.ok) { backupStatus("⚠️ Σφάλμα: " + (d.error || "άγνωστο"), true); return; }
+        backupStatus("✅ Εισαγωγή ολοκληρώθηκε (" + (mode === "replace" ? "αντικατάσταση" : "συγχώνευση") + ")");
+        load();  // ξαναφόρτωσε με τα νέα δεδομένα
+      })
+      .catch(e => backupStatus("⚠️ Δεν απαντά ο server", true));
+  });
+}
+
+function doImportSubscriptions() {
+  // 📡 Εισαγωγή καναλιών από το subscriptions.csv (Google Takeout) → γίνονται «παρακολουθούμενα».
+  backupStatus("….εισαγωγή καναλιών…");
+  fetch("/import_subscriptions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  })
+    .then(r => r.json())
+    .then(d => {
+      if (d.cancelled) { backupStatus(""); return; }
+      if (!d.ok) { backupStatus("⚠️ " + (d.error || "Σφάλμα"), true); return; }
+      backupStatus("✅ Εισήχθησαν " + d.count + " κανάλια ως «παρακολουθούμενα»");
+      load();
+    })
+    .catch(() => backupStatus("⚠️ Δεν απαντά ο server", true));
+}
+
+function showImportModePopup(onChoice) {
+  // Αφαιρεί τυχόν παλιό popup
+  document.querySelectorAll(".import-pop").forEach(p => p.remove());
+
+  const overlay = document.createElement("div");
+  overlay.className = "import-pop";
+  overlay.innerHTML = `
+    <div class="import-pop-card">
+      <div class="import-pop-title">Πώς θες να γίνει η εισαγωγή;</div>
+      <p class="import-pop-sub">Διάλεξε αν θα αντικατασταθούν τα τρέχοντα δεδομένα ή θα συγχωνευτούν (χωρίς διπλότυπα).</p>
+      <div class="import-pop-actions">
+        <button class="backup-btn imp-replace">🔄 Αντικατάσταση</button>
+        <button class="backup-btn imp-merge">🔗 Συγχώνευση</button>
+        <button class="backup-btn imp-cancel">Ακύρωση</button>
+      </div>
+    </div>`;
+  overlay.querySelector(".imp-replace").onclick = () => { document.querySelectorAll(".import-pop").forEach(p => p.remove()); onChoice("replace"); };
+  overlay.querySelector(".imp-merge").onclick = () => { document.querySelectorAll(".import-pop").forEach(p => p.remove()); onChoice("merge"); };
+  overlay.querySelector(".imp-cancel").onclick = () => { document.querySelectorAll(".import-pop").forEach(p => p.remove()); onChoice(null); };
+  document.body.appendChild(overlay);
+}
+
+/* --- RSS Watchdog (🔔 νέα βίντεο ΜΕΣΑ σε κάθε κανάλι) --- */
+function toggleWatch(channelId, btn) {
+  const enabled = WATCHED_CHANNELS[channelId] === 1 ? 0 : 1;
+  WATCHED_CHANNELS[channelId] = enabled;
+  // Νέο κανάλι (ενεργοποίηση watch) → μπλε banner.
+  if (enabled === 1) NEW_CHANNELS.add(channelId);
+  // 🟣 LIVE fade του μωβ banner — τη στιγμή του πατήματος, όχι στο επόμενο load.
+  const group = btn ? btn.closest(".channel-group") : document.querySelector(`.channel-group[data-key="${CSS.escape(channelId)}"]`);
+  if (group) group.classList.toggle("watched", enabled === 1);
+  // spinner/ring κατά τη φόρτωση (loading state) — στο SVG καμπανάκι
+  const setSpin = (spinning) => {
+    if (btn) {
+      if (spinning) {
+        btn.classList.add("loading");
+        btn.innerHTML = bellIcon();            // καμπάνα που κουνιέται (ring)
+      } else {
+        btn.classList.remove("loading");
+        btn.classList.toggle("on", WATCHED_CHANNELS[channelId] === 1);
+        btn.innerHTML = watchBellHtml(WATCHED_CHANNELS[channelId] === 1);
+      }
+    }
+  };
+  const write = fetch("/watch_channel", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channel_id: channelId, enabled: enabled === 1 }),
+  });
+  // ενεργοποίηση → ΠΕΡΙΜΕΝΕ να γραφτεί το flag, ΜΕΤΑ φέρε feed (race condition fix)
+  if (enabled === 1) {
+    // 🔔 ανοίγει ΚΑΙ το κανάλι (συγχρονισμένο με το ▾) ώστε να φαίνεται το feed.
+    if (group && group.classList.contains("collapsed")) {
+      group.classList.remove("collapsed");
+      collapsedChannels.delete(channelId);
+      saveUiState();
+      updateToggleAllBtn();
+    }
+    RSS_DATA[channelId] = [];
+    setSpin(true);
+    write.then(() => fetchChannelNew(channelId, setSpin));
+  } else {
+    // Κλείσιμο (off) → γύρνα το εικονίδιο σε ΔΙΑΓΡΑΜΜΕΝΗ καμπάνα + κλείσε το panel με animation
+    if (RSS_DATA[channelId] !== undefined) {
+      delete RSS_DATA[channelId];
+    }
+    const panel = document.querySelector(`.channel-group[data-key="${CSS.escape(channelId)}"] .rss-panel`);
+    if (panel) {
+      panel.classList.add("closing");
+      panel.addEventListener("animationend", () => panel.remove(), { once: true });
+      // fallback (αν δεν πυροδοτηθεί το animationend π.χ. reduced-motion)
+      setTimeout(() => { if (panel.parentNode) panel.remove(); }, 300);
+    }
+    if (btn) {
+      btn.classList.remove("loading", "on");
+      btn.innerHTML = bellOffIcon();
+    }
+  }
+}
+
+function fetchChannelNew(cid, setSpin) {
+  // Εξασφάλισε ότι το panel ΥΠΑΡΧΕΙ (κι ας ήταν κλειστό το κανάλι) — αλλιώς το loading δεν φαίνεται.
+  let panel = document.querySelector(`.channel-group[data-key="${CSS.escape(cid)}"] .rss-panel`);
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.className = "rss-panel";
+    const slot = document.querySelector(`.channel-group[data-key="${CSS.escape(cid)}"] .rss-slot`);
+    if (slot) slot.appendChild(panel);
+  }
+  panel.innerHTML = '<div class="rss-loading"><span class="spin"></span> Φέρνω τα νέα βίντεο…</div><div class="rss-progress"></div>';
+
+  // 📡 RSS + 📚 Scraping — ΤΑΥΤΟΧΡΟΝΑ. Συγχωνεύονται σε ΕΝΑ ενιαίο feed.
+  const rssP = fetch("/check_new", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then(r => r.json());
+  const histP = fetch("/channel_videos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channel_id: cid, offset: 0, limit: 50 }),
+  }).then(r => r.json()).catch(() => ({ ok: false, videos: [] }));
+
+  Promise.all([rssP, histP]).then(async ([rssData, histData]) => {
+    // ελάχιστος χρόνος εμφάνισης του loading
+    await new Promise(res => setTimeout(res, 400));
+    const mine = (rssData.new || []).filter(n => n.channel_id === cid);
+    // 📚 scraped ιστορικό — ίδια μορφή με RSS (published null αν δεν υπάρχει)
+    const scraped = (histData.videos || []).map(v => ({
+      video_id: v.video_id,
+      title: v.title || "",
+      published: null,
+      channel_id: cid,
+    }));
+    // Συγχώνευση: RSS πρώτα, μετά scraped (dedupe με video_id), μέχρι 50.
+    const seen = new Set();
+    const merged = [];
+    for (const n of [...mine, ...scraped]) {
+      if (!n.video_id || seen.has(n.video_id)) continue;
+      seen.add(n.video_id);
+      merged.push(n);
+    }
+    RSS_DATA[cid] = merged.slice(0, 50);
+    renderRssPanel(cid);
+    if (setSpin) setSpin(false);
+  }).catch(() => {
+    const p = document.querySelector(`.channel-group[data-key="${CSS.escape(cid)}"] .rss-panel`);
+    if (p) p.innerHTML = '<div class="rss-loading">⚠️ Δεν κατάφερα να διαβάσω το feed.</div>';
+    if (setSpin) setSpin(false);
+  });
+}
+
+function renderRssPanel(cid) {
+  const group = document.querySelector(`.channel-group[data-key="${CSS.escape(cid)}"]`);
+  if (!group) return;
+  let panel = group.querySelector(".rss-panel");
+  if (!panel) {
+    panel = document.createElement("div");
+    panel.className = "rss-panel";
+    // Μέσα στο .rss-slot, ΠΡΙΝ τα βίντεα → News Feed πάνω-πάνω.
+    // Το slot είναι μέσα στο .channel-body, άρα κλείνει ΜΑΖΙ με τα βίντεα (συζευγμένο με το ▾).
+    const slot = group.querySelector(".rss-slot");
+    slot.appendChild(panel);
+  }
+  if (!rssShown || rssShown < 1) rssShown = 6;
+  const all = RSS_DATA[cid] || [];
+  if (!all.length) {
+    panel.innerHTML = '<div class="rss-empty">✅ Είσαι ενημερωμένος — δεν υπάρχουν νέα βίντεο.</div>';
+    return;
+  }
+  // Το −/+ ορίζει ΠΟΣΑ χωράνε «με την πρώτη ματιά» (ύψος), ΟΧΙ πόσα κόβονται.
+  // Όλα τα νέα φαίνονται πάντα — τα υπόλοιπα μέσα από scroll.
+  const rowH = 63;                       // ~ύψος .new-row (47px thumb + padding)
+  const viewH = Math.max(1, Math.min(rssShown, all.length)) * rowH;
+  const remaining = all.length - rssShown;
+  panel.innerHTML = `
+    <div class="rss-head">
+      <span class="rss-title">🆕 Νέα βίντεο (${all.length})</span>
+      <span class="rss-count">
+        ${remaining > 0 ? `<span class="rss-total">(+${remaining})</span>` : ""}
+        <button class="rss-countbtn" onclick="setRssCount('${esc(cid)}', -1)" title="Λιγότερα">−</button>
+        <span class="rss-num">${rssShown}</span>
+        <button class="rss-countbtn" onclick="setRssCount('${esc(cid)}', 1)" title="Περισσότερα">+</button>
+      </span>
+    </div>
+    <div class="rss-list" style="max-height:${viewH}px">
+      ${all.map(n => `
+      <div class="new-row" data-vid="${esc(n.video_id)}">
+        <img class="thumb" src="/thumb/${esc(n.video_id)}" loading="lazy" onerror="this.style.display='none'" alt="">
+        <div class="vinfo">
+          <a class="vtitle" href="#" onclick="event.preventDefault(); openLightbox('${esc(n.video_id)}', 'feed'); return false;" title="Παίξε το μέσα στην εφαρμογή">${esc(n.title)}</a>
+          <div class="vmeta"><span class="muted">${n.published ? shortDate(n.published) : ""}</span></div>
+        </div>
+        <button class="icon-btn" title="Πρόσθεσε στο ιστορικό μου" onclick="addFromRSS('${esc(cid)}', '${esc(n.video_id)}')">➕</button>
+        <button class="icon-btn del" title="Δεν με ενδιαφέρει (δεν θα ξαναεμφανιστεί)" onclick="dismissFromRSS('${esc(cid)}', '${esc(n.video_id)}')">×</button>
+      </div>`).join("")}
+    </div>
+  `;
+}
+
+function setRssCount(cid, dir) {
+  const total = (RSS_DATA[cid] || []).length;
+  rssShown = Math.max(1, Math.min(total, rssShown + dir));
+  saveUiState();
+  renderRssPanel(cid);
+  // ενημέρωσε ΚΑΙ τα υπόλοιπα ανοιχτά panels (κοινή τιμή για όλα)
+  Object.keys(RSS_DATA).forEach(k => { if (k !== cid) renderRssPanel(k); });
+}
+
+function addFromRSS(cid, videoId) {
+  const url = "https://www.youtube.com/watch?v=" + videoId;
+  const meta = WATCHED_META[cid] || {};
+  fetch("/add", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, approve: true, channel_id: cid, channel: meta.name || null }),
+  }).then(r => r.json()).then(d => {
+    // 📌 κράτα το title ΠΡΙΝ το φιλτράρισμα (για να το βάλουμε στο κανάλι)
+    const feedItem = (RSS_DATA[cid] || []).find(n => n.video_id === videoId)
+      || { title: d.title || videoId };
+    // αφαίρεσέ το από τα «νέα» αυτού του καναλιού — ΜΟΝΟ το panel, χωρίς να κλείσει/διπλώσει τίποτα.
+    RSS_DATA[cid] = (RSS_DATA[cid] || []).filter(n => n.video_id !== videoId);
+    renderRssPanel(cid);
+    // ➕ πρόσθεσε ΚΑΙ ορατά το βίντεο μέσα στο κανάλι (σιωπηλά, χωρίς reload).
+    const meta = WATCHED_META[cid] || {};
+    appendVideoToChannel(cid, {
+      video_id: videoId,
+      title: feedItem.title || d.title || videoId,
+      channel: meta.name || d.title || cid,
+      channel_id: cid,
+      rating: 0,
+      unseen: false,
+    });
+  });
+}
+
+// Βοηθητική: προσθέτει ορατά ένα βίντεο μέσα στο κανάλι (σιωπηλά, χωρίς reload).
+// Βρίσκει το group μόνο με data-key (ΟΧΙ .imported — γιατί μπορεί να έγινε ήδη μπλε).
+function appendVideoToChannel(cid, v) {
+  const group = document.querySelector(`.channel-group[data-key="${CSS.escape(cid)}"]`);
+  if (!group) return;
+  group.classList.remove("imported");  // 🎯 πορτοκαλί → μπλε επιτόπου
+  const body = group.querySelector(".channel-body");
+  if (!body) return;
+  if (!body.querySelector(`.vrow[data-id="${CSS.escape(v.video_id)}"]`)) {
+    if (!allVideos.some(x => x.video_id === v.video_id)) allVideos.push(v);
+    const row = document.createElement("div");
+    row.innerHTML = rowHtml(v, "channel");
+    body.appendChild(row.firstElementChild);
+    const muted = group.querySelector(".muted");
+    const count = body.querySelectorAll(".vrow").length;
+    if (muted) muted.textContent = "· " + count + " βίντεο";
+  }
+}
+
+function dismissFromRSS(cid, videoId) {
+  fetch("/dismiss_video", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ video_id: videoId }),
+  }).then(() => {
+    RSS_DATA[cid] = (RSS_DATA[cid] || []).filter(n => n.video_id !== videoId);
+    renderRssPanel(cid);
+  });
+}
+
+function renderVideos(videos) {
+  if (!videos.length) return '<span class="empty">Άδεια — δες ένα βίντεο στο YouTube.</span>';
+  // Όταν υπάρχει ενεργό φίλτρο (αναζήτηση/αστεράκια/tag), ΟΛΑ τα matching ΑΝΟΙΓΟΥΝ.
+  const collapsedSet = ACTIVE_FILTER ? new Set() : collapsedChannels;
+  const orderIndex = new Map(channelOrder.map((k, i) => [k, i]));
+  const watchedKeys = new Set(Object.keys(WATCHED_CHANNELS).filter(k => WATCHED_CHANNELS[k] === 1));
+  // group ανά κανάλι
+  const groups = new Map();
+  for (const v of videos) {
+    const key = v.channel_id || v.channel || "__unknown__";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(v);
+  }
+  // ταξινόμηση groups (Keep-στυλ): pinned ζώνη πάνω → unpinned ζώνη κάτω → channelOrder εντός ζώνης.
+  const arr = [...groups.entries()].sort((a, b) => {
+    const pinnedA = a[1].some(v => v.pinned) ? 1 : 0;
+    const pinnedB = b[1].some(v => v.pinned) ? 1 : 0;
+    if (pinnedB !== pinnedA) return pinnedB - pinnedA;   // pinned πάνω
+    const ia = orderIndex.has(a[0]) ? orderIndex.get(a[0]) : 9999;
+    const ib = orderIndex.has(b[0]) ? orderIndex.get(b[0]) : 9999;
+    if (ia !== ib) return ia - ib;
+    return (b[1][0].last_watched_at || "") > (a[1][0].last_watched_at || "") ? 1 : -1;
+  });
+  let html = "";
+  for (const [key, vids] of arr) {
+    const first = vids[0];
+    const sorted = vids.slice().sort((a, b) =>
+      (b.rank || 0) - (a.rank || 0) || (b.watch_count || 0) - (a.watch_count || 0)
+    );
+    // Match highlight για το κανάλι: συνειδητά ΑΦΑΙΡΕΘΗΚΕ (ο χρήστης δεν θέλει περίγραμμα στο avatar).
+    const chanAvatarCls = 'avatar-wrap';
+    const chanHref = first.channel_id
+      ? `https://www.youtube.com/channel/${esc(first.channel_id)}`
+      : `https://www.youtube.com/results?search_query=${encodeURIComponent(first.channel || "")}`;
+    html += `<div class="channel-group ${collapsedSet.has(key) ? 'collapsed' : ''} ${watchedKeys.has(key) ? 'watched' : ''} ${NEW_CHANNELS.has(key) ? 'new' : ''}" data-key="${esc(key)}">
+      <div class="channel-head" draggable="true" onclick="toggleChannel(this)">
+        <span class="chevron">▾</span>
+        <a class="chan-link" href="${chanHref}" target="_blank" rel="noopener" onclick="event.stopPropagation()" draggable="false" title="Άνοιξε το κανάλι στο YouTube">
+          <span class="${chanAvatarCls}">${avatarHtml(first)}</span>
+          <span class="channel-name">${esc(first.channel || "Άγνωστο κανάλι")}</span>
+        </a>
+        <span class="head-spacer"></span>
+        <span class="muted">· ${vids.length} βίντεο</span>
+        <button class="icon-btn tag-btn" style="width:32px;height:32px;font-size:16px" title="Tags καναλιού (σε όλα τα βίντεο)" onclick="event.stopPropagation();openTagPop(this, 'channel', '${esc(key)}')">🏷️</button>
+        <button class="icon-btn watch-tgl ${watchedKeys.has(key) ? 'on' : ''}" style="width:32px;height:32px;font-size:17px" title="${watchedKeys.has(key) ? 'Σταμάτα να παρακολουθείς (News Feed)' : 'Παρακολούθησε αυτό το κανάλι (News Feed)'}" onclick="event.stopPropagation();toggleWatch('${esc(key)}', this)">${watchBellHtml(watchedKeys.has(key))}</button>
+        <button class="icon-btn ch-pin ${first.pinned ? 'active top' : ''}" title="Καρφίτσωμα (στην κορυφή)" onclick="event.stopPropagation();togglePinChannel('${esc(key)}', this)">${first.pinned ? '🔴' : '📌'}</button>
+        <button class="icon-btn" title="Κανάλι μία θέση πάνω" onclick="event.stopPropagation();moveChannel(this, -1)">↑</button>
+        <button class="icon-btn" title="Κανάλι μία θέση κάτω" onclick="event.stopPropagation();moveChannel(this, 1)">↓</button>
+        <button class="icon-btn del" title="Διαγραφή καναλιού" onclick="event.stopPropagation();confirmDeleteChannel('${esc(key)}', this)">−</button>
+      </div>
+      <div class="channel-body">
+        <div class="rss-slot"></div>
+        ${sorted.map(v => rowHtml(v, "channel")).join("")}
+      </div>
+    </div>`;
+  }
+  // 📡 Εισαγμένα κανάλια (συνδρομές, χωρίς βίντεο) — στο κάτω μέρος, πορτοκαλί banner, καμπανάκι on/off.
+  const existingKeys = new Set(groups.keys());
+  for (const cid of Object.keys(WATCHED_META)) {
+    if (existingKeys.has(cid)) continue;  // ήδη εμφανίζεται (έχει βίντεο)
+    const meta = WATCHED_META[cid] || {};
+    const name = meta.name || cid;
+    const isOn = meta.enabled === 1;
+    html += `<div class="channel-group imported" data-key="${esc(cid)}">
+      <div class="channel-head" draggable="true" onclick="toggleChannel(this)">
+        <span class="chevron">▾</span>
+        <a class="chan-link" href="https://www.youtube.com/channel/${esc(cid)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" draggable="false" title="Άνοιξε το κανάλι στο YouTube">
+          <span class="avatar-wrap"><span class="avatar-fallback">${esc((name || '?').charAt(0).toUpperCase())}</span><img class="avatar" src="/avatar/${esc(cid)}" onerror="this.style.display='none'" alt=""></span>
+          <span class="channel-name">${esc(name)}</span>
+        </a>
+        <span class="head-spacer"></span>
+        <button class="icon-btn watch-tgl ${isOn ? 'on' : ''}" style="width:32px;height:32px;font-size:17px" title="${isOn ? 'Σταμάτα να παρακολουθείς (News Feed)' : 'Παρακολούθησε αυτό το κανάλι (News Feed)'}" onclick="event.stopPropagation();toggleWatch('${esc(cid)}', this)">${watchBellHtml(isOn)}</button>
+        <button class="icon-btn ch-pin" title="Καρφίτσωμα (στην κορυφή)" onclick="event.stopPropagation();togglePinChannel('${esc(cid)}', this)">📌</button>
+        <button class="icon-btn" title="Κανάλι μία θέση πάνω" onclick="event.stopPropagation();moveChannel(this, -1)">↑</button>
+        <button class="icon-btn" title="Κανάλι μία θέση κάτω" onclick="event.stopPropagation();moveChannel(this, 1)">↓</button>
+        <button class="icon-btn del" title="Διαγραφή καναλιού" onclick="event.stopPropagation();confirmDeleteChannel('${esc(cid)}', this)">−</button>
+      </div>
+      <div class="channel-body">
+        <div class="rss-slot"></div>
+      </div>
+    </div>`;
+  }
+  return html;
+}
+
+function avatarHtml(v) {
+  const initial = (v.channel || "?").trim().charAt(0).toUpperCase();
+  const img = v.channel_id
+    ? `<img class="avatar" src="/avatar/${esc(v.channel_id)}" onerror="this.style.display='none'" alt="">`
+    : "";
+  return `<span class="avatar-fallback">${esc(initial)}</span>${img}`;
+}
+
+function rowHtml(v, ctx) {
+  const ctx2 = ctx || "channel";
+  const info = matchInfo(v);
+  const tags = videoTags(v);
+  // tag chips: επισημαίνουμε όσα είναι ενεργά στο φίλτρο (selectedTags)
+  const chips = tags.map(t => {
+    const on = selectedTags.has(t);
+    return `<span class="tag-chip ${on ? 'match-chip' : ''}">${esc(t)}</span>`;
+  }).join("");
+  let stars = `<span class="stars ${info.rating ? 'match-stars' : ''}" title="Βαθμολόγησε 1-5">`;
+  for (let i = 1; i <= 5; i++) {
+    stars += `<button type="button" class="st ${i <= (v.rating || 0) ? 'on' : ''}" onclick="event.stopPropagation(); rateVideo('${esc(v.video_id)}', ${i})">★</button>`;
+  }
+  stars += `</span>`;
+  const thumbCls = info.tagVideo ? 'thumb match-thumb' : 'thumb';
+  const title = highlightTitle(v.title, info);
+  const unseen = v.unseen ? true : false;
+  const newBadge = unseen ? '<span class="new-badge">ΝΕΟ</span>' : '';
+  const notes = VIDEO_NOTES[v.video_id] || [];
+  const noteChip = notes.length
+    ? `<span class="note-chip" title="${esc(notes.map(n => `▶ ${fmtTs(n.timestamp_sec)} ${n.title || n.note || ""}`).join(" · "))}">⏱️ ${notes.length}</span>`
+    : '';
+  return `
+    <div class="vrow ${unseen ? 'unseen' : ''}" draggable="true" data-id="${esc(v.video_id)}">
+      <span class="drag-handle" title="Τράβηξέ με">⠿</span>
+      <img class="${thumbCls}" src="/thumb/${esc(v.video_id)}" loading="lazy" onerror="this.style.display='none'" alt="">
+      <div class="vinfo">
+        <a class="vtitle" href="#" onclick="event.preventDefault(); openLightbox('${esc(v.video_id)}', '${ctx2}'); return false;">${title}${newBadge}</a>
+        <div class="vmeta">
+          <span class="muted">${shortDate(v.last_watched_at)}</span>
+          <span class="cat-chip">${esc(v.category || "ακατηγοριοποίητο")}</span>
+          ${stars}
+          ${chips}
+          ${noteChip}
+        </div>
+      </div>
+      <div class="vright">
+        <span class="count">×${v.watch_count}</span>
+        ${unseen ? `<button class="icon-btn seen-btn" title="Το είδα — σταμάτα να το δείχνεις ως ΝΕΟ" onclick="markVideoSeen('${esc(v.video_id)}')">✓</button>` : ''}
+        <button class="icon-btn tag-btn" title="Tags" onclick="openTagPop(this, 'video', '${esc(v.video_id)}')">🏷️</button>
+        <button class="icon-btn cat-btn" title="Κατηγορία" onclick="openCatPop(this, '${esc(v.video_id)}')">📁</button>
+        <button class="icon-btn" title="Μία θέση πάνω" onclick="moveUp(this)">↑</button>
+        <button class="icon-btn" title="Μία θέση κάτω" onclick="moveDown(this)">↓</button>
+        <button class="icon-btn del" title="Διαγραφή" onclick="confirmDeleteVideo('${esc(v.video_id)}', this)">−</button>
+      </div>
+    </div>`;
+}
+
+/* --- Drag & drop (βίντεο μέσα στο group + κανάλια μεταξύ τους) --- */
+let dragged = null;
+let draggedType = null; // "video" ή "channel"
+let dragMoved = false;  // true αν πραγματικά μετακινήθηκε (για να ΜΗΝ toggle-αρουμε μετά από drag)
+
+function setupDrag() {
+  // Βίντεο (μέσα στο ίδιο κανάλι)
+  document.querySelectorAll(".vrow").forEach(row => {
+    row.addEventListener("dragstart", () => {
+      dragMoved = false;
+      dragged = row; draggedType = "video";
+      row.classList.add("dragging");
+    });
+    row.addEventListener("dragend", () => {
+      row.classList.remove("dragging"); dragged = null;
+    });
+    row.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (!dragged || draggedType !== "video" || dragged === row) return;
+      const g = (r) => r.closest(".channel-group") || r.closest(".cat-group");
+      const sameGroup = g(row) === g(dragged);
+      if (!sameGroup) return;
+      const rect = row.getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2;
+      if (after) row.insertAdjacentElement("afterend", dragged);
+      else row.insertAdjacentElement("beforebegin", dragged);
+    });
+    row.addEventListener("drop", (e) => {
+      e.preventDefault();
+      if (draggedType === "video") saveOrder();
+    });
+  });
+
+  // Κανάλια (ολόκληρα groups)
+  document.querySelectorAll(".channel-head").forEach(head => {
+    head.addEventListener("dragstart", () => {
+      dragMoved = false;
+      dragged = head.closest(".channel-group"); draggedType = "channel";
+      dragged.classList.add("dragging");
+    });
+    head.addEventListener("dragend", () => {
+      dragged.classList.remove("dragging"); dragged = null; draggedType = null;
+    });
+    head.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (!dragged || draggedType !== "channel") return;
+      const group = head.closest(".channel-group");
+      if (group === dragged) return;
+      dragMoved = true;
+      const rect = head.getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2;
+      if (after) group.insertAdjacentElement("afterend", dragged);
+      else group.insertAdjacentElement("beforebegin", dragged);
+    });
+    head.addEventListener("drop", (e) => {
+      e.preventDefault();
+      if (draggedType === "channel") saveChannelOrder();
+    });
+  });
+}
+
+function saveOrder() {
+  document.querySelectorAll(".channel-group").forEach(group => {
+    const ids = [...group.querySelectorAll(".vrow")].map(r => r.dataset.id);
+    fetch("/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ordered_ids: ids }),
+    });
+  });
+}
+
+function saveChannelOrder() {
+  channelOrder = [...document.querySelectorAll(".channel-group")].map(g => g.dataset.key);
+  saveUiState();
+}
+
+async function fetchSugg(term, container) {
+  try {
+    const d = await (await fetch("/api/suggest?q=" + encodeURIComponent(term))).json();
+    const hidden = new Set(JSON.parse(localStorage.getItem("hiddenSugg") || "[]"));
+    const visible = (d.suggestions || []).filter(x => !hidden.has(x));
+    container.innerHTML = visible.length
+      ? visible.map(x => `
+        <div class="sugg-item">
+          <button class="icon-btn del" title="Απόκρυψη" onclick="muteSugg('${esc(x)}', this)">−</button>
+          <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(x)}" target="_blank">${esc(x)}</a>
+        </div>`).join("")
+      : '<span class="empty">καμία πρόταση</span>';
+  } catch {
+    container.innerHTML = '<span class="empty">σφάλμα δικτύου</span>';
+  }
+}
+
+function muteTopic(t) {
+  let muted = JSON.parse(localStorage.getItem("mutedTopics") || "[]");
+  if (!muted.includes(t)) muted.push(t);
+  localStorage.setItem("mutedTopics", JSON.stringify(muted));
+  load();
+}
+
+function muteSugg(term, btn) {
+  let hidden = JSON.parse(localStorage.getItem("hiddenSugg") || "[]");
+  if (!hidden.includes(term)) hidden.push(term);
+  localStorage.setItem("hiddenSugg", JSON.stringify(hidden));
+  btn.closest(".sugg-item").remove();
+}
+
+function confirmDeleteVideo(id, btn) {
+  // κλείσε τυχόν προηγούμενο confirm
+  closeDeleteConfirm();
+  const v = allVideos.find(x => x.video_id === id);
+  const title = v ? (v.title || "χωρίς τίτλο") : "";
+  const pop = document.createElement("div");
+  pop.className = "del-confirm center";
+  pop.id = "del-confirm";
+  pop.innerHTML = `
+    <div class="dc-msg">Θα διαγραφεί το βίντεο:<br><b>${esc(title)}</b><br><span class="dc-warn">Δεν ξαναγυρίζει.</span></div>
+    <div class="dc-btns">
+      <button class="dc-yes" onclick="doDeleteVideo('${esc(id)}')">✓ Ναι, σβήστο</button>
+      <button class="dc-no" onclick="closeDeleteConfirm()">✕ Άκυρο</button>
+    </div>`;
+  document.body.appendChild(pop);
+}
+
+function doDeleteVideo(id) {
+  closeDeleteConfirm();
+  // ⚡ Στιγμιαία διαγραφή (χωρίς fade/delay) — απλά φύγε από τη λίστα αμέσως.
+  fetch("/delete", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ video_id: id }),
+  }).then(() => {
+    allVideos = allVideos.filter(x => x.video_id !== id);
+    renderCurrent();
+  });
+}
+
+function confirmDeleteChannel(key, btn) {
+  // 🗑️ Pop-up επιβεβαίωσης διαγραφής καναλιού (κεντραρισμένο, spring) — όπως στα βίντεο.
+  closeDeleteConfirm();
+  const meta = WATCHED_META[key] || {};
+  const vids = allVideos.filter(v => (v.channel_id || v.channel) === key);
+  const name = meta.name || (vids[0] && vids[0].channel) || key;
+  const n = vids.length;
+  const pop = document.createElement("div");
+  pop.className = "del-confirm center";
+  pop.id = "del-confirm";
+  pop.innerHTML = `
+    <div class="dc-msg">Θα διαγραφεί το κανάλι:<br><b>${esc(name)}</b>${n ? `<br><span class="dc-warn">Μαζί με ${n} βίντεό του. Δεν ξαναγυρίζει.</span>` : `<br><span class="dc-warn">Δεν ξαναγυρίζει.</span>`}</div>
+    <div class="dc-btns">
+      <button class="dc-yes" onclick="doDeleteChannel('${esc(key)}')">✓ Ναι, σβήστο</button>
+      <button class="dc-no" onclick="closeDeleteConfirm()">✕ Άκυρο</button>
+    </div>`;
+  document.body.appendChild(pop);
+}
+
+function doDeleteChannel(key) {
+  closeDeleteConfirm();
+  // ⚡ Στιγμιαία αφαίρεση καναλιού (και των βίντεων του).
+  fetch("/delete_channel", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channel_id: key }),
+  }).then(() => {
+    allVideos = allVideos.filter(v => (v.channel_id || v.channel) !== key);
+    delete WATCHED_CHANNELS[key];
+    delete WATCHED_META[key];
+    renderCurrent();
+  });
+}
+
+function toggleChannel(head) {
+  // Αν μόλις έγινε drag (μετακίνηση καναλιού), ΜΗΝ κάνεις toggle στο κλικ.
+  if (dragMoved) { dragMoved = false; return; }
+  const group = head.closest(".channel-group");
+  const key = group.dataset.key;
+  // Ο χρήστης «είδε» το κανάλι → σβήσε το μπλε banner (και ζωντανά στο DOM).
+  if (NEW_CHANNELS.delete(key)) group.classList.remove("new");
+  group.classList.toggle("collapsed");
+  const opening = !group.classList.contains("collapsed");
+  if (group.classList.contains("collapsed")) {
+    collapsedChannels.add(key);
+  } else {
+    collapsedChannels.delete(key);
+  }
+  saveUiState();
+  updateToggleAllBtn();
+
+  // 🎯 Άλφα: όταν ΑΝΟΙΓΕΙΣ κανάλι που έχει ανοιχτό 🔔 (watched) και δεν έχει ακόμα feed → κάνε fetch.
+  if (opening) {
+    const isWatched = (WATCHED_CHANNELS || {})[key] === 1;
+    const hasNoFeed = (RSS_DATA[key] === undefined);
+    if (isWatched && hasNoFeed) {
+      RSS_DATA[key] = [];
+      fetchChannelNew(key, null);
+    } else if (isWatched && RSS_DATA[key] !== undefined) {
+      // ήδη έχουμε το feed — απλώς ξαναζωγράφισέ το (σε περίπτωση re-render)
+      renderRssPanel(key);
+    }
+  }
+}
+
+function toggleAllChannels() {
+  // Αν ΟΛΑ είναι κλειστά → άνοιξε όλα. Αλλιώς → κλείσε όλα.
+  const groups = [...document.querySelectorAll("#videos .channel-group")];
+  const keys = groups.map(g => g.dataset.key);
+  const allClosed = keys.length > 0 && keys.every(k => collapsedChannels.has(k));
+
+  if (allClosed) {
+    // άνοιξε όλα
+    groups.forEach(g => g.classList.remove("collapsed"));
+    keys.forEach(k => collapsedChannels.delete(k));
+  } else {
+    // κλείσε όλα
+    groups.forEach(g => g.classList.add("collapsed"));
+    keys.forEach(k => collapsedChannels.add(k));
+  }
+  saveUiState();
+  updateToggleAllBtn();
+}
+
+function updateToggleAllBtn() {
+  const btn = document.getElementById("toggle-all");
+  updateListHeadLabel();
+  if (!btn) return;
+  const keys = [...document.querySelectorAll("#videos .channel-group")].map(g => g.dataset.key);
+  const allClosed = keys.length > 0 && keys.every(k => collapsedChannels.has(k));
+  btn.classList.toggle("all-closed", allClosed);
+  btn.textContent = allClosed ? "▸" : "▾";
+}
+
+// Ετικέτα "Κανάλια N" (κλειστά) ή "Κανάλια N · Βίντεο M" (ανοιχτά).
+// Χρησιμοποιεί τα ήδη γνωστά totals (χωρίς να ξαναμετράει), αλλάζει μόνο η ένδειξη.
+function updateListHeadLabel() {
+  const el = document.getElementById("list-head-count");
+  if (!el) return;
+  const groups = [...document.querySelectorAll("#videos .channel-group")];
+  const chCount = groups.length;
+  const allClosed = chCount > 0 && groups.every(g => g.classList.contains("collapsed"));
+  // Μ = όλα τα βίντεο που εμφανίζονται αυτή τη στιγμή (σύνολο των φορτωμένων)
+  const vidTotal = allVideos.length;
+  el.innerHTML = allClosed ? `${chCount}` : `${chCount} · Βίντεο ${vidTotal}`;
+}
+
+function saveUiState() {
+  fetch("/ui_state", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      collapsed: [...collapsedChannels],
+      order: channelOrder,
+      rss_shown: rssShown,
+    }),
+  });
+}
+
+function moveUp(btn) {
+  const row = btn.closest(".vrow");
+  const prev = row.previousElementSibling;
+  if (prev && prev.classList.contains("vrow")) {
+    row.parentNode.insertBefore(row, prev);
+    saveOrder();
+  }
+}
+
+function moveDown(btn) {
+  const row = btn.closest(".vrow");
+  const next = row.nextElementSibling;
+  if (next && next.classList.contains("vrow")) {
+    row.parentNode.insertBefore(next, row);
+    saveOrder();
+  }
+}
+
+function togglePinChannel(key, btn) {
+  // 📌 Keep-στυλ: απλό toggle (pinned ↔ unpinned), χωρίς popup.
+  fetch("/pin_channel", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channel_id: key }),
+  }).then(r => r.json()).then(() => {
+    // spring feedback στο κουμπί
+    if (btn) { btn.classList.add("pinning"); }
+    load();
+  }).catch(() => {});
+}
+
+// Μετακινεί το κανάλι μία θέση πάνω/κάτω στη λίστα — ΣΕΒΕΤΑΙ τη ζώνη (pinned/unpinned).
+function moveChannel(btn, dir) {
+  const group = btn.closest(".channel-group");
+  if (!group) return;
+  const isGroupPinned = !!group.querySelector(".ch-pin.active");
+  const sibling = dir < 0 ? group.previousElementSibling : group.nextElementSibling;
+  if (sibling && sibling.classList.contains("channel-group")) {
+    // Keep-στυλ: unpinned ΔΕΝ προσπερνά pinned (και αντίστροφα).
+    const isSiblingPinned = !!sibling.querySelector(".ch-pin.active");
+    if (isGroupPinned !== isSiblingPinned) return;   // δεν αλλάζουν ζώνη
+    const parent = group.parentNode;
+    if (dir < 0) parent.insertBefore(group, sibling);
+    else parent.insertBefore(sibling, group);
+    // ενημέρωσε το channelOrder ώστε να επιμένει
+    channelOrder = [...document.querySelectorAll(".channel-group")].map(g => g.dataset.key);
+    saveUiState();
+  }
+}
+
+// Καρφιτσώνει το κανάλι στην κορυφή (θέση 0).
+function pinChannel(key) {
+  channelOrder = channelOrder.filter(k => k !== key);
+  channelOrder.unshift(key);
+  saveUiState();
+  load();
+}
+
+/* ================= Κατηγορίες (tab) ================= */
+
+function switchTab(name) {
+  currentTab = name;
+  document.getElementById("tab-channels").classList.toggle("active", name === "channels");
+  document.getElementById("tab-categories").classList.toggle("active", name === "categories");
+  document.getElementById("tab-search").classList.toggle("active", name === "search");
+  document.getElementById("view-channels").style.display = name === "channels" ? "" : "none";
+  document.getElementById("view-categories").style.display = name === "categories" ? "" : "none";
+  document.getElementById("view-search").style.display = name === "search" ? "" : "none";
+  if (name === "categories") renderCategories();
+  if (name === "search") {
+    document.getElementById("yt-search-input").focus();
+    refreshBubbleField();
+  } else {
+    hideBubbleField();
+  }
+}
+
+function fmtViews(n) {
+  n = Number(n) || 0;
+  if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "K";
+  return String(n);
+}
+
+function fmtDuration(s) {
+  s = Number(s) || 0;
+  if (s <= 0) return "";
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
+  return h > 0 ? `${h}:${mm}:${String(sec).padStart(2, "0")}` : `${mm}:${String(sec).padStart(2, "0")}`;
+}
+
+let RECENT_LOADED = false;  // έχουμε ήδη φέρει τις αναζητήσεις από τον server;
+
+function saveRecentSearch(q) {
+  // Αποθήκευση στον server (SQLite) — επιμένει μεταξύ sessions, privacy-safe.
+  fetch("/recent_search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ q })
+  }).then(r => r.json()).then(d => {
+    if (d.searches) { RECENT_SEARCHES = d.searches; RECENT_LOADED = true; }
+  }).catch(() => {});
+}
+
+function showRecentSearches() {
+  const box = document.getElementById("yt-recent");
+  if (RECENT_LOADED) { renderRecent(box); return; }
+  // Πρώτη φορά: φέρε από τον server → κράτα στη μνήμη (να μην ξαναγίνει fetch σε κάθε focus).
+  fetch("/api/recent-searches").then(r => r.json()).then(d => {
+    RECENT_SEARCHES = (d.searches && d.searches.length) ? d.searches : [];
+    RECENT_LOADED = true;
+    renderRecent(box);
+  }).catch(() => {
+    RECENT_SEARCHES = [];
+    RECENT_LOADED = true;
+    renderRecent(box);
+  });
+}
+
+function renderRecent(box) {
+  const list = RECENT_SEARCHES.slice(0, 5);
+  if (!list.length) { box.style.display = "none"; return; }
+  box.innerHTML = `<div class="yt-recent-head">Πρόσφατες αναζητήσεις</div>` +
+    list.map(s =>
+      `<div class="yt-recent-item" onclick="useRecentSearch('${esc(s).replace(/'/g, "\\'")}')">🔍 ${esc(s)}</div>`
+    ).join("");
+  box.style.display = "";
+}
+
+function useRecentSearch(q) {
+  document.getElementById("yt-search-input").value = q;
+  document.getElementById("yt-recent").style.display = "none";
+  doYouTubeSearch();
+}
+
+// Κλείσε το dropdown όταν κλικάρεις οπουδήποτε αλλού.
+document.addEventListener("click", (e) => {
+  const recent = document.getElementById("yt-recent");
+  if (!recent || recent.style.display === "none") return;
+  if (e.target.id !== "yt-search-input" && !recent.contains(e.target)) {
+    recent.style.display = "none";
+  }
+});
+
+function setSearchMode(mode) {
+  SEARCH_MODE = mode;
+  document.getElementById("ym-videos").classList.toggle("active", mode === "videos");
+  document.getElementById("ym-channels").classList.toggle("active", mode === "channels");
+  document.getElementById("ym-both").classList.toggle("active", mode === "both");
+  // αν υπάρχει ήδη αποτέλεσμα → ξαναψάξε από την αρχή με το νέο mode
+  const q = document.getElementById("yt-search-input").value.trim();
+  if (q) doYouTubeSearch();
+}
+
+function doYouTubeSearch() {
+  // Νέα αναζήτηση: offset 0 (πρώτη σελίδα)
+  SEARCH_OFFSET = 0;
+  hideBubbleField();   // αναζήτηση → τα bubbles φεύγουν
+  runYTSearch(0);
+}
+
+function searchNextPage() {
+  // Επόμενη σελίδα (Next button)
+  runYTSearch(SEARCH_OFFSET + 50);
+}
+
+function runYTSearch(offset) {
+  const q = document.getElementById("yt-search-input").value.trim();
+  if (!q) return;
+  SEARCH_QUERY = q;
+  SEARCH_OFFSET = offset;
+  // Αποθήκευσε μόνο τις ΝΕΕΣ αναζητήσεις (όχι το "next page").
+  if (offset === 0) saveRecentSearch(q);
+  const status = document.getElementById("yt-search-status");
+  const results = document.getElementById("yt-search-results");
+  if (offset === 0) {
+    // πρώτη σελίδα: spinner πάνω (στο status) + καθάρισε
+    status.style.display = "";
+    status.innerHTML = '<span class="spin"></span> <span>Ψάχνω στο YouTube…</span>';
+    results.innerHTML = "";
+  } else {
+    // επόμενη σελίδα: spinner σήμα ΚΑΤΩ από τα υπάρχοντα (όπως το News Feed), κρύψε το status
+    status.style.display = "none";
+    const oldNext = document.getElementById("yt-next-wrap");
+    if (oldNext) oldNext.remove();
+    const loader = document.createElement("div");
+    loader.className = "yt-loading";
+    loader.id = "yt-loading";
+    loader.innerHTML = '<span class="spin"></span> Φορτώνω κι άλλα…';
+    results.appendChild(loader);
+  }
+  fetch("/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ q, mode: SEARCH_MODE, offset }),
+  }).then(r => r.json()).then(d => {
+    const loader = document.getElementById("yt-loading");
+    if (loader) loader.remove();
+    status.style.display = "none";
+    if (d.ok) {
+      SEARCH_HAS_MORE = !!d.has_more;
+      renderYTSearch(d.videos || [], d.channels || [], q, offset > 0);
+    } else {
+      status.style.display = "";
+      status.textContent = "⚠️ " + (d.error || "Σφάλμα");
+    }
+  }).catch(() => {
+    const loader = document.getElementById("yt-loading");
+    if (loader) loader.remove();
+    status.style.display = "";
+    status.textContent = "⚠️ Σφάλμα σύνδεσης — τρέχει ο server;";
+  });
+}
+
+function renderYTSearch(videos, channels, q, append) {
+  const box = document.getElementById("yt-search-results");
+  if (append) {
+    // Σε επόμενη σελίδα: κράτα τα ήδη υπάρχοντα, πρόσθεσε νέα κάτω, και ξαναστοίβαξε το Next.
+    SEARCH_VIDEOS = SEARCH_VIDEOS.concat(videos || []);
+    // βγάλε το παλιό Next πριν προσθέσουμε τα νέα
+    const oldNext = document.getElementById("yt-next-wrap");
+    if (oldNext) oldNext.remove();
+  } else {
+    SEARCH_VIDEOS = videos || [];
+    box.innerHTML = "";
+  }
+  if (!videos.length && !channels.length && !append) {
+    box.innerHTML = `<div class="yt-empty">Δεν βρέθηκαν αποτελέσματα για «${esc(q)}».</div>`;
+    return;
+  }
+  let html = "";
+
+  if (videos.length) {
+    html += `<div class="yt-sec-title">🎬 Βίντεο</div>`;
+    html += `<div class="yt-videos">`;
+    for (const v of videos) {
+      html += `
+        <div class="yt-video">
+          <div class="yt-thumb-wrap" onclick="openSearchVideo('${esc(v.video_id)}')" title="Δες το βίντεο">
+            <img class="yt-thumb" src="${v.thumb}" loading="lazy" alt="">
+            ${v.duration ? `<span class="yt-dur">${fmtDuration(v.duration)}</span>` : ""}
+            <span class="yt-play-icon">▶</span>
+          </div>
+          <div class="yt-video-title">${esc(v.title)}</div>
+          <div class="yt-video-meta">${esc(v.channel)}${v.views ? ` · ${fmtViews(v.views)}` : ""}</div>
+          <button class="yt-btn add yt-add-btn" onclick="event.stopPropagation();addVideoFromSearch('${esc(v.video_id)}')">➕ Add</button>
+        </div>`;
+    }
+    html += `</div>`;
+  }
+
+  if (channels.length) {
+    html += `<div class="yt-sec-title">📺 Κανάλια</div>`;
+    html += `<div class="yt-channels">`;
+    for (const c of channels) {
+      const watched = WATCHED_CHANNELS[c.channel_id] === 1;
+      html += `
+        <div class="yt-channel" onclick="openChannelPreview('${esc(c.channel_id)}','${esc(c.name).replace(/'/g, "\\'")}')" title="Δες το κανάλι">
+          <div class="yt-channel-logo-wrap">
+            <img class="yt-channel-avatar" src="https://yt3.googleusercontent.com/channel/${esc(c.channel_id)}" loading="lazy" alt="" onerror="this.style.display='none'">
+          </div>
+          <div class="yt-channel-name">${esc(c.name)}</div>
+          <button class="yt-btn ${watched ? "watched" : "add"} yt-add-btn" onclick="event.stopPropagation();watchChannelFromSearch('${esc(c.channel_id)}')">
+            ${watched ? "✓ Παρακολουθείς" : "➕ Παρακολούθησε"}
+          </button>
+        </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Next button (μόνο όταν υπάρχει επόμενη σελίδα)
+  if (SEARCH_HAS_MORE) {
+    html += `<div class="yt-next-wrap" id="yt-next-wrap"><button class="yt-mode" onclick="searchNextPage()">Επόμενα →</button></div>`;
+  }
+
+  box.innerHTML += html;
+}
+
+function addVideoFromSearch(videoId) {
+  fetch("/add", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url: "https://www.youtube.com/watch?v=" + videoId }),
+  }).then(r => r.json()).then(d => {
+    if (d.ok) { load(); } else { alert(d.error || "Σφάλμα"); }
+  }).catch(() => alert("Σφάλμα σύνδεσης"));
+}
+
+function watchChannelFromSearch(channelId) {
+  const want = WATCHED_CHANNELS[channelId] === 1 ? 0 : 1;
+  fetch("/watch_channel", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channel_id: channelId, enabled: want === 1 }),
+  }).then(r => r.json()).then(() => {
+    WATCHED_CHANNELS[channelId] = want;
+    // Νέο κανάλι → μπλε banner (μέχρι να το «δει»/ανοίξει ο χρήστης).
+    if (want === 1) NEW_CHANNELS.add(channelId);
+    const q = document.getElementById("yt-search-input").value.trim();
+    if (q) renderYTSearch(window._lastSearchVideos || [], window._lastSearchChannels || [], q);
+    // ξαναφέρε τα αποτελέσματα με ενημερωμένο state — απλά ξαναψάξε
+    doYouTubeSearch();
+  }).catch(() => alert("Σφάλμα σύνδεσης"));
+}
+
+function openVidInTab(videoId) {
+  window.open("https://www.youtube.com/watch?v=" + videoId, "_blank");
+}
+
+function openSearchVideo(videoId) {
+  // Παίζει ένα βίντεο των αποτελεσμάτων στο floating player (δεν ανοίγει YouTube).
+  openLightbox(videoId, "search");
+}
+
+let CW_CHANNEL_ID = null;
+
+function openChannelPreview(channelId, nameFallback) {
+  CW_CHANNEL_ID = channelId;
+  const cw = document.getElementById("cw");
+  cw.style.display = "flex";
+  // άμεσο feedback πριν έρθουν τα δεδομένα
+  document.getElementById("cw-avatar").style.display = "none";
+  document.getElementById("cw-title").textContent = nameFallback || channelId;
+  const watchBtn = document.getElementById("cw-watch");
+  const watched = WATCHED_CHANNELS[channelId] === 1;
+  watchBtn.textContent = watched ? "✓ Παρακολουθείς" : "➕ Παρακολούθησε";
+  watchBtn.classList.toggle("watched", watched);
+  watchBtn.classList.toggle("add", !watched);
+  document.getElementById("cw-videos").innerHTML = '<div class="yt-empty">…φόρτωση βίντεο…</div>';
+
+  fetch("/channel_preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channel_id: channelId }),
+  }).then(r => r.json()).then(d => {
+    if (!d.ok || !d.preview) {
+      document.getElementById("cw-videos").innerHTML = '<div class="yt-empty">Δεν μπόρεσα να φέρω το κανάλι.</div>';
+      return;
+    }
+    const p = d.preview;
+    document.getElementById("cw-title").textContent = p.name || channelId;
+    const av = document.getElementById("cw-avatar");
+    if (p.avatar) {
+      av.src = p.avatar;
+      av.style.display = "";
+      // fallback στο yt3 avatar αν σπάσει το og:image
+      av.onerror = function () { this.src = "https://yt3.googleusercontent.com/channel/" + channelId; };
+    }
+    const vids = document.getElementById("cw-videos");
+    if (!p.videos || !p.videos.length) {
+      vids.innerHTML = '<div class="yt-empty">Κανένα πρόσφατο βίντεο.</div>';
+      return;
+    }
+    vids.innerHTML = p.videos.map(v => `
+      <div class="cw-video" onclick="openVidInTab('${esc(v.video_id)}')" title="Δες στο YouTube">
+        <img class="cw-video-thumb" src="${v.thumb}" loading="lazy" alt="" onerror="this.style.display='none'">
+        <span class="cw-video-title">${esc(v.title)}</span>
+      </div>`).join("");
+  }).catch(() => {
+    document.getElementById("cw-videos").innerHTML = '<div class="yt-empty">Σφάλμα σύνδεσης.</div>';
+  });
+}
+
+function closeChannelPreview() {
+  document.getElementById("cw").style.display = "none";
+  CW_CHANNEL_ID = null;
+}
+
+function watchChannelFromWindow() {
+  const channelId = CW_CHANNEL_ID;
+  if (!channelId) return;
+  watchChannelFromSearch(channelId);
+  // ενημέρωσε το κουμπί στο window
+  const watched = WATCHED_CHANNELS[channelId] === 1;
+  const btn = document.getElementById("cw-watch");
+  btn.textContent = watched ? "✓ Παρακολουθείς" : "➕ Παρακολούθησε";
+  btn.classList.toggle("watched", watched);
+  btn.classList.toggle("add", !watched);
+}
+
+function addCategory() {
+  const input = document.getElementById("cat-new-input");
+  const name = input.value.trim();
+  if (!name) return;
+  fetch("/create_category", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  }).then(() => {
+    input.value = "";
+    if (!ALL_CATEGORIES.includes(name)) { ALL_CATEGORIES.push(name); ALL_CATEGORIES.sort(); }
+    renderCategories();
+  });
+}
+
+function confirmDeleteCategory(name, btn) {
+  closeCatConfirm();
+  const rect = btn.getBoundingClientRect();
+  const pop = document.createElement("div");
+  pop.className = "del-confirm";
+  pop.id = "cat-confirm";
+  pop.innerHTML = `
+    <div class="dc-msg">Θα σβηστεί η κατηγορία <b>${esc(name)}</b> από <b>ΟΛΑ</b> τα βίντεο.<br><span class="dc-warn">Τα βίντεό της θα γίνουν ακατηγοριοποίητα. Δεν ξαναγυρίζει.</span></div>
+    <div class="dc-btns">
+      <button class="dc-yes" onclick="doDeleteCategory('${esc(name)}')">✓ Ναι, σβήστο</button>
+      <button class="dc-no" onclick="closeCatConfirm()">✕ Άκυρο</button>
+    </div>`;
+  document.body.appendChild(pop);
+  const popW = 280, popH = 110;
+  let left = rect.left;
+  let top = rect.bottom + 6;
+  if (top + popH > window.innerHeight) top = rect.top - popH - 6;
+  if (left + popW > window.innerWidth) left = window.innerWidth - popW - 8;
+  pop.style.left = Math.max(8, left) + "px";
+  pop.style.top = Math.max(8, top) + "px";
+}
+
+function closeCatConfirm() {
+  const p = document.getElementById("cat-confirm");
+  if (p) p.remove();
+}
+
+function doDeleteCategory(name) {
+  closeCatConfirm();
+  fetch("/delete_category", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  }).then(() => {
+    ALL_CATEGORIES = ALL_CATEGORIES.filter(c => c !== name);
+    allVideos.forEach(v => { if (v.category === name) v.category = ""; });
+    closeCatPop();
+    renderCategories();
+    renderCurrent();
+  });
+}
+
+/* --- Search μέσα στο tab Κατηγορίες --- */
+let catSearchRating = 0;   // 0 = κανένα, 1-5 = ακριβές rating
+let catSearchTimer = null;
+
+function setCatSearchRating(n) {
+  catSearchRating = n;
+  const stars = document.querySelectorAll("#cat-search-stars .st");
+  stars.forEach((s, i) => s.classList.toggle("on", i < n));
+  document.getElementById("cat-rating-clear").style.display = n ? "inline" : "none";
+  renderCategories();
+}
+
+// Φιλτράρει τα βίντεο του tab κατηγοριών (κείμενο + rating + επιλεγμένες κατηγορίες) — τοπικά.
+function catFilteredVideos() {
+  const q = (document.getElementById("cat-search-input").value || "").trim().toLowerCase();
+  const hasCatFilter = selectedCats.size > 0;
+  return allVideos.filter(v => {
+    // κατηγορίες (OR ένωση): αν έχω τσεκάρει, το βίντεο πρέπει να ανήκει σε ΜΙΑ από αυτές
+    if (hasCatFilter && !selectedCats.has(((v.category || v.user_category) || "").trim())) return false;
+    if (catSearchRating && (v.rating || 0) !== catSearchRating) return false;
+    if (!q) return true;
+    const tags = videoTags(v).join(" ");
+    const hay = `${v.title || ""} ${v.channel || ""} ${tags} ${v.category || ""}`.toLowerCase();
+    return hay.includes(q);
+  });
+}
+
+function toggleFilterCat(name, on) {
+  if (on) selectedCats.add(name); else selectedCats.delete(name);
+  renderCategories();
+}
+
+function doCatSearch(q) {
+  clearTimeout(catSearchTimer);
+  catSearchTimer = setTimeout(() => renderCategories(), 150);
+}
+
+function doCatSearchNow() {
+  clearTimeout(catSearchTimer);
+  renderCategories();
+}
+
+function clearCatSearch() {
+  document.getElementById("cat-search-input").value = "";
+  selectedCats.clear();
+  setCatSearchRating(0);
+  renderCategories();
+}
+
+function renderCategories() {
+  const el = document.getElementById("categories-list");
+  if (!el) return;
+  // φιλτράρισμα (search text + rating + επιλεγμένες κατηγορίες) — όπως στα κανάλια
+  const filtered = catFilteredVideos();
+  const hasFilter = !!(document.getElementById("cat-search-input").value.trim() || catSearchRating > 0);
+  document.getElementById("cat-search-clear").style.display = hasFilter ? "" : "none";
+  // ομαδοποίηση βίντεο ανά user_category + τα ακατηγοριοποίητα ξεχωριστά
+  const byCat = new Map();
+  const uncategorized = [];
+  for (const v of filtered) {
+    const cat = ((v.category || v.user_category) || "").trim();
+    if (!cat) { uncategorized.push(v); continue; }
+    if (!byCat.has(cat)) byCat.set(cat, []);
+    byCat.get(cat).push(v);
+  }
+  // σειρά κατηγοριών: catOrder πρώτα, μετά όσες δεν είναι στη λίστα (αλφαβητικά)
+  const allNames = [...new Set([...ALL_CATEGORIES, ...byCat.keys()])].sort();
+  const orderedNames = [
+    ...catOrder.filter(n => allNames.includes(n)),
+    ...allNames.filter(n => !catOrder.includes(n)),
+  ];
+  const cntEl = document.getElementById("list-head-cat-count");
+  if (cntEl) cntEl.textContent = allNames.length ? `(${allNames.length})` : "";
+
+  // Πτυσσόμενο panel κατηγοριών (κίτρινο κουμπί δίπλα στο «Κατηγορίες») — checkbox φίλτρο + × διαγραφή
+  renderCatFilterPanel(allNames);
+
+  let html = "";
+  // Κατηγοριοποιημένα → ομάδες με ↑↓ / 📌 / count
+  for (const name of orderedNames) {
+    const vids = byCat.get(name) || [];
+    const open = !collapsedCats.has(name);
+    const rows = vids.map(v => rowHtml(v, "category")).join("");
+    html += `<div class="cat-group ${open ? '' : 'collapsed'}" data-cat="${esc(name)}">
+      <div class="cat-head" onclick="toggleCatGroup(this)">
+        <span class="cat-chevron">${open ? '▾' : '▸'}</span>
+        <span class="cat-name">${esc(name)}</span>
+        <span class="cat-count">· ${vids.length} βίντεο</span>
+        <span class="head-spacer"></span>
+        <button class="icon-btn ch-pin" title="Κατηγορία πάνω-πάνω" onclick="event.stopPropagation();pinCategory('${esc(name)}')">📌</button>
+        <button class="icon-btn" title="Κατηγορία μία θέση πάνω" onclick="event.stopPropagation();moveCategory(this, -1)">↑</button>
+        <button class="icon-btn" title="Κατηγορία μία θέση κάτω" onclick="event.stopPropagation();moveCategory(this, 1)">↓</button>
+        <span class="cat-del" title="Διαγραφή κατηγορίας" onclick="event.stopPropagation();confirmDeleteCategory('${esc(name)}', this)">×</span>
+      </div>
+      <div class="cat-body">${rows}</div>
+    </div>`;
+  }
+  // Ακατηγοριοποίητα → τελευταία, κάτω-κάτω
+  if (uncategorized.length) {
+    const open = !collapsedCats.has("__uncategorized__");
+    const rows = uncategorized.map(v => rowHtml(v, "category")).join("");
+    html += `<div class="cat-group ${open ? '' : 'collapsed'}" data-cat="__uncategorized__">
+      <div class="cat-head" onclick="toggleCatGroup(this)">
+        <span class="cat-chevron">${open ? '▾' : '▸'}</span>
+        <span class="cat-name" style="color:var(--muted)">Ακατηγοριοποίητα</span>
+        <span class="cat-count">· ${uncategorized.length} βίντεο</span>
+        <span class="head-spacer"></span>
+      </div>
+      <div class="cat-body">${rows}</div>
+    </div>`;
+  }
+  el.innerHTML = html || '<span class="empty">Κανένα βίντεο.</span>';
+  try { setupDrag(); } catch (e) {}
+  updateToggleAllCatBtn();
+}
+
+function toggleCatGroup(head) {
+  if (dragMoved) { dragMoved = false; return; }
+  const group = head.closest(".cat-group");
+  const key = group.dataset.cat;
+  const chev = head.querySelector(".cat-chevron");
+  if (group.classList.contains("collapsed")) {
+    group.classList.remove("collapsed");
+    collapsedCats.delete(key);
+    if (chev) chev.textContent = "▾";   // ανοιχτό → κάτω
+  } else {
+    group.classList.add("collapsed");
+    collapsedCats.add(key);
+    if (chev) chev.textContent = "▸";   // κλειστό → δεξιά
+  }
+  saveCatState();
+}
+
+function renderCatFilterPanel(allNames) {
+  const panel = document.getElementById("cat-filter-panel");
+  const totalEl = document.getElementById("cat-total");
+  const activeEl = document.getElementById("cat-active");
+  if (!panel) return;
+  if (totalEl) totalEl.textContent = `(${allNames.length})`;
+  if (activeEl) activeEl.textContent = selectedCats.size > 0 ? `· ${selectedCats.size} ενεργά` : "";
+  if (!allNames.length) {
+    panel.innerHTML = '<span class="lbl" style="font-size:12px">📁 Φτιάξε κατηγορίες για να φιλτράρεις.</span>';
+    return;
+  }
+  panel.innerHTML = allNames.map(name => {
+    const on = selectedCats.has(name);
+    return `<label class="tag-chk yellow ${on ? 'on' : ''}">
+      <input type="checkbox" ${on ? 'checked' : ''} onchange="toggleFilterCat('${esc(name)}', this.checked)">${esc(name)}
+      <span class="tag-filter-x" title="Διαγραφή κατηγορίας «${esc(name)}»" onclick="event.stopPropagation();confirmDeleteCategory('${esc(name)}', this)">×</span>
+    </label>`;
+  }).join("");
+}
+
+function toggleCatPanel() {
+  const panel = document.getElementById("cat-filter-panel");
+  if (!panel) return;
+  const show = panel.style.display === "none";
+  panel.style.display = show ? "block" : "none";
+  const chev = document.getElementById("cat-chevron");
+  if (chev) chev.textContent = show ? "▴" : "▾";
+}
+
+function toggleAllCategories() {
+  const groups = [...document.querySelectorAll("#categories-list .cat-group")];
+  if (!groups.length) return;
+  const allClosed = groups.every(g => g.classList.contains("collapsed"));
+  groups.forEach(g => {
+    const key = g.dataset.cat;
+    if (allClosed) {
+      g.classList.remove("collapsed");
+      collapsedCats.delete(key);
+    } else {
+      g.classList.add("collapsed");
+      collapsedCats.add(key);
+    }
+  });
+  saveCatState();
+  updateToggleAllCatBtn();
+}
+
+function updateToggleAllCatBtn() {
+  const btn = document.getElementById("toggle-all-cat");
+  if (!btn) return;
+  const groups = [...document.querySelectorAll("#categories-list .cat-group")];
+  const allClosed = groups.length > 0 && groups.every(g => g.classList.contains("collapsed"));
+  btn.textContent = allClosed ? "▸" : "▾";
+  btn.classList.toggle("all-closed", allClosed);
+}
+
+// Αποθηκεύει σειρά + collapsed κατηγοριών στη βάση (μαζί με το ui_state των καναλιών).
+function saveCatState() {
+  fetch("/ui_state", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      collapsed: [...collapsedChannels],
+      order: channelOrder,
+      rss_shown: rssShown,
+      cat_order: [...document.querySelectorAll("#categories-list .cat-group:not([data-cat='__uncategorized__'])")].map(g => g.dataset.cat),
+      cat_collapsed: [...collapsedCats],
+    }),
+  });
+}
+
+function moveCategory(btn, dir) {
+  const group = btn.closest(".cat-group");
+  if (!group) return;
+  const sibling = dir < 0 ? group.previousElementSibling : group.nextElementSibling;
+  if (sibling && sibling.classList.contains("cat-group") && sibling.dataset.cat !== "__uncategorized__") {
+    const parent = group.parentNode;
+    if (dir < 0) parent.insertBefore(group, sibling);
+    else parent.insertBefore(sibling, group);
+    saveCatState();
+  }
+}
+
+function pinCategory(name) {
+  const groups = [...document.querySelectorAll("#categories-list .cat-group:not([data-cat='__uncategorized__'])")];
+  const idx = groups.findIndex(g => g.dataset.cat === name);
+  if (idx <= 0) return;
+  const g = groups[idx];
+  g.parentNode.insertBefore(g, groups[0]);
+  saveCatState();
+}
+
+/* --- Popover κατηγοριών (📁) --- */
+function openCatPop(btn, videoId) {
+  catPopTarget = videoId;
+  catPopBtn = btn;
+  const v = allVideos.find(x => x.video_id === videoId);
+  const current = v?.category || "";
+  renderCatPopList(current);
+  const pop = document.getElementById("cat-pop");
+  pop.classList.add("open");
+  repositionCatPop();
+}
+
+function closeCatPop() {
+  document.getElementById("cat-pop").classList.remove("open");
+  catPopTarget = null;
+  catPopBtn = null;
+}
+
+function renderCatPopList(currentCat) {
+  const list = document.getElementById("cat-pop-list");
+  let html = `<div class="tag-pop-item">
+      <label class="tag-pop-label">
+        <input type="radio" name="cat-radio" value="" ${!currentCat ? 'checked' : ''} onchange="setVideoCategory('')">(καμία κατηγορία)
+      </label>
+    </div>`;
+  for (const c of ALL_CATEGORIES) {
+    html += `<div class="tag-pop-item">
+      <label class="tag-pop-label">
+        <input type="radio" name="cat-radio" value="${esc(c)}" ${currentCat === c ? 'checked' : ''} onchange="setVideoCategory('${esc(c)}')">${esc(c)}
+      </label>
+      <button class="tag-del" title="Διαγραφή κατηγορίας «${esc(c)}» από παντού" onclick="confirmDeleteCategory('${esc(c)}', this)">×</button>
+    </div>`;
+  }
+  list.innerHTML = html;
+}
+
+function setVideoCategory(cat) {
+  if (!catPopTarget) return;
+  fetch("/set_category", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ video_id: catPopTarget, category: cat }),
+  }).then(() => {
+    const v = allVideos.find(x => x.video_id === catPopTarget);
+    if (v) v.category = cat;
+    if (cat && !ALL_CATEGORIES.includes(cat)) { ALL_CATEGORIES.push(cat); ALL_CATEGORIES.sort(); }
+    closeCatPop();
+    renderCurrent();
+    renderCategories();
+  });
+}
+
+function saveVideoCategory() {
+  const input = document.getElementById("cat-pop-new-input");
+  const name = input.value.trim();
+  if (!name) return;
+  input.value = "";
+  setVideoCategory(name);
+}
+
+function repositionCatPop() {
+  const pop = document.getElementById("cat-pop");
+  if (!pop.classList.contains("open") || !catPopBtn) return;
+  const r = catPopBtn.getBoundingClientRect();
+  if (r.bottom < 0 || r.top > window.innerHeight) { closeCatPop(); return; }
+  pop.style.top = (r.bottom + 6) + "px";
+  pop.style.left = Math.min(r.left, window.innerWidth - 300) + "px";
+}
+
+function addVideo() {
+  const input = document.getElementById("add-url");
+  const url = input.value.trim();
+  if (!url) return;
+  fetch("/add", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  }).then(r => r.json()).then(d => {
+    if (d.ok) {
+      input.value = "";
+      load();
+    } else {
+      alert(d.error || "Σφάλμα");
+    }
+  }).catch(() => alert("Σφάλμα σύνδεσης — τρέχει ο server;"));
+}
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+// Esc = έξοδος από search/filter mode (ακόμα κι αν το focus είναι στο input)
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" || e.key === "Esc") {
+    // αν το lightbox (floating player) είναι ανοιχτό, το Esc ΔΕΝ πρέπει να ξαναχτίσει τη λίστα
+    const lb = document.getElementById("lb");
+    if (lb && lb.style.display !== "none") return;
+    clearSearch();
+    // επίσης καθάρισε τα tag filters
+    selectedTags.clear();
+    renderTagFilter();
+    renderCurrent();
+  }
+});
+
+// 🌙/☀️ Θέμα — αποθήκευση + εφαρμογή
+function applyTheme(theme, persist) {
+  document.documentElement.setAttribute("data-theme", theme);
+  const btn = document.getElementById("theme-toggle");
+  if (btn) btn.textContent = theme === "light" ? "☀️" : "🌙";
+  if (persist) try { localStorage.setItem("pyt-theme", theme); } catch (e) {}
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+  // 🌗 cross-fade: απαλό flash overlay αντί για «κλικ-και-άλλαξε».
+  themeFlash();
+  applyTheme(cur, true);
+}
+function themeFlash() {
+  let ov = document.getElementById("theme-flash");
+  if (!ov) {
+    ov = document.createElement("div");
+    ov.id = "theme-flash";
+    ov.style.cssText = "position:fixed;inset:0;background:var(--accent);opacity:0;pointer-events:none;z-index:9999;transition:opacity .22s ease;";
+    document.body.appendChild(ov);
+  }
+  // δύο φάσεις: ανάβει, σβήνει
+  ov.style.transition = "opacity .22s ease";
+  ov.style.opacity = "0.12";
+  setTimeout(() => { ov.style.opacity = "0"; }, 160);
+}
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem("pyt-theme"); } catch (e) {}
+  // default: dark (όπως ήταν πάντα)
+  applyTheme(saved === "light" ? "light" : "dark", false);
+}
+initTheme();
+
+/* --- 🎬 Floating player (lightbox) --- */
+let LB = { queue: [], idx: 0, context: null }; // context: "channel" | "category" | "feed"
+
+// Χτίσε την ουρά Prev/Next ανάλογα με το πού βρίσκεσαι.
+function buildQueue(context, videoId) {
+  let list = [];
+  const all = allVideos || [];
+  if (context === "channel") {
+    // όλα τα βίντεα του ίδιου καναλιού
+    const v = all.find(x => x.video_id === videoId);
+    const key = v ? (v.channel_id || v.channel || "__unknown__") : null;
+    list = all.filter(x => (x.channel_id || x.channel || "__unknown__") === key).map(x => x.video_id);
+  } else if (context === "category") {
+    // όλα τα βίντεα της ίδιας κατηγορίας
+    const v = all.find(x => x.video_id === videoId);
+    const cat = v ? (v.category || "") : "";
+    list = all.filter(x => (x.category || "") === cat).map(x => x.video_id);
+  } else if (context === "search") {
+    // Αποτελέσματα αναζήτησης — σειρά προβολής αριστερά→δεξιά, πάνω→κάτω.
+    list = (SEARCH_VIDEOS || []).map(x => x.video_id);
+  } else if (context === "feed") {
+    // News Feed (όλα τα νέα του καναλιού), μετά τα κατεβασμένα του καναλιού.
+    // Το videoId μπορεί να είναι ΝΕΟ βίντεο (δεν είναι ακόμα στο allVideos) → βρες το cid από το RSS_DATA.
+    let cid = null;
+    const v = all.find(x => x.video_id === videoId);
+    if (v) {
+      cid = v.channel_id || v.channel || "__unknown__";
+    } else {
+      for (const k in (RSS_DATA || {})) {
+        if ((RSS_DATA[k] || []).some(n => n.video_id === videoId)) { cid = k; break; }
+      }
+    }
+    if (!cid) { list = [videoId]; return list; }
+    const feedIds = (RSS_DATA[cid] || []).map(n => n.video_id);
+    const downloaded = all.filter(x => (x.channel_id || x.channel || "__unknown__") === cid).map(x => x.video_id);
+    // feed πρώτα, μετά downloaded (χωρίς διπλότυπα)
+    const seen = new Set();
+    list = [...feedIds, ...downloaded].filter(id => { if (seen.has(id)) return false; seen.add(id); return true; });
+  }
+  if (!list.includes(videoId)) list.unshift(videoId);
+  return list;
+}
+
+function openLightbox(videoId, context) {
+  const queue = buildQueue(context, videoId);
+  if (!queue.length) return;
+  LB.queue = queue;
+  LB.context = context;
+  LB.idx = queue.indexOf(videoId);
+  if (LB.idx < 0) LB.idx = 0;
+  markSeen(videoId);
+  showLightbox();
+}
+
+/* ── ⏱️ Timestamp Notes ─────────────────────────────────────────── */
+function fmtTs(sec) {
+  sec = Number(sec) || 0;
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60);
+  const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
+  const ss = String(s).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+// Διάβασε το τρέχον σημείο του βίντεο — μέσω του YouTube IFrame API (γνήσιο currentTime).
+let ytPlayers = {};
+function currentTimestamp() {
+  const vid = LB.queue[LB.idx];
+  try {
+    // Εάν ο player έγινε οριστικοποιημένος μέσω API, ρώτησε τον πραγματικό χρόνο.
+    if (ytPlayers[vid] && typeof ytPlayers[vid].getCurrentTime === "function") {
+      const t = ytPlayers[vid].getCurrentTime();
+      if (typeof t === "number" && isFinite(t)) return Math.floor(t);
+    }
+  } catch (err) {}
+  return LB._ts || 0;
+}
+
+// Ορίζεται από το YouTube IFrame API μόλις φορτώσει.
+function onYouTubeIframeAPIReady() {
+  window._ytReady = true;
+}
+
+// Φτιάχνει τον player μέσω του YouTube IFrame API, ώστε να διαβάζουμε το τρέχον σημείο.
+function createYTPlayer(videoId) {
+  const frame = document.getElementById("lb-frame");
+  // Ξεκάθαρο div-στόχος για τον API player.
+  frame.innerHTML = `<div id="yt-player-${videoId}"></div>`;
+  const mount = () => {
+    try {
+      ytPlayers[videoId] = new YT.Player(`yt-player-${videoId}`, {
+        videoId: videoId,
+        playerVars: { autoplay: 1, rel: 0, enablejsapi: 1, origin: window.location.origin },
+        events: {
+          onStateChange: (e) => {
+            // ενημέρωσε το LB._ts συνέχεια όσο παίζει (fallback αν το getCurrentTime δεν απαντήσει)
+            try { if (ytPlayers[videoId] && ytPlayers[videoId].getCurrentTime) LB._ts = ytPlayers[videoId].getCurrentTime(); } catch (_) {}
+          },
+        },
+      });
+    } catch (err) {
+      // fallback: σκέτο iframe αν το API δεν είναι διαθέσιμο.
+      frame.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${esc(videoId)}?autoplay=1&rel=0&enablejsapi=1" allow="autoplay; fullscreen; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+    }
+  };
+  if (window.YT && window.YT.Player) { mount(); }
+  else if (window._ytReady) { mount(); }
+  else {
+    // φόρτωσε το IFrame API αν δεν έχει φορτωθεί ακόμα
+    if (!document.getElementById("yt-api-script")) {
+      const s = document.createElement("script");
+      s.id = "yt-api-script";
+      s.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(s);
+    }
+    const prevReady = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      window._ytReady = true;
+      if (prevReady) prevReady();
+      mount();
+    };
+  }
+}
+
+function renderNotes() {
+  const videoId = LB.queue[LB.idx];
+  const box = document.getElementById("lb-notes");
+  if (!box) return;
+  fetch(`/api/video-notes?video_id=${encodeURIComponent(videoId)}`).then(r => r.json()).then(d => {
+    const notes = d.notes || [];
+    if (!notes.length) {
+      box.innerHTML = '<div class="lb-note-empty">⏱️ Κανένα σημείο σημειωμένο ακόμα.</div>';
+      return;
+    }
+    box.innerHTML = notes.map(n => `
+      <div class="lb-note-item">
+        <span class="lb-note-ts" onclick="seekTo(${n.timestamp_sec})" title="Πήγαινε στο σημείο">▶ ${fmtTs(n.timestamp_sec)}</span>
+        <div class="lb-note-body">
+          ${n.title ? `<div class="lb-note-title">${esc(n.title)}</div>` : ""}
+          ${n.note ? `<div class="lb-note-text">${esc(n.note)}</div>` : ""}
+        </div>
+        <button class="lb-note-del" onclick="deleteNote(${n.id})" title="Διαγραφή">🗑</button>
+      </div>`).join("");
+  }).catch(() => {});
+}
+
+function openNoteForm() {
+  const box = document.getElementById("lb-notes");
+  const ts = currentTimestamp();
+  box.insertAdjacentHTML("afterbegin", `
+    <div class="lb-note-form" id="lb-note-form">
+      <div class="lb-note-form-row">
+        <span class="ts-label">⏱️ ${fmtTs(ts)}</span>
+        <input type="text" id="note-title" placeholder="Τίτλος (π.χ. Πώς ρυθμίζω ISO)">
+      </div>
+      <textarea id="note-text" placeholder="Σημείωση…"></textarea>
+      <div class="lb-note-form-actions">
+        <button onclick="closeNoteForm()">Άκυρο</button>
+        <button class="primary" onclick="saveNote()">Αποθήκευση</button>
+      </div>
+    </div>`);
+  // εστίασέ στον τίτλο
+  const t = document.getElementById("note-title");
+  if (t) t.focus();
+}
+
+function closeNoteForm() {
+  const f = document.getElementById("lb-note-form");
+  if (f) f.remove();
+}
+
+function saveNote() {
+  const videoId = LB.queue[LB.idx];
+  const title = (document.getElementById("note-title") || {}).value || "";
+  const text = (document.getElementById("note-text") || {}).value || "";
+  if (!title && !text) { closeNoteForm(); return; }
+  fetch("/add_note", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ video_id: videoId, title, note: text, timestamp_sec: currentTimestamp() })
+  }).then(r => r.json()).then(() => {
+    closeNoteForm();
+    renderNotes();
+  }).catch(() => {});
+}
+
+function deleteNote(noteId) {
+  const videoId = LB.queue[LB.idx];
+  fetch("/delete_note", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ note_id: noteId, video_id: videoId })
+  }).then(r => r.json()).then(() => renderNotes()).catch(() => {});
+}
+
+function seekTo(sec) {
+  const videoId = LB.queue[LB.idx];
+  // Αν υπάρχει API player → seek πάνω του (χωρίς reload).
+  if (ytPlayers[videoId] && typeof ytPlayers[videoId].seekTo === "function") {
+    try { ytPlayers[videoId].seekTo(sec, true); return; } catch (err) {}
+  }
+  // Fallback: επαναφόρτωσε το iframe στο σημείο.
+  const frame = document.getElementById("lb-frame");
+  frame.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${esc(videoId)}?autoplay=1&rel=0&start=${Math.floor(sec)}" allow="autoplay; fullscreen; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+}
+
+function showLightbox() {
+  const videoId = LB.queue[LB.idx];
+  const all = allVideos || [];
+  const v = all.find(x => x.video_id === videoId);
+
+  document.getElementById("lb").style.display = "flex";
+  const frame = document.getElementById("lb-frame");
+
+  // Προσωρινό loading (μέχρι να μάθουμε αν επιτρέπεται embed)
+  frame.innerHTML = '<div class="lb-loading">…φόρτωση…</div>';
+
+  // info: τίτλος + κανάλι + κατηγορία (αν υπάρχει στα δεδομένα)
+  const info = document.getElementById("lb-info");
+  let feedTitle = null;
+  if (v) {
+    const cat = v.category ? ` · <span class="cat-chip">${esc(v.category)}</span>` : "";
+    info.innerHTML = `
+      <span class="lb-title">${esc(v.title)}</span>
+      <span class="lb-sub">${esc(v.channel || "Άγνωστο κανάλι")}${cat}</span>`;
+    feedTitle = v.title;
+  } else {
+    // News Feed ή Search — βίντεο που ΔΕΝ είναι ακόμα στη βιβλιοθήκη.
+    let n = null;
+    for (const k in (RSS_DATA || {})) { n = (RSS_DATA[k] || []).find(x => x.video_id === videoId); if (n) break; }
+    if (n) {
+      info.innerHTML = `<span class="lb-title">${esc(n.title)}</span><span class="lb-sub">🆕 Νέο βίντεο (News Feed)</span>`;
+      feedTitle = n.title;
+    } else {
+      const s = (SEARCH_VIDEOS || []).find(x => x.video_id === videoId);
+      if (s) {
+        const views = s.views ? ` · ${fmtViews(s.views)} views` : "";
+        info.innerHTML = `<span class="lb-title">${esc(s.title)}</span><span class="lb-sub">🔍 ${esc(s.channel || "")}${views}</span>`;
+        feedTitle = s.title;
+      } else {
+        info.innerHTML = `<span class="lb-title">${esc(videoId)}</span><span class="lb-sub">🔍 Βίντεο</span>`;
+        feedTitle = videoId;
+      }
+    }
+  }
+
+  // controls
+  document.getElementById("lb-pos").textContent = `${LB.idx + 1} / ${LB.queue.length}`;
+  document.getElementById("lb-prev").disabled = LB.idx <= 0;
+  document.getElementById("lb-next").disabled = LB.idx >= LB.queue.length - 1;
+
+  // ➕ add + ✕ dismiss: ΜΟΝΟ στο News Feed (context "feed") και μόνο αν το βίντεο ΔΕΝ είναι ήδη στη βιβλιοθήκη
+  const isDownloaded = v !== undefined;
+  const addBtn = document.getElementById("lb-add");
+  const dismissBtn = document.getElementById("lb-dismiss");
+  const showFeedActions = ((LB.context === "feed" || LB.context === "search") && !isDownloaded);
+  addBtn.style.display = showFeedActions ? "flex" : "none";
+  dismissBtn.style.display = showFeedActions ? "flex" : "none";
+  // ⏱️ Σημείωση εδώ: ΜΟΝΟ όταν το βίντεο είναι ΔΙΚΟ ΣΟΥ (στη λίστα).
+  const noteBtn = document.getElementById("lb-note-btn");
+  if (noteBtn) noteBtn.style.display = isDownloaded ? "flex" : "none";
+  const notesBox = document.getElementById("lb-notes");
+  if (notesBox) notesBox.style.display = isDownloaded ? "" : "none";
+  // Επαναφορά του ➕ στο κανονικό state κάθε φορά που αλλάζει βίντεο,
+  // ώστε να μπορείς να προσθέσεις ΚΑΙ το επόμενο (δεν μένει μόνιμα «✓»).
+  if (showFeedActions) {
+    addBtn.textContent = "➕";
+    addBtn.classList.remove("added");
+    addBtn.style.opacity = "1";
+    addBtn.style.pointerEvents = "auto";
+  }
+
+  // ⏱️ Φόρτωσε τα timestamp notes κάτω από το player.
+  LB._ts = 0;
+  renderNotes();
+
+  // 🎬 Ρώτα το backend αν επιτρέπεται embed → iframe ή fallback.
+  fetch("/embeddable", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ video_id: videoId }),
+  }).then(r => r.json()).then(d => {
+    if (d.embeddable === false) {
+      // Owner μπλόκαρε το embed → thumbnail + κουμπί «Άνοιξε στο YouTube».
+      frame.innerHTML = `
+        <div class="lb-blocked">
+          <img class="lb-blocked-thumb" src="/thumb/${esc(videoId)}" onerror="this.style.display='none'" alt="">
+          <div class="lb-blocked-title">${esc(feedTitle)}</div>
+          <button class="lb-blocked-btn" onclick="window.open('https://www.youtube.com/watch?v=${esc(videoId)}','_blank')">▶ Άνοιξε στο YouTube</button>
+        </div>`;
+    } else {
+      // embed επιτρέπεται (ή άγνωστο → δοκιμάζουμε embed) — μέσω IFrame API για να διαβάζουμε τον χρόνο.
+      createYTPlayer(videoId);
+    }
+  }).catch(() => {
+    // Σε σφάλμα δικτύου → δοκίμασε embed (fallback-safe).
+    createYTPlayer(videoId);
+  });
+}
+
+function stepLightbox(dir) {
+  const ni = LB.idx + dir;
+  if (ni < 0 || ni >= LB.queue.length) return;
+  LB.idx = ni;
+  const videoId = LB.queue[LB.idx];
+  markSeen(videoId);
+  showLightbox();
+}
+
+function closeLightbox() {
+  document.getElementById("lb").style.display = "none";
+  document.getElementById("lb-frame").innerHTML = ""; // σταμάτα το βίντεο
+  LB.queue = []; LB.idx = 0; LB.context = null;
+}
+
+function lightboxAdd() {
+  const videoId = LB.queue[LB.idx];
+
+  // Βρες το channel_id: πρώτα feed, μετά search results, μετά library.
+  let cid = null;
+  for (const k in (RSS_DATA || {})) {
+    if ((RSS_DATA[k] || []).some(n => n.video_id === videoId)) { cid = k; break; }
+  }
+  if (!cid) {
+    const sv = (SEARCH_VIDEOS || []).find(x => x.video_id === videoId);
+    if (sv) cid = sv.channel_id || null;
+  }
+  if (!cid) {
+    const v = (allVideos || []).find(x => x.video_id === videoId);
+    if (v) cid = v.channel_id || v.channel || null;
+  }
+
+  // ➕ add ΧΩΡΙΣ να κλείσει το παράθυρο. Μένει ανοιχτό για να προχωρήσεις ΕΣΥ όποτε θες.
+  const url = "https://www.youtube.com/watch?v=" + videoId;
+  const lbMeta = cid ? (WATCHED_META[cid] || {}) : {};
+  fetch("/add", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, approve: true, channel_id: cid || null, channel: lbMeta.name || null }),
+  }).then(r => r.json()).then(d => {
+    if (!d.ok) { alert(d.error || "Σφάλμα"); return; }
+    // Αν είναι ακόμα στην ουρά του feed, σημείωσέ το ότι προστέθηκε (αλλά ΜΗΝ προχωρήσεις αυτόματα).
+    if (cid) {
+      RSS_DATA[cid] = (RSS_DATA[cid] || []).filter(n => n.video_id !== videoId);
+    }
+    // Αλλαγή του κουμπιού ➕ σε ✓ (spring + draw animation) — το «magic moment».
+    const addBtn = document.getElementById("lb-add");
+    if (addBtn) {
+      addBtn.innerHTML = '<svg class="add-check" width="22" height="22" viewBox="0 0 24 24" fill="none" style="display:block"><path d="M4 12.5l5.5 5.5L20 6.5" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" pathLength="100" style="stroke-dasharray:100;stroke-dashoffset:100;animation:check-draw .4s cubic-bezier(.4,0,.2,1) .15s forwards"/></svg>';
+      addBtn.classList.add("added");
+      addBtn.style.pointerEvents = "none";
+    }
+    // ενημέρωσε ΜΟΝΟ το RSS panel του καναλιού (σιωπηλά — ΔΕΝ κλείνει/διπλώνει τίποτα).
+    if (cid) renderRssPanel(cid);
+    // ➕ πρόσθεσε ΚΑΙ ορατά το βίντεο μέσα στο κανάλι (όπως το ➕ του feed).
+    if (cid) {
+      let title = d.title || videoId;
+      let channel = (WATCHED_META[cid] || {}).name || null;
+      // βρες title/channel από feed, search ή library
+      const fromFeed = (RSS_DATA[cid] || []).find(n => n.video_id === videoId);
+      if (!fromFeed) {
+        const sv = (SEARCH_VIDEOS || []).find(x => x.video_id === videoId);
+        if (sv) { title = sv.title || title; channel = channel || sv.channel || null; }
+        const lv = (allVideos || []).find(x => x.video_id === videoId);
+        if (lv) { title = lv.title || title; channel = channel || lv.channel || null; }
+      } else {
+        title = fromFeed.title || title;
+        channel = channel || fromFeed.channel || null;
+      }
+      appendVideoToChannel(cid, {
+        video_id: videoId,
+        title: title,
+        channel: channel || d.title || cid,
+        channel_id: cid,
+        rating: 0,
+        unseen: false,
+      });
+    }
+  }).catch(() => alert("Σφάλμα σύνδεσης"));
+}
+
+function lightboxDismiss() {
+  const videoId = LB.queue[LB.idx];
+  // βρες το cid από το feed
+  let cid = null;
+  for (const k in (RSS_DATA || {})) {
+    if ((RSS_DATA[k] || []).some(n => n.video_id === videoId)) { cid = k; break; }
+  }
+  if (!cid) { closeLightbox(); return; }
+  dismissFromRSS(cid, videoId);
+  // το dismissFromRSS αφαιρεί το βίντεο + το /dismiss_video το αποθηκεύει μόνιμα.
+  // Προχώρα στο ΕΠΟΜΕΝΟ βίντεο της ουράς (ή κλείσε αν είναι το τελευταίο).
+  LB.queue = LB.queue.filter(id => id !== videoId);
+  if (LB.queue.length === 0) {
+    closeLightbox();
+    return;
+  }
+  if (LB.idx >= LB.queue.length) LB.idx = LB.queue.length - 1;
+  showLightbox();
+}
+
+// Esc = κλείσιμο
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" && e.key !== "Esc") return;
+  const cw = document.getElementById("cw");
+  if (cw && cw.style.display !== "none") {
+    closeChannelPreview();
+    return;
+  }
+  if (document.getElementById("lb").style.display !== "none") {
+    closeLightbox();
+  }
+});
+
+/* ═════════════════════════════════════════════════════════════════════
+   🫧 BUBBLE FIELD — αιωρούμενα trending θέματα (αρχική σελίδα αναζήτησης)
+   Ελαφρύ physics: ανεβαίνουν αργά, ελαφρά σύγκρουση, σκάνε στο πάνω όριο.
+   Κλικ → το θέμα μπαίνει στο YouTube search field.
+   ═════════════════════════════════════════════════════════════════════ */
+
+// Λίστα trending θεμάτων (θα φτάσουμε τα 500· ξεκινάμε με δυνατό βασικό σετ).
+const TRENDING_TOPICS = [
+  "music","gaming","football","cooking","fitness","travel","technology","fashion",
+  "health","longevity","medicine","cars","crypto","science","history","space",
+  "art","photography","diy","gardening","nutrition","meditation","yoga","workout",
+  "podcast","news","movies","series","anime","comedy","documentary","education",
+  "psychology","philosophy","economics","investment","real estate","startup",
+  "artificial intelligence","machine learning","programming","web development",
+  "design","architecture","nature","animals","pets","recipes","desserts","baking",
+  "makeup","skincare","hairstyle","interior design","minimalism","productivity",
+  "motivation","self improvement","mental health","relationships","parenting",
+  "finance","budgeting","saving","retirement","stock market","forex","bitcoin",
+  "ethereum","nft","metaverse","virtual reality","robot","drone","electric car",
+  "renewable energy","climate","ecology","ocean","wildlife","camping","hiking",
+  "survival","bushcraft","fishing","hunting","cycling","running","swimming","boxing"
+];
+
+const BUBBLE_COLORS = [
+  ["#6c8cff", "#3b5bdb"], ["#22d3a5", "#0b8f6e"], ["#f59e0b", "#b45309"],
+  ["#ec4899", "#9d174d"], ["#8b5cf6", "#5b21b6"], ["#00b4d8", "#0077b6"],
+  ["#e5533d", "#8f2d1e"], ["#84cc16", "#3f6212"]
+];
+
+const BUBBLE_STATE = {
+  running: false,
+  bubbles: [],
+  raf: null,
+  width: 0, height: 0,
+  canvas: null, ctx: null,
+  field: null,
+  mouse: null,
+};
+
+function initBubbleField() {
+  const field = document.getElementById("bubble-field");
+  const canvas = document.getElementById("bubble-canvas");
+  if (!field || !canvas) return;
+  BUBBLE_STATE.field = field;
+  BUBBLE_STATE.canvas = canvas;
+  BUBBLE_STATE.ctx = canvas.getContext("2d");
+  canvas.addEventListener("click", onBubbleClick);
+  // 🖱️ Mouse tracking για hover (highlight + φούσκωμα + pointer cursor).
+  canvas.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    BUBBLE_STATE.mouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  });
+  canvas.addEventListener("mouseleave", () => { BUBBLE_STATE.mouse = null; });
+}
+
+function showBubbleField() {
+  const field = document.getElementById("bubble-field");
+  if (!field) { console.warn("bubble-field not found"); return; }
+  field.style.display = "block";
+  // ΣΥΓΧΡΟΝΑ — χωρίς rAF (το resize έχει fallback ύψους αν clientHeight=0).
+  resizeBubbleField();
+  spawnBubbles();
+  startBubbleLoop();
+}
+
+function hideBubbleField() {
+  BUBBLE_STATE.running = false;
+  if (BUBBLE_STATE.raf) { cancelAnimationFrame(BUBBLE_STATE.raf); BUBBLE_STATE.raf = null; }
+  BUBBLE_STATE.bubbles = [];
+  const field = document.getElementById("bubble-field");
+  if (field) field.style.display = "none";
+}
+
+function resizeBubbleField() {
+  const canvas = BUBBLE_STATE.canvas;
+  const field = BUBBLE_STATE.field;
+  if (!canvas || !field) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = field.clientWidth || field.offsetWidth || 800;
+  // fallback ύψος αν το layout δεν έχει κάνει reflow ακόμα (clientHeight = 0)
+  const h = field.clientHeight || field.offsetHeight || 460;
+  BUBBLE_STATE.width = w;
+  BUBBLE_STATE.height = h;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + "px";
+  canvas.style.height = h + "px";
+  BUBBLE_STATE.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function spawnBubbles() {
+  const { width, height } = BUBBLE_STATE;
+  if (!width || !height) return;
+  BUBBLE_STATE.bubbles = [];
+  // Πυκνότητα: ένα κάθε ~80px (ικανοποιητική αλλά όχι ασφυκτική).
+  let count = Math.min(60, Math.max(20, Math.floor(width / 80)));
+  const topics = [...TRENDING_TOPICS].sort(() => Math.random() - 0.5).slice(0, count);
+  // Γύρνα κυκλικά αν χρειαστεί.
+  while (topics.length < count) topics.push(TRENDING_TOPICS[Math.floor(Math.random() * TRENDING_TOPICS.length)]);
+  const spacing = width / (count + 1);
+  topics.forEach((topic, i) => {
+    const idx = Math.floor(Math.random() * BUBBLE_COLORS.length);
+    const [c1, c2] = BUBBLE_COLORS[idx];
+    // Κάψουλα: σταθερό ύψος, πλάτος ανάλογο με τη λέξη.
+    const h = 34;
+    const w = Math.max(h * 1.6, h * 0.7 + topic.length * 7.7);
+    // layer 0..1: 0 = πιο κάτω (αργό), 1 = πιο πάνω (γρήγορο) — το πάνω σπρώχνεται.
+    const layer = i / Math.max(1, count - 1);
+    // 🚀 Βγαίνουν ΜΟΝΟ από κάτω (εισέρχονται) — και ανεβαίνουν.
+    const colX = spacing * (i + 1) + (Math.random() * 20 - 10);
+    const rowY = height - 10 + Math.random() * (height * 0.6);  // κάτω άκρη του πεδίου
+    BUBBLE_STATE.bubbles.push({
+      topic,
+      x: colX,
+      y: rowY,
+      w, h,
+      layer,
+      vy: 0.22 + layer * 0.18,          // σταθερή, αισθητή άνοδος
+      vx: (Math.random() - 0.5) * 0.06,
+      c1, c2,
+      burst: 0,
+      born: performance.now(),
+    });
+  });
+}
+
+// 🌊 Συνεχόμενη εισροή: όποτε τα bubbles λιγοστεύουν (σκάνε/ανεβαίνουν), νέα μπαίνουν από κάτω.
+function refillBubbles() {
+  const { bubbles, width, height } = BUBBLE_STATE;
+  const target = Math.min(60, Math.max(20, Math.floor(width / 80)));
+  if (bubbles.length < target) {
+    const h = 34;
+    const topic = TRENDING_TOPICS[Math.floor(Math.random() * TRENDING_TOPICS.length)];
+    const w = Math.max(h * 1.6, h * 0.7 + topic.length * 7.7);
+    const [c1, c2] = BUBBLE_COLORS[Math.floor(Math.random() * BUBBLE_COLORS.length)];
+    bubbles.push({
+      topic,
+      x: Math.random() * width,
+      y: height + 20 + Math.random() * 80,   // ξεκινά κάτω από το όριο
+      w, h,
+      layer: Math.random(),
+      vy: 0.22 + Math.random() * 0.18,
+      vx: (Math.random() - 0.5) * 0.06,
+      c1, c2,
+      burst: 0,
+      born: performance.now(),
+    });
+  }
+}
+
+function startBubbleLoop() {
+  if (BUBBLE_STATE.running) return;
+  BUBBLE_STATE.running = true;
+  const step = () => {
+    if (!BUBBLE_STATE.running) return;
+    stepBubbles();
+    drawBubbles();
+    BUBBLE_STATE.raf = requestAnimationFrame(step);
+  };
+  BUBBLE_STATE.raf = requestAnimationFrame(step);
+}
+function stepBubbles() {
+  const { bubbles, width, height } = BUBBLE_STATE;
+  for (const b of bubbles) {
+    if (b.burst > 0) { b.burst += 0.07; continue; }
+    // Σταθερή, ομαλή ταχύτητα — χωρίς boost, χωρίς φρενάρισμα.
+    b.y -= b.vy;
+    b.x += b.vx;
+    // ελαφρύ drift (όρια με w)
+    if (b.x < b.w/2 + 4) { b.x = b.w/2 + 4; b.vx = Math.abs(b.vx); }
+    if (b.x > width - b.w/2 - 4) { b.x = width - b.w/2 - 4; b.vx = -Math.abs(b.vx); }
+    // όταν φτάσει στο πάνω όριο (σκάνε στο search bar) → burst
+    if (b.y < b.h/2 + 4) { b.burst = 0.001; }
+  }
+  // συγκρούσεις — μαλακό «μπουμπ»: αργή ομαλή ώθηση, χωρίς σπαστικές κινήσεις.
+  for (let i = 0; i < bubbles.length; i++) {
+    for (let j = i + 1; j < bubbles.length; j++) {
+      const a = bubbles[i], c = bubbles[j];
+      if (a.burst > 0 || c.burst > 0) continue;
+      const dx = c.x - a.x, dy = c.y - a.y;
+      const d = Math.hypot(dx, dy);
+      // κάψουλα overlap: οριζόντια w, κάθετα h
+      const minD = (a.w + c.w) * 0.55 + (a.h + c.h) * 0.2;
+      if (d < minD && d > 0) {
+        const nx = dx / d, ny = dy / d;
+        const overlap = (minD - d) / 2;
+        // «Μπουμπ»: αργή, βαριά ώθηση — μικρή δύναμη που κινεί ΟΜΑΛΑ και τα δύο.
+        const push = overlap * 0.35;        // χαμηλή δύναμη (βαρύ μπαμπλ)
+        // αλλάζουμε ΑΡΓΑ τη θέση (όχι απότομο teleport)
+        a.x -= nx * push;
+        a.y -= ny * push * 0.4;
+        c.x += nx * push;
+        c.y += ny * push * 0.4;
+        // μεταφέρουμε ΑΡΓΑ ορμή: ανταλλάσσουμε μικρό μέρος της ταχύτητας, όχι όλο.
+        const tx = a.vx; a.vx = a.vx * 0.7 + c.vx * 0.3;
+        c.vx = c.vx * 0.7 + tx * 0.3;
+        // Βάρος στον «μπουμπ»: μικρή κάθετη ώθηση στα δύο (χωρίς να τα σταματά).
+        a.vy += ny * 0.012;
+        c.vy -= ny * 0.012;
+      }
+    }
+  }
+  // Αφαίρεσε σκασμένα μπαλόνια + φέρε νέα από κάτω (συνεχόμενη ροή).
+  BUBBLE_STATE.bubbles = bubbles.filter(b => b.burst <= 1.4);
+  refillBubbles();
+}
+
+function drawBubbles() {
+  const ctx = BUBBLE_STATE.ctx;
+  const { width, height, bubbles, mouse } = BUBBLE_STATE;
+  ctx.clearRect(0, 0, width, height);
+  let hovering = false;
+  for (const b of bubbles) {
+    let alpha = 1, w = b.w, h = b.h;
+    if (b.burst > 0) {
+      const p = b.burst;
+      w = b.w * (1 + p * 1.3);          // μεγαλώνει όταν σκάει
+      h = b.h * (1 + p * 1.3);
+      alpha = Math.max(0, 1 - p);
+    }
+    // 🖱️ Hover: αν το mouse είναι πάνω → φούσκωμα + highlight.
+    let hovered = false;
+    if (b.burst === 0 && mouse) {
+      const dx = Math.abs(mouse.x - b.x), dy = Math.abs(mouse.y - b.y);
+      if (dx <= b.w/2 + 4 && dy <= b.h/2 + 4) { hovered = true; hovering = true; }
+    }
+    if (hovered) { w *= 1.16; h *= 1.16; }   // φούσκωμα
+
+    const x = b.x - w/2, y = b.y - h/2;
+    const r = h/2;                     // πλήρως στρογγυλεμένη κάψουλα (pill)
+    // Πολύ διάφανο fill — στο hover φωτίζει περισσότερο.
+    ctx.globalAlpha = alpha * (hovered ? 0.34 : 0.16);
+    ctx.fillStyle = b.c1;               // HEX — πάντα ασφαλές
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+    else ctx.rect(x, y, w, h);
+    ctx.fill();
+    // Λεπτό stroke — στο hover πιο έντονο.
+    ctx.globalAlpha = alpha * (hovered ? 0.85 : 0.4);
+    ctx.strokeStyle = b.c2;             // HEX
+    ctx.lineWidth = hovered ? 1.8 : 1.2;
+    ctx.stroke();
+    // Κείμενο — ήπιο χρώμα, πιο φωτεινό στο hover.
+    if (b.burst === 0) {
+      ctx.globalAlpha = alpha * (hovered ? 1.0 : 0.85);
+      ctx.fillStyle = hovered ? b.c2 : b.c1;
+      ctx.font = (hovered ? "700 " : "600 ") + "15px Manrope, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(b.topic, b.x, b.y + 0.5);
+    }
+  }
+  // Pointer cursor μόνο όταν πάνω από bubble (clickable).
+  BUBBLE_STATE.canvas.style.cursor = hovering ? "pointer" : "default";
+  ctx.globalAlpha = 1;
+}
+
+function lighten(hex) {
+  const n = hex.replace("#", "");
+  const r = Math.min(255, parseInt(n.slice(0,2),16) + 60);
+  const g = Math.min(255, parseInt(n.slice(2,4),16) + 60);
+  const bl = Math.min(255, parseInt(n.slice(4,6),16) + 60);
+  // Επιστρέφει HEX (για να μπορεί να πάρει + "cc" alpha) — ΟΧΙ rgb().
+  return "#" + [r,g,bl].map(x => x.toString(16).padStart(2,"0")).join("");
+}
+
+function onBubbleClick(e) {
+  const rect = BUBBLE_STATE.canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  // βρες το μπαλόνι που χτύπησες (από το πιο πάνω → κάτω)
+  let hit = null;
+  for (const b of BUBBLE_STATE.bubbles) {
+    if (b.burst > 0) continue;
+    // κάψουλα hit-test (ορθογώνιο + στρογγυλεμένα άκρα)
+    const dx = Math.abs(mx - b.x), dy = Math.abs(my - b.y);
+    const hw = b.w/2, hh = b.h/2;
+    if (dx <= hw && dy <= hh) { hit = b; break; }
+  }
+  if (!hit) return;
+  // βάλε το θέμα στο search field + ψάξε
+  const input = document.getElementById("yt-search-input");
+  if (input) {
+    input.value = hit.topic;
+    // σκάσε το μπαλόνι
+    hit.burst = 0.001;
+    doYouTubeSearch();
+  }
+}
+
+// Εμφάνιση/απόκρυψη: μόνο στην αρχική σελίδα αναζήτησης (όταν το search είναι άδειο).
+function refreshBubbleField() {
+  const inSearch = currentTab === "search";
+  const q = (document.getElementById("yt-search-input")?.value || "").trim();
+  const hasResults = document.getElementById("yt-search-results")?.children.length > 0;
+  if (inSearch && !q && !hasResults) {
+    showBubbleField();
+  } else {
+    hideBubbleField();
+  }
+}
+
+window.addEventListener("resize", () => {
+  if (BUBBLE_STATE.running) { resizeBubbleField(); spawnBubbles(); }
+});
+
+initBubbleField();
+
+// Εμφάνιση bubbles — μετά το αρχικό load (μεγαλύτερο timeout για να στρώσει το layout + async load).
+setTimeout(() => refreshBubbleField(), 400);
+setTimeout(() => refreshBubbleField(), 1200);
+
+// 🖱️ Αποτρέπει το αρχικό focus σε button (ώστε να μη φαίνεται tooltip στο άνοιγμα).
+setTimeout(() => {
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}, 80);
+
+// 🌫️ Frosted glass: όταν ένα sticky head «κολλάει» πάνω, θολώνει ό,τι περνά από κάτω.
+// Ισχύει για ΟΛΑ τα tabs (Αναζήτηση / Κανάλια / Κατηγορίες).
+function updateSearchFrost() {
+  document.querySelectorAll(".yt-search-sticky, .sticky-head").forEach((sticky) => {
+    // Μόνο το ΟΡΑΤΟ sticky (του ενεργού tab) πρέπει να πάρει το frost.
+    const section = sticky.closest("section");
+    if (section && getComputedStyle(section).display === "none") {
+      sticky.classList.remove("scrolled");
+      return;
+    }
+    const top = sticky.getBoundingClientRect().top;
+    const threshold = 2;
+    if (top <= threshold) sticky.classList.add("scrolled");
+    else sticky.classList.remove("scrolled");
+  });
+}
+window.addEventListener("scroll", updateSearchFrost, { passive: true });
+window.addEventListener("resize", updateSearchFrost);
+
+load();
+</script>
+
+<!-- 🎬 Floating player (lightbox) — το βίντεο παίζει "στον αέρα", πάνω από θολή σελίδα -->
+<div id="lb" class="lb" style="display:none">
+  <div class="lb-backdrop" onclick="closeLightbox()"></div>
+  <div class="lb-dialog" role="dialog" aria-modal="true">
+    <button class="lb-close" onclick="closeLightbox()" title="Κλείσε (Esc)">✕</button>
+    <div class="lb-frame" id="lb-frame"></div>
+    <div class="lb-info" id="lb-info"></div>
+    <div class="lb-controls">
+      <button class="lb-nav" id="lb-prev" onclick="stepLightbox(-1)" title="Προηγούμενο">◀</button>
+      <span class="lb-pos" id="lb-pos"></span>
+      <button class="lb-nav" id="lb-next" onclick="stepLightbox(1)" title="Επόμενο">▶</button>
+      <button class="lb-add" id="lb-add" onclick="lightboxAdd()" title="Πρόσθεσε στο ιστορικό μου" style="display:none">➕</button>
+      <button class="lb-dismiss" id="lb-dismiss" onclick="lightboxDismiss()" title="Δεν με ενδιαφέρει — μην το ξαναδείξεις" style="display:none">✕</button>
+      <button class="lb-note-btn" id="lb-note-btn" onclick="openNoteForm()" title="Σημείωσε αυτό το σημείο του βίντεο">⏱️ Σημείωση εδώ</button>
+    </div>
+    <div class="lb-notes" id="lb-notes"></div>
+  </div>
+</div>
+
+<div id="cw" class="lb" style="display:none">
+  <div class="lb-backdrop" onclick="closeChannelPreview()"></div>
+  <div class="cw-dialog" role="dialog" aria-modal="true">
+    <button class="lb-close" onclick="closeChannelPreview()" title="Κλείσε (Esc)">✕</button>
+    <div class="cw-head">
+      <img class="cw-avatar" id="cw-avatar" alt="" onerror="this.style.display='none'">
+      <div class="cw-title" id="cw-title"></div>
+      <button class="yt-btn add" id="cw-watch" onclick="watchChannelFromWindow()">➕ Παρακολούθησε</button>
+    </div>
+    <div class="cw-videos-title">Πρόσφατα βίντεο</div>
+    <div class="cw-videos" id="cw-videos"></div>
+  </div>
+</div>
+</body>
+</html>

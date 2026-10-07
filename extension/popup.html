@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<style>
+  body {
+    width: 240px; margin: 0; padding: 16px;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #0d1017; color: #e6ebf2; font-size: 13px;
+  }
+  .logo { font-size: 26px; }
+  h1 { font-size: 15px; margin: 8px 0 2px; }
+  .sub { color: #8b94a6; font-size: 11px; margin-bottom: 14px; }
+  #status {
+    font-size: 12px; padding: 10px 12px; border-radius: 8px;
+    background: #171c26; border: 1px solid #242b38; margin-bottom: 12px;
+  }
+  #status.ok { color: #22d3a5; }
+  #status.warn { color: #ffb86b; }
+  button {
+    width: 100%; padding: 10px; border: none; border-radius: 8px;
+    background: #6c8cff; color: #fff; font-size: 13px; font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { background: #5a7af0; }
+</style>
+</head>
+<body>
+  <div class="logo">🔒</div>
+  <h1>Privacy YouTuber</h1>
+  <div class="sub">Όλα τοπικά. Τίποτα στη Google.</div>
+  <div id="status">Έλεγχος…</div>
+  <button id="open">Άνοιξε το Dashboard</button>
+  <script src="popup.js"></script>
+</body>
+</html>

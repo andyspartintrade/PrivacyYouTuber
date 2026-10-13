@@ -2614,19 +2614,31 @@ function showUpdatePopup(ok, current, data, errMsg) {
   pop.id = "update-pop";
   let inner = "";
   if (ok && data && data.newer) {
-    const feUrl = data.frontend_url || "";
-    const feBtn = feUrl
-      ? `<button class="dc-yes" onclick="doFrontendUpdate('${esc(feUrl)}')">✨ Ενημέρωση UI (χωρίς reinstall)</button>`
-      : "";
-    inner = `
+    // 🧠 Η εφαρμογή ΑΠΟΦΑΣΙΖΕΙ μόνη της — όχι ο χρήστης.
+    //    update_kind == "frontend" → αυτόματο UI update (χωρίς reinstall).
+    //    update_kind == "full"     → «out of date» + link για κατέβασμα νέου setup.
+    const kind = (data.update_kind || "full").toLowerCase();
+    const dlUrl = data.download_url || data.url || "";
+    if (kind === "frontend" && data.frontend_url) {
+      inner = `
       <div class="dc-msg">🆕 <b>Νέα έκδοση διαθέσιμη!</b><br>
       <span class="muted">Τρέχουσα: v${esc(current)} · Τελευταία: v${esc(data.latest)}</span><br>
       ${data.notes ? `<span class="dc-warn">${esc(data.notes)}</span>` : ""}</div>
-      <div class="dc-btns" style="flex-wrap:wrap;">
-        ${feBtn}
-        <button class="dc-yes" onclick="window.open('${esc(data.url || "")}', '_blank')">⬇ Κατέβασε setup</button>
+      <div class="dc-btns">
+        <button class="dc-yes" onclick="doFrontendUpdate('${esc(data.frontend_url)}')">✨ Ενημέρωση τώρα</button>
         <button class="dc-no" onclick="closeUpdatePopup()">Αργότερα</button>
       </div>`;
+    } else {
+      inner = `
+      <div class="dc-msg">⚠️ <b>Η εφαρμογή είναι παλιά (out of date)</b><br>
+      <span class="muted">Έχεις v${esc(current)} · η τελευταία είναι v${esc(data.latest)}.</span><br>
+      <span class="muted">Πρέπει να κατεβάσεις και να εγκαταστήσεις τη νέα έκδοση.</span><br>
+      ${data.notes ? `<span class="dc-warn">${esc(data.notes)}</span>` : ""}</div>
+      <div class="dc-btns" style="flex-wrap:wrap;">
+        <button class="dc-yes" onclick="window.open('${esc(dlUrl)}', '_blank')">⬇ Κατέβασε τη νέα έκδοση</button>
+        <button class="dc-no" onclick="closeUpdatePopup()">Αργότερα</button>
+      </div>`;
+    }
   } else if (ok) {
     inner = `
       <div class="dc-msg">✅ <b>Έχεις την τελευταία έκδοση</b><br>

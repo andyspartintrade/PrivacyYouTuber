@@ -1,6 +1,8 @@
 {
   "version": "1.1.0",
+  "update_kind": "full",
   "url": "https://github.com/andyspartintrade/PrivacyYouTuber/releases/latest",
+  "download_url": "https://github.com/andyspartintrade/PrivacyYouTuber/releases/latest",
   "notes": "Ενημέρωση: σωστό μέτρημα καναλιών, πλέγμα 50 πρόσφατων αναζητήσεων, λέξεις χωρίς λούπα.",
   "frontend_url": "https://raw.githubusercontent.com/andyspartintrade/PrivacyYouTuber/main/index.html"
 }

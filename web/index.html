@@ -2109,6 +2109,8 @@ function renderCurrent() {
   if (hasFilter) showUnifiedBanner(res.length);
   else hideFilterBanner();
   // ✅ LAZY: μετά το re-render, γέμισε τα grids των καναλιών που είναι ΑΝΟΙΧΤΑ.
+  //    🔑 invalidate πρώτα: το φίλτρο/tags μπορεί να άλλαξαν → φρέσκα grids.
+  try { invalidateChannelGrids(); } catch (e) {}
   if (currentTab === "channels") {
     document.querySelectorAll("#videos .channel-group").forEach(grp => {
       if (!grp.classList.contains("collapsed")) fillChannelGrid(grp);
@@ -2276,10 +2278,26 @@ function refreshIcon() {
 function watchBellHtml(on) { return on ? bellIcon() : bellOffIcon(); }
 
 function videoTags(v) {
-  const set = new Set(v.my_tags || []);
   const key = v.channel_id || v.channel || "__unknown__";
+  const mine = (v.my_tags || []);
+  const set = new Set();
+  // 1) Πρόσθεσε τα ΚΛΗΡΟΝΟΜΗΜΕΝΑ (tags καναλιού)
   for (const t of (CHANNEL_TAGS[key] || [])) set.add(t);
+  // 2) Πρόσθεσε τα δικά του (θετικά)
+  for (const t of mine) if (t && t[0] !== "-") set.add(t);
+  // 3) ΑΦΑΙΡΕΣΕ τα αρνητικά (εξαιρέσεις: «-music» = μη μου βάλεις το music)
+  for (const t of mine) if (t && t[0] === "-") set.delete(t.slice(1));
   return [...set];
+}
+
+// Επιστρέφει το «κατάσταση» ενός tag για το tag-popup: 'on' | 'off' | 'inherited'
+function tagStateFor(v, tag) {
+  const mine = (v.my_tags || []);
+  const key = v.channel_id || v.channel || "__unknown__";
+  if (mine.includes("-" + tag)) return "off";        // το απέκλεισε ρητά
+  if (mine.includes(tag)) return "on";                // δικό του
+  if ((CHANNEL_TAGS[key] || []).includes(tag)) return "inherited";  // από το κανάλι
+  return "off";
 }
 
 // Ποιo κριτήριο ταίριαξε σε αυτό το βίντεο (για το match-highlight).
@@ -2470,14 +2488,21 @@ function renderTagPopList(currentTags) {
   const _tagPopEl = document.getElementById("tag-pop");
   if (_tagPopEl) { _tagPopEl.classList.add("paged"); _tagPopEl.classList.add("no-anim"); }
   list.classList.add("paged");
-  list.innerHTML = `<div class="pop-page-grid">` + slice.map(t => `
+  // 🔗 Για VIDEO: τα ΚΛΗΡΟΝΟΜΗΜΕΝΑ (από το banner του καναλιού) φαίνονται ΤΣΕΚΑΡΙΣΜΕΝΑ.
+  const _isVideo = tagPopTarget && tagPopTarget.type === 'video';
+  const _vObj = _isVideo ? allVideos.find(x => x.video_id === tagPopTarget.id) : null;
+  list.innerHTML = `<div class="pop-page-grid">` + slice.map(t => {
+    const checked = _isVideo
+      ? (_vObj ? tagStateFor(_vObj, t) !== "off" : _tagPopCurrent.includes(t))
+      : _tagPopCurrent.includes(t);
+    return `
     <div class="tag-pop-item">
       <label class="tag-pop-label">
-        <input type="checkbox" value="${esc(t)}" ${_tagPopCurrent.includes(t) ? 'checked' : ''} onchange="toggleTag()">${esc(t)}
+        <input type="checkbox" value="${esc(t)}" ${checked ? 'checked' : ''} onchange="toggleTag()">${esc(t)}
       </label>
       <button class="tag-del" data-i18n-title="tag.delEverywhere" title="Delete tag everywhere" onclick="confirmDeleteTag('${esc(t)}', this)">×</button>
-    </div>
-  `).join("") + `</div>` + _pagerHtml(_tagPopPage, total, "setTagPopPage");
+    </div>`;
+  }).join("") + `</div>` + _pagerHtml(_tagPopPage, total, "setTagPopPage");
   applyI18n(list);
 }
 
@@ -2538,24 +2563,59 @@ function doDeleteTag(tag) {
 function toggleTag() {
   if (!tagPopTarget) return;
   const checked = [...document.querySelectorAll("#tag-pop-list input:checked")].map(i => i.value);
-  const url = tagPopTarget.type === 'video' ? '/set_video_tags' : '/set_channel_tags';
-  const body = tagPopTarget.type === 'video'
-    ? { video_id: tagPopTarget.id, tags: checked }
-    : { channel_id: tagPopTarget.id, tags: checked };
-  fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   if (tagPopTarget.type === 'video') {
+    // 🔗 ΚΛΗΡΟΝΟΜΙΑ + ΕΞΑΙΡΕΣΗ: κρατάμε τα tags του βίντεο ΚΑΙ τις αρνήσεις ("-tag").
     const v = allVideos.find(x => x.video_id === tagPopTarget.id);
-    if (v) v.my_tags = checked;
+    const key = (v && (v.channel_id || v.channel)) || "__unknown__";
+    const chanTags = CHANNEL_TAGS[key] || [];
+    const next = [];
+    const allKnown = new Set([...ALL_TAGS, ...chanTags, ...checked]);
+    for (const t of allKnown) {
+      if (checked.includes(t)) {
+        // Θέλει το tag: αν ΔΕΝ το κληρονομεί, γράψ' το ρητά (θετικό).
+        if (!chanTags.includes(t)) next.push(t);
+      } else {
+        // ΔΕΝ το θέλει: αν το κληρονομεί, γράψε ΕΞΑΙΡΕΣΗ ("-tag").
+        if (chanTags.includes(t)) next.push("-" + t);
+      }
+    }
+    fetch("/set_video_tags", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ video_id: tagPopTarget.id, tags: next }) });
+    if (v) v.my_tags = next;
   } else {
+    fetch("/set_channel_tags", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel_id: tagPopTarget.id, tags: checked }) });
     CHANNEL_TAGS[tagPopTarget.id] = checked;
   }
-  // ⚡ ΜΟΝΟ αν υπάρχει ΕΝΕΡΓΟ φιλτρο tag χρειαζεται ξαναχτισιμο η λιστα
-  //    (αλλαζει ποια βιντεο εμφανιζονται). Αλλιως: κανενα re-render.
+  // ⚡ Με ΕΝΕΡΓΟ φιλτρο: ξαναφιλτράρε (το βίντεο μπορεί να φύγει απ' τη λίστα).
   if (selectedTags.size > 0) {
     renderCurrent();
   } else {
-    updateVideoCardTags(tagPopTarget);   // στοχευμενα: μονο η εμφανιση tags της καρτας
+    // Χωρίς φίλτρο: ενημέρωσε ΣΤΟΧΕΥΜΕΝΑ την κάρτα (chips + κουμπί) — χωρίς re-render όλης της λίστας.
+    updateVideoCardTags(tagPopTarget);
+    refreshCardChips(tagPopTarget);
   }
+}
+
+/* 🔄 Ξαναφτιάχνει ΜΟΝΟ τα chips των tags σε μία κάρτα βίντεο (σέβεται τις αρνήσεις). */
+function refreshCardChips(target) {
+  try {
+    if (!target || target.type !== 'video') return;
+    const v = allVideos.find(x => x.video_id === target.id);
+    if (!v) return;
+    const card = document.querySelector('.v-card[data-id="' + target.id + '"]');
+    if (!card) return;
+    const tags = videoTags(v);   // ✅ σεβεται tags καναλιου + αρνησεις ("-tag")
+    const host = card.querySelector(".v-card-meta");
+    if (!host) return;
+    // Τα chips ζουν ΜΑΖΙ με το noteChip στο .v-card-meta → κρατάμε το noteChip, αλλάζουμε τα chips.
+    const noteChip = host.querySelector(".note-chip");
+    const noteHtml = noteChip ? noteChip.outerHTML : "";
+    host.innerHTML = tags.map(t => {
+      const on = selectedTags.has(t);
+      return `<span class="tag-chip ${on ? 'match-chip' : ''}">${esc(t)}</span>`;
+    }).join("") + noteHtml;
+  } catch (e) { /* ignore */ }
 }
 
 /* ⚡ Ενημερωνει ΜΟΝΟ την καρτα ενος στοιχειου (εμφανιση tags) — χωρις re-render. */
@@ -3291,12 +3351,19 @@ function renderVideos(videos) {
       </div>
     </div>`;
   }
-  // 📡 Εισαγμένα κανάλια (συνδρομές, χωρίς βίντεο) — στο κάτω μέρος, πορτοκαλί banner, καμπανάκι on/off.
+  // 📡 Εισαγμένα κανάλια (συνδρομές, χωρίς βίντεο) — στο κάτω μέρος, κίτρινο banner.
+  // 🚫 ΜΟΝΟ όταν ΔΕΝ υπάρχει φίλτρο: με φίλτρο δείχνουμε ΜΟΝΟ ό,τι ταιριάζει.
+  //    (Αλλιώς, με tag filter, δεκάδες κανάλια χωρίς ταιριαστά βίντεο γίνονταν
+  //     κίτρινα με το raw channel_id — το bug του χρήστη.)
+  const _noFilter = !ACTIVE_FILTER && selectedTags.size === 0 && searchRating === 0
+                    && !(document.getElementById("search-input") || {}).value;
   const existingKeys = new Set(groups.keys());
-  for (const cid of Object.keys(WATCHED_META)) {
+  for (const cid of (_noFilter ? Object.keys(WATCHED_META) : [])) {
     if (existingKeys.has(cid)) continue;  // ήδη εμφανίζεται (έχει βίντεο)
     const meta = WATCHED_META[cid] || {};
-    const name = meta.name || cid;
+    // 📛 Όνομα: meta.name → από τα βίντεο → «Άγνωστο κανάλι» (ΠΟΤΕ raw channel_id)
+    const _vn = allVideos.find(x => x.channel_id === cid && x.channel);
+    const name = meta.name || (_vn ? _vn.channel : "") || t('msg.unknownChannel');
     const isOn = meta.enabled === 1;
     html += `<div class="channel-group imported" data-key="${esc(cid)}">
         <div class="channel-head" onclick="toggleChannel(this)">
@@ -3870,15 +3937,36 @@ function doDeleteChannel(key) {
 function fillChannelGrid(group) {
   if (!group) return;
   const g = group.querySelector(".v-card-grid");
-  if (!g || g.dataset.filled) return;
+  if (!g) return;
+  // 🔑 Το cache ισχύει ΜΟΝΟ για το ΙΔΙΟ φίλτρο. Άλλαξε το φίλτρο → ξαναγέμισε.
+  const filterKey = [...selectedTags].sort().join("|") + "#" + searchRating
+                    + "#" + (document.getElementById("search-input").value || "").trim();
+  if (g.dataset.filled && g.dataset.filterKey === filterKey) return;
   const k = group.dataset.key;
-  const vids = allVideos.filter(v => (v.channel_id || v.channel || "__unknown__") === k);
+  let vids = allVideos.filter(v => (v.channel_id || v.channel || "__unknown__") === k);
+  // 🏷️ Με ΕΝΕΡΓΟ φίλτρο tag/rating: ΔΕΙΞΕ ΜΟΝΟ όσα ταιριάζουν (σέβεται αρνήσεις).
+  if (selectedTags.size > 0 || searchRating > 0) {
+    vids = vids.filter(v => {
+      if (searchRating > 0 && (v.rating || 0) === searchRating) return true;
+      for (const t of selectedTags) if (videoTags(v).includes(t)) return true;
+      return false;
+    });
+  }
   const sorted = vids.slice().sort((a, b) =>
     (b.rank || 0) - (a.rank || 0) || (b.watch_count || 0) - (a.watch_count || 0));
   g.innerHTML = sorted.map(v => cardHtml(v, "channel")).join("");
   g.dataset.filled = "1";
+  g.dataset.filterKey = filterKey;
   applyI18n(g);
   setupDrag();
+}
+
+/* 🔄 Ακυρώνει το cache ΟΛΩΝ των grids — κλήσ' το όταν αλλάζει φίλτρο/tags. */
+function invalidateChannelGrids() {
+  document.querySelectorAll(".channel-group .v-card-grid").forEach(g => {
+    delete g.dataset.filled;
+    delete g.dataset.filterKey;
+  });
 }
 
 function toggleChannel(head) {

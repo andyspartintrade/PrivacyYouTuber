@@ -1,8 +1,8 @@
 {
-  "version": "1.1.0",
-  "update_kind": "full",
+  "version": "1.2.0",
+  "update_kind": "frontend",
   "url": "https://github.com/andyspartintrade/PrivacyYouTuber/releases/latest",
   "download_url": "https://github.com/andyspartintrade/PrivacyYouTuber/releases/latest",
-  "notes": "Ενημέρωση: σωστό μέτρημα καναλιών, πλέγμα 50 πρόσφατων αναζητήσεων, λέξεις χωρίς λούπα.",
+  "notes": "Νέο: switch γλώσσας Αγγλικά/Ελληνικά (Settings). Αγγλικά ως προεπιλογή. Σελιδοποίηση στα popup tags/κατηγοριών. Διορθώσεις: ταχύτερο UI, σωστές θέσεις popup, φιλτράρισμα tags μέσα στα κανάλια, κληρονομιά tags καναλιού.",
   "frontend_url": "https://raw.githubusercontent.com/andyspartintrade/PrivacyYouTuber/main/index.html"
 }

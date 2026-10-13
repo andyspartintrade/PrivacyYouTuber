@@ -407,7 +407,11 @@
     padding: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); display: none;
   }
   .tag-pop.open { display: block; animation: pop-in .28s cubic-bezier(.18,.9,.32,1.45); }
+  /* 🚫 ΧΩΡΙΣ επανάληψη animation όταν το popup είναι ΗΔΗ ανοιχτό (re-render
+     περιεχομένου, π.χ. αλλαγή κατηγορίας/σελίδας) → δεν κάνει flicker. */
+  .tag-pop.open.no-anim { animation: none; }
   .tag-pop.closing { display: block; animation: pop-out .16s ease forwards; }
+  /* 📄 Pagination: το popup ΚΡΑΤΑΕΙ το κανονικό του πλάτος (καμία αλλαγή). */
   @keyframes pop-in {
     0%   { opacity: 0; transform: scale(.6) translateY(-10px); }
     60%  { opacity: 1; transform: scale(1.08) translateY(0); }
@@ -425,6 +429,27 @@
   .tag-pop-item:hover { background: var(--hover); }
   .tag-pop-label { display: flex; align-items: center; gap: 6px; flex: 1; cursor: pointer; }
   .tag-pop-item input { accent-color: var(--accent); cursor: pointer; }
+
+  /* 📄 PAGINATION στα popups: 6 γραμμές ανά καρτέλα, ΚΑΘΕΤΑ (μία κάτω από την άλλη). */
+  .tag-pop-list.paged { display: block; max-height: none; overflow: visible; min-height: 112px; }
+  /* ΣΤΑΘΕΡΟ ΥΨΟΣ: κρατάει πάντα χώρο για 6 γραμμές → το popup δεν «πηδάει»
+     όταν η τελευταία καρτέλα έχει λιγότερα items. */
+  .pop-page-grid { display: flex; flex-direction: column; gap: 2px; min-height: 112px; }
+  .pop-page-grid .tag-pop-item { min-width: 0; }
+  .pop-page-grid .tag-pop-label { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .pop-page-grid .tag-pop-label { flex: 1 1 auto; }
+  .pop-pager {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 6px 2px 0; border-top: 1px solid var(--border, rgba(128,128,128,.2)); margin-top: 6px;
+  }
+  .pop-pager button {
+    border: none; background: transparent; color: var(--text, inherit);
+    font-size: 15px; line-height: 1; cursor: pointer; padding: 3px 9px; border-radius: 6px;
+  }
+  .pop-pager button:hover:not(:disabled) { background: var(--hover); }
+  .pop-pager button:disabled { opacity: .3; cursor: default; }
+  .pop-pager .pop-pager-lbl { font-size: 11.5px; color: var(--muted); min-width: 54px; text-align: center; }
+
   .tag-del {
     flex-shrink: 0; cursor: pointer; color: var(--muted); border: none; background: none;
     font-size: 16px; line-height: 1; width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
@@ -1728,27 +1753,27 @@
 <body>
   <header>
     <h1>Privacy <span class="lock">YouTuber</span></h1>
-    <span class="privacy-badge" id="privacy-badge">🔒 100% τοπικά</span>
+    <span class="privacy-badge" id="privacy-badge">🔒 100% local</span>
   </header>
 
   <nav class="tabs" id="tabs">
-      <button class="tab active" id="tab-search" data-tab="search" onclick="switchTab('search')">🔍 Αναζήτηση</button>
-      <button class="tab" id="tab-channels" data-tab="channels" onclick="switchTab('channels')">📺 Κανάλια</button>
-      <button class="tab" id="tab-categories" data-tab="categories" onclick="switchTab('categories')">📁 Κατηγορίες</button>
-      <button class="tab" id="tab-subs" data-tab="subs" onclick="switchTab('subs')">⚙️ Settings</button>
+      <button class="tab active" id="tab-search" data-tab="search" onclick="switchTab('search')"><span data-i18n="tab.search">Search</span></button>
+      <button class="tab" id="tab-channels" data-tab="channels" onclick="switchTab('channels')"><span data-i18n="tab.channels">Channels</span></button>
+      <button class="tab" id="tab-categories" data-tab="categories" onclick="switchTab('categories')"><span data-i18n="tab.categories">Categories</span></button>
+      <button class="tab" id="tab-subs" data-tab="subs" onclick="switchTab('subs')">⚙️ <span data-i18n="tab.settings">Settings</span></button>
     </nav>
 
   <section id="view-channels" style="display:none">
     <div class="sticky-head" id="channels-head">
     <div class="add-box">
-      <input type="text" id="add-url" placeholder="Επικόλλησε ένα YouTube link εδώ…" onkeydown="if(event.key==='Enter')addVideo()">
-      <button onclick="addVideo()">➕ Πρόσθεσε</button>
+      <input type="text" id="add-url" data-i18n-placeholder="add.urlPh" data-i18n-placeholder="add.urlPh" placeholder=t('add.urlPh') onkeydown="if(event.key==='Enter')addVideo()">
+      <button onclick="addVideo()">➕ <span data-i18n="btn.add">Add</span></button>
     </div>
     <div class="search-box">
-      <input type="text" id="search-input" placeholder="Ψάξε στο ιστορικό σου (τίτλος, κανάλι, tag, κατηγορία)…" oninput="doSearch(this.value)" onkeydown="if(event.key==='Enter')doSearchNow()">
-      <button class="input-clear" id="input-clear" title="Καθάρισε τη λέξη" onclick="clearSearchText()" style="display:none">✕</button>
+      <input type="text" id="search-input" data-i18n-placeholder="search.libPh" placeholder="Search your library (title, channel, tag, category)…" oninput="doSearch(this.value)" onkeydown="if(event.key==='Enter')doSearchNow()">
+      <button class="input-clear" id="input-clear" data-i18n-title="btn.clear" title="Clear text" onclick="clearSearchText()" style="display:none">✕</button>
       <button id="search-btn" onclick="doSearchNow()">🔍</button>
-      <span class="rating-filter" id="rating-filter" title="Φίλτρο βάσει αστεριών">
+      <span class="rating-filter" id="rating-filter" data-i18n-title="misc.starFilter" title="Filter by rating">
         <span class="stars" id="search-stars">
           <span class="st" onclick="setSearchRating(1)">★</span>
           <span class="st" onclick="setSearchRating(2)">★</span>
@@ -1760,16 +1785,16 @@
       </span>
     </div>
     <div class="list-head">
-      <button class="toggle-all" id="toggle-all" title="Άνοιξε/κλείσε ΟΛΑ τα κανάλια" onclick="toggleAllChannels()">▾</button>
-      <span class="list-head-lbl">Κανάλια <span class="list-head-count" id="list-head-count"></span><span class="filter-count" id="filter-count"></span></span>
+      <button class="toggle-all" id="toggle-all" data-i18n-title="ch.openAll" title="Expand/collapse ALL channels" onclick="toggleAllChannels()">▾</button>
+      <span class="list-head-lbl"><span data-i18n="ch.listTitle">Channels</span> <span class="list-head-count" id="list-head-count"></span><span class="filter-count" id="filter-count"></span></span>
       <button class="tag-filter-head" id="tag-filter-head" onclick="toggleTagPanel()">
-        <span class="tag-filter-count-title">🏷️ Tags <span class="tag-filter-count" id="tag-total">(0)</span> <span class="tag-active-count" id="tag-active">· 0 ενεργά</span></span>
+        <span class="tag-filter-count-title"><span data-i18n="misc.tags">🏷️ Tags</span> <span class="tag-filter-count" id="tag-total">(0)</span> <span class="tag-active-count" id="tag-active" data-i18n-suffix="misc.active">· 0 active</span></span>
         <span class="cat-chevron" id="tag-chevron">▾</span>
       </button>
     </div>
     <div class="tag-filter-panel" id="tag-filter-panel" style="display:none"></div>
     </div>
-    <div id="list-loading"><span class="spin"></span> Φορτώνω τη λίστα…</div>
+    <div id="list-loading"><span class="spin"></span> <span data-i18n="msg.loadingList">Loading list…</span></div>
     <div id="videos"></div>
   </section>
 
@@ -1777,14 +1802,14 @@
     <div class="sticky-head" id="categories-head">
     <div class="cat-toolbar">
       <div class="cat-add">
-        <input type="text" id="cat-new-input" placeholder="＋ νέα κατηγορία (π.χ. Χόμπι, Εργασία)…" onkeydown="if(event.key==='Enter')addCategory()">
+        <input type="text" id="cat-new-input" placeholder="＋ new category (e.g. Hobbies, Work)…" onkeydown="if(event.key==='Enter')addCategory()">
         <button onclick="addCategory()">Add</button>
       </div>
     </div>
     <div class="search-box">
-      <input type="text" id="cat-search-input" placeholder="Ψάξε στις κατηγορίες (τίτλος, κανάλι, tag)…" oninput="doCatSearch(this.value)" onkeydown="if(event.key==='Enter')doCatSearchNow()">
+      <input type="text" id="cat-search-input" placeholder="Search categories (title, channel, tag)…" oninput="doCatSearch(this.value)" onkeydown="if(event.key==='Enter')doCatSearchNow()">
       <button id="cat-search-btn" onclick="doCatSearchNow()">🔍</button>
-      <span class="rating-filter" title="Φίλτρο βάσει αστεριών">
+      <span class="rating-filter" title="Filter by rating">
         <span class="stars" id="cat-search-stars">
           <span class="st" onclick="setCatSearchRating(1)">★</span>
           <span class="st" onclick="setCatSearchRating(2)">★</span>
@@ -1796,10 +1821,10 @@
       </span>
     </div>
     <div class="list-head">
-      <button class="toggle-all" id="toggle-all-cat" title="Άνοιξε/κλείσε ΟΛΕΣ τις κατηγορίες" onclick="toggleAllCategories()">▾</button>
-      <span class="list-head-lbl">Κατηγορίες <span class="list-head-count" id="list-head-cat-count"></span></span>
+      <button class="toggle-all" id="toggle-all-cat" title="Expand/collapse ALL categories" onclick="toggleAllCategories()">▾</button>
+      <span class="list-head-lbl">Categories <span class="list-head-count" id="list-head-cat-count"></span></span>
       <button class="tag-filter-head cat" id="cat-filter-head" onclick="toggleCatPanel()">
-        <span class="tag-filter-count-title cat-title">📁 Κατηγορίες <span class="tag-filter-count" id="cat-total">(0)</span> <span class="tag-active-count" id="cat-active">· 0 ενεργά</span></span>
+        <span class="tag-filter-count-title cat-title">📁 Categories <span class="tag-filter-count" id="cat-total">(0)</span> <span class="tag-active-count" id="cat-active">· 0 active</span></span>
         <span class="cat-chevron" id="cat-chevron">▾</span>
       </button>
     </div>
@@ -1812,55 +1837,66 @@
         <!-- ⚙️ Settings — εδώ: database (εξαγωγή/εισαγωγή) · ενημερώσεις · θέμα -->
 
         <div class="settings-card">
-          <div class="settings-card-title">💾 Η βάση δεδομένων σου</div>
+          <div class="settings-card-title" data-i18n="set.dbTitle">💾 Your database</div>
           <div class="settings-card-body">
-            Εδώ <b>εισάγεις</b> και <b>εξάγεις</b> όλη τη βάση του προγράμματος —
-            τα κανάλια, τις κατηγορίες, τα βίντεο, τις αναζητήσεις, τα tags σου.
+            <span data-i18n="set.dbBody1">Here you</span> <b data-i18n="set.dbImport">import</b> <span data-i18n="set.dbBody2">and</span> <b data-i18n="set.dbExport">export</b> <span data-i18n="set.dbBody3">the entire app database — your channels, categories, videos, searches and tags.</span>
             <div class="settings-legend">
-              <span><b>📦 Εξαγωγή</b> → αποθηκεύει ένα αρχείο με τα πάντα (για backup ή για άλλον υπολογιστή)</span>
-              <span><b>📥 Εισαγωγή</b> → φέρνει μια βάση από άλλο μηχάνημα, με <b>Αντικατάσταση</b> ή <b>Συγχώνευση</b></span>
+              <span><b data-i18n="set.exportTitle">📦 Export</b> <span data-i18n="set.exportDesc">→ saves a file with everything (for backup or another computer)</span></span>
+              <span><b data-i18n="set.importTitle">📥 Import</b> <span data-i18n="set.importDesc">→ brings in a database from another machine, with</span> <b data-i18n="set.replaceWord">Replace</b> <span data-i18n="set.orWord">or</span> <b data-i18n="set.mergeWord">Merge</b></span>
             </div>
           </div>
           <div class="settings-toolbar">
-            <button class="backup-btn" id="export-btn" onclick="doExport()">📦 Εξαγωγή</button>
-            <button class="backup-btn" id="import-btn" onclick="doImport()">📥 Εισαγωγή</button>
+            <button class="backup-btn" id="export-btn" onclick="doExport()" data-i18n="set.btnExport">📦 Export</button>
+            <button class="backup-btn" id="import-btn" onclick="doImport()" data-i18n="set.btnImport">📥 Import</button>
             <span class="backup-status" id="backup-status"></span>
           </div>
         </div>
 
         <div class="settings-card">
-          <div class="settings-card-title">🔄 Ενημερώσεις</div>
+          <div class="settings-card-title" data-i18n="set.updTitle">🔄 Updates</div>
           <div class="settings-card-body">
-            Έλεγχος αν υπάρχει νεότερη έκδοση του PrivacyYouTuber.
+            <span data-i18n="set.updBody">Check whether a newer version of PrivacyYouTuber is available.</span>
           </div>
           <div class="settings-toolbar">
-            <button class="backup-btn" id="update-btn" onclick="checkUpdate()" title="Έλεγχος για νέα έκδοση">🔄 Έλεγχος για ενημέρωση</button>
+            <button class="backup-btn" id="update-btn" onclick="checkUpdate()" data-i18n-title="upd.check" title="Check for a new version" data-i18n="set.btnUpdate">🔄 Check for updates</button>
           </div>
         </div>
 
         <div class="settings-card">
-          <div class="settings-card-title">🌗 Θέμα</div>
+          <div class="settings-card-title" data-i18n="set.themeTitle">🌗 Theme</div>
           <div class="settings-card-body">
-            Φωτεινό ή σκοτεινό — όπως σε βολεύει.
+            <span data-i18n="set.themeBody">Light or dark — whatever suits you.</span>
           </div>
           <div class="settings-toolbar">
-            <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Αλλαγή θέματος (σκοτεινό / φωτεινό)">🌙</button>
-            <span class="backup-status" id="theme-label">Σκοτεινό / Φωτεινό</span>
+            <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">🌙</button>
+            <span class="backup-status" id="theme-label" data-i18n="set.themeLabel">Dark / Light</span>
           </div>
         </div>
 
         <div class="settings-card">
-          <div class="settings-card-title">📥 Εισαγωγή συνδρομών (Google Takeout)</div>
+          <div class="settings-card-title" data-i18n="set.langTitle">🌐 Language</div>
           <div class="settings-card-body">
-            Φόρτωσε τη λίστα των καναλιών σου από το <b>Google Takeout</b>.
+            <span data-i18n="set.langBody">Interface language. Takes effect immediately.</span>
+          </div>
+          <div class="settings-toolbar">
+            <button class="backup-btn" id="lang-en" onclick="setLang('en')">🇬🇧 English</button>
+            <button class="backup-btn" id="lang-el" onclick="setLang('el')">🇬🇷 Ελληνικά</button>
+            <span class="backup-status" id="lang-label"></span>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-card-title" data-i18n="set.subsTitle">📥 Import subscriptions (Google Takeout)</div>
+          <div class="settings-card-body">
+            <span data-i18n="set.subsBody1">Load your channel list from</span> <b>Google Takeout</b>.
             <div class="settings-legend">
-              <span><b>📥 Import Subscriptions</b> → τα κανάλια μπαίνουν στα <b>Κανάλια</b> σου, στο τέλος, με <b>κίτρινο</b> χρώμα</span>
-              <span><b>🔄</b> (πάνω στο κίτρινο κανάλι) → κατεβάζει τα βίντεο και το κάνει <b>κανονικό</b></span>
+              <span><b data-i18n="set.subsImpTitle">📥 Import Subscriptions</b> <span data-i18n="set.subsImpDesc">→ channels are added to your</span> <b data-i18n="set.channelsWord">Channels</b>, <span data-i18n="set.subsImpDesc2">at the end, in yellow</span></span>
+              <span><b>🔄</b> <span data-i18n="set.subsFetchDesc">(on the yellow channel) → fetches its videos and makes it regular</span></span>
             </div>
           </div>
           <div class="settings-toolbar">
-            <button class="subs-btn subs-btn-primary" onclick="doImportSubscriptions()">📥 Import Subscriptions</button>
-            <button class="subs-btn" onclick="openSubsHelp()">❓ Οδηγίες</button>
+            <button class="subs-btn subs-btn-primary" onclick="doImportSubscriptions()" data-i18n="set.btnImportSubs">📥 Import Subscriptions</button>
+            <button class="subs-btn" onclick="openSubsHelp()" data-i18n="set.btnHelp">❓ Help</button>
           </div>
         </div>
 
@@ -1869,13 +1905,13 @@
   <section id="view-search">
     <div class="yt-search-sticky">
       <div class="search-box yt-search-box">
-        <input type="text" id="yt-search-input" placeholder="Ψάξε στο YouTube…" autocomplete="off" onfocus="showRecentSearches()" oninput="if(!this.value.trim()){document.getElementById('yt-search-results').innerHTML='';refreshBubbleField();}" onkeydown="if(event.key==='Enter')doYouTubeSearch()">
+        <input type="text" id="yt-search-input" placeholder="Search YouTube…" autocomplete="off" onfocus="showRecentSearches()" oninput="if(!this.value.trim()){document.getElementById('yt-search-results').innerHTML='';refreshBubbleField();}" onkeydown="if(event.key==='Enter')doYouTubeSearch()">
         <button id="yt-search-btn" onclick="doYouTubeSearch()">🔍</button>
         <div class="yt-recent" id="yt-recent" style="display:none"></div>
       </div>
       <div class="yt-modes" id="yt-modes">
-        <button class="yt-mode active" id="ym-videos" onclick="setSearchMode('videos')">🎬 Βίντεο</button>
-        <button class="yt-mode" id="ym-channels" onclick="setSearchMode('channels')">📺 Κανάλια</button>
+        <button class="yt-mode active" id="ym-videos" onclick="setSearchMode('videos')">🎬 Videos</button>
+        <button class="yt-mode" id="ym-channels" onclick="setSearchMode('channels')">📺 Channels</button>
       </div>
     </div>
     <div class="yt-search-status" id="yt-search-status" style="display:none"></div>
@@ -1890,8 +1926,8 @@
     <div class="tag-pop-head">🏷️ Tags <button class="tag-pop-close" onclick="closeTagPop()">×</button></div>
     <div class="tag-pop-list" id="tag-pop-list"></div>
     <div class="tag-pop-new">
-      <input type="text" id="tag-pop-new-input" placeholder="+ νέο tag" onkeydown="if(event.key==='Enter')addNewTag()">
-      <button onclick="addNewTag()">Add</button>
+      <input type="text" id="tag-pop-new-input" data-i18n-placeholder="tag.new" placeholder="+ new tag" onkeydown="if(event.key==='Enter')addNewTag()">
+      <button onclick="addNewTag()" data-i18n="tag.addBtn">Add</button>
     </div>
   </div>
 
@@ -1899,45 +1935,45 @@
     <div class="subs-help-overlay" id="subs-help-overlay" onclick="if(event.target===this)closeSubsHelp()">
       <div class="subs-help-modal">
         <div class="subs-help-head">
-          <span>❓ Πώς κάνεις εξαγωγή από το Google Takeout</span>
+          <span data-i18n="help.title">❓ How to export from Google Takeout</span>
           <button class="tag-pop-close" onclick="closeSubsHelp()">×</button>
         </div>
         <div class="subs-help-body">
-          <p>Για να πάρεις τη <b>λίστα των συνδρομών</b> σου από το YouTube, ακολούθησε τα βήματα:</p>
+          <p><span data-i18n="help.intro1">To get your YouTube</span> <b data-i18n="help.introB">subscription list</b><span data-i18n="help.intro2">, follow these steps:</span></p>
           <ol class="subs-help-steps">
-            <li>Άνοιξε το <b>Google Takeout</b> (<b>takeout.google.com</b>) και συνδέσου με τον λογαριασμό σου.</li>
-            <li>Πάτησε <b>«Κατάργηση επιλογής όλων»</b> (πάνω από τη λίστα) για να ξε-τσεκάρεις τα πάντα.</li>
-            <li>Κατέβα στη λίστα και τσέκαρε <b>μόνο</b> το <b>«YouTube και YouTube Music»</b>.</li>
-            <li>Πάτησε το κουμπί <b>«Πολλές μορφές»</b> κάτω από αυτό, και βεβαιώσου ότι η <b>«Συνδρομή»</b> (subscriptions) είναι σε μορφή <b>CSV</b> ή <b>JSON</b>.</li>
-            <li>Πάτησε <b>«Επόμενο βήμα»</b> (κάτω δεξιά) → διάλεξε συχνότητα <b>«Εξαγωγή μία φορά»</b> → <b>«Δημιουργία εξαγωγής»</b>.</li>
-            <li>Περίμενε το email «Η εξαγωγή σου είναι έτοιμη» — συνήθως <b>λίγα λεπτά</b> (μερικές φορές ώρες).</li>
-            <li>Κατέβασε το <b>.zip</b>, άνοιξέ το και βρες το <b>Takeout/YouTube και YouTube Music/</b> → αρχείο <b>subscriptions.csv</b> ή <b>subscriptions.json</b>.</li>
-            <li>Γύρνα εδώ, πάτησε <b>«📥 Import Subscriptions»</b>, διάλεξε το αρχείο — και <b>έτοιμο!</b></li>
+            <li><span data-i18n="help.s1a">Open</span> <b>Google Takeout</b> (<b>takeout.google.com</b>) <span data-i18n="help.s1b">and sign in with your account.</span></li>
+            <li><span data-i18n="help.s2a">Click</span> <b>"Deselect all"</b> <span data-i18n="help.s2b">(above the list) to uncheck everything.</span></li>
+            <li><span data-i18n="help.s3a">Scroll down the list and check</span> <b data-i18n="help.s3only">only</b> <b>"YouTube and YouTube Music"</b>.</li>
+            <li><span data-i18n="help.s4a">Click the</span> <b>"Multiple formats"</b> <span data-i18n="help.s4b">button below it, and make sure</span> <b>"Subscriptions"</b> <span data-i18n="help.s4c">is set to</span> <b>CSV</b> <span data-i18n="help.or">or</span> <b>JSON</b>.</li>
+            <li><span data-i18n="help.s5a">Click</span> <b>"Next step"</b> <span data-i18n="help.s5b">(bottom right) → choose frequency</span> <b>"Export once"</b> → <b>"Create export"</b>.</li>
+            <li><span data-i18n="help.s6a">Wait for the "Your export is ready" email — usually</span> <b data-i18n="help.s6b">a few minutes</b> <span data-i18n="help.s6c">(sometimes hours).</span></li>
+            <li><span data-i18n="help.s7a">Download the</span> <b>.zip</b><span data-i18n="help.s7b">, extract it and find</span> <b>Takeout/YouTube and YouTube Music/</b> <span data-i18n="help.s7c">→ file</span> <b>subscriptions.csv</b> <span data-i18n="help.or">or</span> <b>subscriptions.json</b>.</li>
+            <li><span data-i18n="help.s8a">Come back here, click</span> <b>"📥 Import Subscriptions"</b><span data-i18n="help.s8b">, pick the file — and</span> <b data-i18n="help.s8done">done!</b></li>
                     </ol>
           <div class="subs-help-note">
-            💡 Το αρχείο περιέχει <b>μόνο</b> τα κανάλια που ακολουθείς. Τίποτα άλλο από τα δεδομένα σου δεν ανεβαίνει πουθενά — όλα μένουν <b>τοπικά</b>.
+            <span data-i18n="help.fileContains">💡 The file contains</span> <b><span data-i18n="help.fileOnly">only</span></b> <span data-i18n="help.fileRest">the channels you follow. Nothing else from your data is uploaded anywhere — everything stays</span> <b><span data-i18n="misc.locally">locally</span></b>.
           </div>
         </div>
         <div class="subs-help-actions">
-          <a class="subs-btn subs-btn-primary" href="https://takeout.google.com/" target="_blank" rel="noopener">🔗 Άνοιξε το Google Takeout</a>
-          <button class="subs-btn" onclick="closeSubsHelp()">Κλείσιμο</button>
+          <a class="subs-btn subs-btn-primary" href="https://takeout.google.com/" target="_blank" rel="noopener"><span data-i18n="help.openTakeout">🔗 Open Google Takeout</span></a>
+          <button class="subs-btn" onclick="closeSubsHelp()"><span data-i18n="btn.close">Close</span></button>
         </div>
       </div>
     </div>
 
   <!-- Popover για κατηγορίες -->
   <div class="tag-pop" id="cat-pop">
-    <div class="tag-pop-head">📁 Κατηγορία <button class="tag-pop-close" onclick="closeCatPop()">×</button></div>
+    <div class="tag-pop-head"><span data-i18n="pop.category">📁 Category</span> <button class="tag-pop-close" onclick="closeCatPop()">×</button></div>
     <div class="tag-pop-list" id="cat-pop-list"></div>
     <div class="tag-pop-new">
-      <input type="text" id="cat-pop-new-input" placeholder="+ νέα κατηγορία" onkeydown="if(event.key==='Enter')saveVideoCategory()">
-      <button onclick="saveVideoCategory()">Add</button>
+      <input type="text" id="cat-pop-new-input" data-i18n-placeholder="cat.new" placeholder="+ new category" onkeydown="if(event.key==='Enter')saveVideoCategory()">
+      <button onclick="saveVideoCategory()" data-i18n="tag.addBtn">Add</button>
     </div>
   </div>
 
   <!-- Popover για pin (3 states) -->
   <div class="tag-pop" id="pin-pop">
-    <div class="tag-pop-head">📌 Καρφίτσωμα <button class="tag-pop-close" onclick="closePinPop()">×</button></div>
+    <div class="tag-pop-head"><span data-i18n="pop.pin">📌 Pin</span> <button class="tag-pop-close" onclick="closePinPop()">×</button></div>
     <div class="pin-pop-list" id="pin-pop-list"></div>
   </div>
 
@@ -1949,12 +1985,22 @@ async function load() {
   if (loadingEl) loadingEl.classList.add("show");
   const d = await (await fetch("/api/dashboard")).json();
 
+  // 🌐 ΓΛΩΣΣΑ: διάβασέ τη από τη βάση (επιμένει μετά από κλείσιμο — το localStorage
+  //    δεν κρατά στο WebView). ΠΡΙΝ το πρώτο render, ώστε όλα να φτιαχτούν σωστά.
+  try {
+    if (d.lang && window.i18n && window.i18n.getLang && window.i18n.getLang() !== d.lang) {
+      window.i18n.setLang(d.lang);
+      if (typeof updateLangLabel === "function") updateLangLabel();
+    }
+  } catch (e) { /* ignore */ }
+
   // Στατιστικά ΜΕΣΑ στο privacy bubble (κλειδαριά · 100% · βίντεο · κανάλια — ΟΧΙ προβολές)
   const s = d.stats || {};
   document.getElementById("privacy-badge").innerHTML =
-    `🔒 100% τοπικά` +
-    `<span class="sep">·</span><b>${s.videos ?? 0}</b> βίντεο` +
-    `<span class="sep">·</span><b>${s.channel_count ?? 0}</b> κανάλια`;
+    `🔒 <span data-i18n="misc.localBadge">100% local</span>` +
+    `<span class="sep">·</span><b>${s.videos ?? 0}</b>${t('misc.videosWord')}` +
+    `<span class="sep">·</span><b>${s.channel_count ?? 0}</b>${t('misc.channelsWord')}`;
+  applyI18n(document.getElementById("privacy-badge"));
 
   // Βιβλιοθήκη — group ανά κανάλι (με tag filter)
   allVideos = d.videos || [];
@@ -1968,23 +2014,11 @@ async function load() {
   WATCHED_META = d.channel_watch_meta || {};
   const savedCollapsed = new Set(d.collapsed || []);
   if (!_initialized) {
-    // ✅ ΝΕΟ (Γ): ΟΛΑ τα κανάλια ΚΛΕΙΣΤΑ εξαρχής. Ο χρήστης ανοίγει όποια θέλει και το θυμόμαστε.
-    //    Μετανάστευση: τα «ανοιχτά» σήμερα γίνονται expanded, ώστε κανείς να μη χάσει τη δουλειά του.
+    // ✅ ΟΛΑ τα κανάλια ΚΛΕΙΣΤΑ σε κάθε ΕΚΚΙΝΗΣΗ (απόφαση χρήστη: με πολλά κανάλια η
+    //    αποκατάσταση ανοιχτών καρτελών κάνει το άνοιγμα πολύ αργό — 3500+ κάρτες στο DOM).
+    //    Ο χρήστης ανοίγει όποια θέλει ΜΕΣΑ στη συνεδρία· δεν το θυμόμαστε μεταξύ εκκινήσεων.
     collapsedChannels = new Set();
     expandedChannels = new Set();
-    const savedExpanded = new Set(d.expanded || []);
-    if (savedExpanded.size > 0) {
-      // Υπάρχει νέο state → σεβασμός (επιστροφή χρήστη).
-      expandedChannels = new Set(savedExpanded);
-    } else {
-      // 🔄 ΜΕΤΑΝΑΣΤΕΥΣΗ (πρώτη φορά με το νέο build): ό,τι ΔΕΝ ήταν collapsed = expanded.
-      (d.videos || []).forEach(v => {
-        const key = v.channel_id || v.channel || "__unknown__";
-        if (!savedCollapsed.has(key) && WATCHED_CHANNELS[key] !== 1) {
-          expandedChannels.add(key);
-        }
-      });
-    }
     _initialized = true;
   } else {
     // Re-render (add/remove/κλπ): ΜΗΝ πειράξεις ΚΑΘΟΛΟΥ το collapsedChannels.
@@ -1993,7 +2027,7 @@ async function load() {
   }
   channelOrder = d.order || [];
   catOrder = d.cat_order || [];
-  collapsedCats = new Set(d.cat_collapsed || []);
+  expandedCats = new Set();   // ✅ ΟΛΕΣ οι κατηγορίες ΚΛΕΙΣΤΕΣ σε κάθε ΕΚΚΙΝΗΣΗ (όπως τα κανάλια).
   pinnedCats = new Set(d.cat_pinned || []);
   rssShown = (typeof d.rss_shown === "number" && d.rss_shown >= 1) ? d.rss_shown : 6;
   // ↕️ Σειρά tabs (dragable) — αν δεν υπάρχει, μένει η default (Αναζήτηση/Κανάλια/Κατηγορίες).
@@ -2065,7 +2099,9 @@ function renderCurrent() {
   let res = unionFilters(allVideos);
   const hasFilter = searchRating > 0 || selectedTags.size > 0;
   ACTIVE_FILTER = hasFilter;
-  document.getElementById("videos").innerHTML = renderVideos(res);
+  const _vidsEl = document.getElementById("videos");
+  _vidsEl.innerHTML = renderVideos(res);
+  applyI18n(_vidsEl);
   setupDrag();
   updateToggleAllBtn();
   updateSearchClearBtn();
@@ -2073,6 +2109,8 @@ function renderCurrent() {
   if (hasFilter) showUnifiedBanner(res.length);
   else hideFilterBanner();
   // ✅ LAZY: μετά το re-render, γέμισε τα grids των καναλιών που είναι ΑΝΟΙΧΤΑ.
+  //    🔑 invalidate πρώτα: το φίλτρο/tags μπορεί να άλλαξαν → φρέσκα grids.
+  try { invalidateChannelGrids(); } catch (e) {}
   if (currentTab === "channels") {
     document.querySelectorAll("#videos .channel-group").forEach(grp => {
       if (!grp.classList.contains("collapsed")) fillChannelGrid(grp);
@@ -2149,13 +2187,15 @@ async function runSearch(q) {
     }
     // 🎯 Αναζήτηση = ενεργό φίλτρο → όλα τα matching κανάλια ΑΝΟΙΓΟΥΝ.
     ACTIVE_FILTER = true;
-    document.getElementById("videos").innerHTML = renderVideos(out);
+    const _vidsEl2 = document.getElementById("videos");
+    _vidsEl2.innerHTML = renderVideos(out);
+    applyI18n(_vidsEl2);
     setupDrag();
     updateToggleAllBtn();
     updateSearchClearBtn();
     showUnifiedBanner(out.length);
   } catch {
-    document.getElementById("videos").innerHTML = '<span class="empty">σφάλμα δικτύου</span>';
+    document.getElementById("videos").innerHTML = '<span class="empty"><span data-i18n="msg.networkError">network error</span></span>';
   }
 }
 
@@ -2163,7 +2203,7 @@ async function runSearch(q) {
 function showUnifiedBanner(count) {
   hideFilterBanner();
   const fc = document.getElementById("filter-count");
-  if (fc) fc.textContent = `· ${count} βίντεο`;
+  if (fc) fc.textContent = `· ${count}${t('misc.videosWord')}`;
 }
 
 // Αφαιρεί ΜΟΝΟ τη λέξη αναζήτησης (κρατά τα tags/rating).
@@ -2212,7 +2252,7 @@ function redrawRssPanels() {
     if (RSS_DATA[cid] !== undefined) renderRssPanel(cid);
   });
 }
-let collapsedCats = new Set(); // κατηγορίες που έκλεισε ο χρήστης στο tab Κατηγορίες
+let expandedCats = new Set();  // ✅ ποιες κατηγορίες ΑΝΟΙΞΕ ο χρήστης (default: ΟΛΕΣ ΚΛΕΙΣΤΕΣ)
 let selectedCats = new Set();  // κατηγορίες τσεκαρισμένες ως ΦΙΛΤΡΟ (κενό = όλες)
 let catOrder = [];             // σειρά κατηγοριών (από τη βάση, επιμένει)
 let tabOrder = [];             // ↕️ σειρά TABS (dragable, επιμένει στη βάση)
@@ -2238,10 +2278,26 @@ function refreshIcon() {
 function watchBellHtml(on) { return on ? bellIcon() : bellOffIcon(); }
 
 function videoTags(v) {
-  const set = new Set(v.my_tags || []);
   const key = v.channel_id || v.channel || "__unknown__";
+  const mine = (v.my_tags || []);
+  const set = new Set();
+  // 1) Πρόσθεσε τα ΚΛΗΡΟΝΟΜΗΜΕΝΑ (tags καναλιού)
   for (const t of (CHANNEL_TAGS[key] || [])) set.add(t);
+  // 2) Πρόσθεσε τα δικά του (θετικά)
+  for (const t of mine) if (t && t[0] !== "-") set.add(t);
+  // 3) ΑΦΑΙΡΕΣΕ τα αρνητικά (εξαιρέσεις: «-music» = μη μου βάλεις το music)
+  for (const t of mine) if (t && t[0] === "-") set.delete(t.slice(1));
   return [...set];
+}
+
+// Επιστρέφει το «κατάσταση» ενός tag για το tag-popup: 'on' | 'off' | 'inherited'
+function tagStateFor(v, tag) {
+  const mine = (v.my_tags || []);
+  const key = v.channel_id || v.channel || "__unknown__";
+  if (mine.includes("-" + tag)) return "off";        // το απέκλεισε ρητά
+  if (mine.includes(tag)) return "on";                // δικό του
+  if ((CHANNEL_TAGS[key] || []).includes(tag)) return "inherited";  // από το κανάλι
+  return "off";
 }
 
 // Ποιo κριτήριο ταίριαξε σε αυτό το βίντεο (για το match-highlight).
@@ -2286,10 +2342,10 @@ function renderTagFilter() {
   const total = ALL_TAGS.length;
   const active = selectedTags.size;
   if (totalEl) totalEl.textContent = `(${total})`;
-  if (activeEl) activeEl.textContent = active > 0 ? `· ${active} ενεργά` : "";
+  if (activeEl) activeEl.textContent = active > 0 ? `· ${active}${t('misc.activeWord')}` : "";
 
   if (!ALL_TAGS.length) {
-    panel.innerHTML = '<span class="lbl" style="font-size:12px">🏷️ Πάτα το 🏷️ σε ένα βίντεο ή κανάλι για να φτιάξεις tags.</span>';
+    panel.innerHTML = '<span class="lbl" style="font-size:12px"><span data-i18n="tag.hint">🏷️ Tap 🏷️ on a video or channel to create tags.</span></span>';
     return;
   }
   const inSearch = isSearchMode();
@@ -2298,12 +2354,13 @@ function renderTagFilter() {
     const on = selectedTags.has(t);
     const delBtn = inSearch
       ? ''
-      : `<span class="tag-filter-x" title="Διαγραφή του tag «${esc(t)}» από παντού" onclick="confirmDeleteTag('${esc(t)}', this); event.stopPropagation();">×</span>`;
+      : `<span class="tag-filter-x" title="Delete tag everywhere" onclick="confirmDeleteTag('${esc(t)}', this); event.stopPropagation();">×</span>`;
     return `<label class="tag-chk green ${on ? 'on' : ''}">
       <input type="checkbox" ${on ? 'checked' : ''} onchange="toggleFilterTag('${esc(t)}', this.checked)">${esc(t)}
       ${delBtn}
     </label>`;
   }).join('');
+  applyI18n(panel);
 }
 
 function toggleTagPanel() {
@@ -2351,6 +2408,7 @@ function clearSearchText() {
 /* --- Tag popover --- */
 function openTagPop(btn, type, id) {
   const pop = document.getElementById("tag-pop");
+  closeCatPop();   // ✅ ΜΟΝΟ ένα popup ανοιχτό τη φορά (κλείσε τις κατηγορίες)
   // Toggle: αν είναι ήδη ανοιχτό για το ίδιο target → κλείσε με pop-out.
   if (pop.classList.contains("open") && tagPopTarget && tagPopTarget.type === type && tagPopTarget.id === id) {
     closeTagPop();
@@ -2364,40 +2422,88 @@ function openTagPop(btn, type, id) {
   renderTagPopList(currentTags);
   // σβήσε τυχόν closing class + inline display πριν το νέο άνοιγμα
   pop.classList.remove("closing");
+  pop.classList.remove("no-anim");   // ✅ παίξε το animation εισόδου
   pop.style.display = "";
   pop.classList.add("open");
-  repositionTagPop();
+  repositionTagPopSoon();   // ✅ μετά το layout
 }
 
 function repositionTagPop() {
   const pop = document.getElementById("tag-pop");
-  if (!pop.classList.contains("open") || !tagPopBtn) return;
+  if (!pop.classList.contains("open") || !tagPopTarget) return;
+  if (!tagPopBtn || !tagPopBtn.isConnected) {
+    tagPopBtn = document.querySelector('.tag-btn[data-id="' + tagPopTarget.id + '"]');
+    if (!tagPopBtn) tagPopBtn = document.querySelector(".tag-btn");
+    if (!tagPopBtn || !tagPopBtn.isConnected) return;
+  }
   const r = tagPopBtn.getBoundingClientRect();
-  // αν το button βγει από το viewport (πάνω ή κάτω), κλείσε το popover
+  if (r.width === 0 && r.height === 0) return;
   if (r.bottom < 0 || r.top > window.innerHeight) {
     pop.classList.remove("open");
     tagPopTarget = null;
     tagPopBtn = null;
     return;
   }
-  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 236)) + "px";
-  pop.style.top = Math.min(r.bottom + 6, window.innerHeight - pop.offsetHeight - 8) + "px";
+  const pw = pop.offsetWidth || 220;
+  const ph = pop.offsetHeight || 0;
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8)) + "px";
+  pop.style.top = Math.max(8, Math.min(r.bottom + 6, window.innerHeight - ph - 8)) + "px";
 }
 
+function repositionTagPopSoon() {
+  requestAnimationFrame(() => requestAnimationFrame(() => { try { repositionTagPop(); } catch (e) {} }));
+}
+
+// 📄 PAGINATION στα popups: 6 στήλες × 10 γραμμές = 60/σελίδα (ίδιο με τις αναζητήσεις).
+const POP_PAGE_SIZE = 6;   // 6 ανά καρτέλα (κάθετα)
+let _tagPopPage = 0, _catPopPage = 0;
+let _tagPopCurrent = [];
+
+function _pagerHtml(page, total, fnName) {
+  const pages = Math.max(1, Math.ceil(total / POP_PAGE_SIZE));
+  if (pages <= 1) return "";
+  const p = Math.min(page, pages - 1);
+  return `<div class="pop-pager">
+      <button ${p === 0 ? "disabled" : ""} onclick="${fnName}(${p - 1})" data-i18n-title="pop.prevPage" title="Previous page">◀</button>
+      <span class="pop-pager-lbl">${p + 1} / ${pages}</span>
+      <button ${p >= pages - 1 ? "disabled" : ""} onclick="${fnName}(${p + 1})" data-i18n-title="pop.nextPage" title="Next page">▶</button>
+    </div>`;
+}
+
+function setTagPopPage(p) { _tagPopPage = Math.max(0, p); renderTagPopList(_tagPopCurrent); }
+function setCatPopPage(p) { _catPopPage = Math.max(0, p); renderCatPopList(_catPopCurrent); }
+
 function renderTagPopList(currentTags) {
+  _tagPopCurrent = currentTags || [];
   const list = document.getElementById("tag-pop-list");
   if (!ALL_TAGS.length) {
-    list.innerHTML = '<span class="muted" style="font-size:12px">Γράψε το πρώτο σου tag 👇</span>';
+    list.classList.remove("paged");
+    list.innerHTML = '<span class="muted" style="font-size:12px"><span data-i18n="tag.writeFirst">Write your first tag 👇</span></span>';
     return;
   }
-  list.innerHTML = ALL_TAGS.map(t => `
+  const total = ALL_TAGS.length;
+  const pages = Math.max(1, Math.ceil(total / POP_PAGE_SIZE));
+  if (_tagPopPage > pages - 1) _tagPopPage = pages - 1;
+  const slice = ALL_TAGS.slice(_tagPopPage * POP_PAGE_SIZE, (_tagPopPage + 1) * POP_PAGE_SIZE);
+  const _tagPopEl = document.getElementById("tag-pop");
+  if (_tagPopEl) { _tagPopEl.classList.add("paged"); _tagPopEl.classList.add("no-anim"); }
+  list.classList.add("paged");
+  // 🔗 Για VIDEO: τα ΚΛΗΡΟΝΟΜΗΜΕΝΑ (από το banner του καναλιού) φαίνονται ΤΣΕΚΑΡΙΣΜΕΝΑ.
+  const _isVideo = tagPopTarget && tagPopTarget.type === 'video';
+  const _vObj = _isVideo ? allVideos.find(x => x.video_id === tagPopTarget.id) : null;
+  list.innerHTML = `<div class="pop-page-grid">` + slice.map(t => {
+    const checked = _isVideo
+      ? (_vObj ? tagStateFor(_vObj, t) !== "off" : _tagPopCurrent.includes(t))
+      : _tagPopCurrent.includes(t);
+    return `
     <div class="tag-pop-item">
       <label class="tag-pop-label">
-        <input type="checkbox" value="${esc(t)}" ${currentTags.includes(t) ? 'checked' : ''} onchange="toggleTag()">${esc(t)}
+        <input type="checkbox" value="${esc(t)}" ${checked ? 'checked' : ''} onchange="toggleTag()">${esc(t)}
       </label>
-      <button class="tag-del" title="Διαγραφή του tag «${esc(t)}» από παντού" onclick="confirmDeleteTag('${esc(t)}', this)">×</button>
-    </div>
-  `).join("");
+      <button class="tag-del" data-i18n-title="tag.delEverywhere" title="Delete tag everywhere" onclick="confirmDeleteTag('${esc(t)}', this)">×</button>
+    </div>`;
+  }).join("") + `</div>` + _pagerHtml(_tagPopPage, total, "setTagPopPage");
+  applyI18n(list);
 }
 
 function confirmDeleteTag(tag, btn) {
@@ -2408,12 +2514,13 @@ function confirmDeleteTag(tag, btn) {
   pop.className = "del-confirm";
   pop.id = "del-confirm";
   pop.innerHTML = `
-    <div class="dc-msg">Θα σβηστεί το tag <b>${esc(tag)}</b> από <b>ΟΛΑ</b> τα βίντεο και κανάλια.<br><span class="dc-warn">Δεν ξαναγυρίζει.</span></div>
+    <div class="dc-msg"><span data-i18n="del.tagBefore">The tag</span> <b>${esc(tag)}</b> <span data-i18n="del.tagAfter">will be deleted from</span> <b><span data-i18n="tag.all">ALL</span></b> <span data-i18n="tag.fromAll">videos and channels.</span><br><span class="dc-warn"><span data-i18n="misc.noReturn">It will not come back.</span></span></div>
     <div class="dc-btns">
-      <button class="dc-yes" onclick="doDeleteTag('${esc(tag)}')">✓ Ναι, σβήστο</button>
-      <button class="dc-no" onclick="closeDeleteConfirm()">✕ Άκυρο</button>
+      <button class="dc-yes" onclick="doDeleteTag('${esc(tag)}')"><span data-i18n="btn.yesDelete">✓ Yes, delete it</span></button>
+      <button class="dc-no" onclick="closeDeleteConfirm()"><span data-i18n="btn.noCancel">✕ Cancel</span></button>
     </div>`;
   document.body.appendChild(pop);
+  applyI18n(pop);
   // τοποθέτησε δίπλα στο κουμπί (αν χωράει κάτω, αλλιώς πάνω)
   const popW = 280, popH = 96;
   let left = rect.left;
@@ -2456,19 +2563,77 @@ function doDeleteTag(tag) {
 function toggleTag() {
   if (!tagPopTarget) return;
   const checked = [...document.querySelectorAll("#tag-pop-list input:checked")].map(i => i.value);
-  const url = tagPopTarget.type === 'video' ? '/set_video_tags' : '/set_channel_tags';
-  const body = tagPopTarget.type === 'video'
-    ? { video_id: tagPopTarget.id, tags: checked }
-    : { channel_id: tagPopTarget.id, tags: checked };
-  fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   if (tagPopTarget.type === 'video') {
+    // 🔗 ΚΛΗΡΟΝΟΜΙΑ + ΕΞΑΙΡΕΣΗ: κρατάμε τα tags του βίντεο ΚΑΙ τις αρνήσεις ("-tag").
     const v = allVideos.find(x => x.video_id === tagPopTarget.id);
-    if (v) v.my_tags = checked;
+    const key = (v && (v.channel_id || v.channel)) || "__unknown__";
+    const chanTags = CHANNEL_TAGS[key] || [];
+    const next = [];
+    const allKnown = new Set([...ALL_TAGS, ...chanTags, ...checked]);
+    for (const t of allKnown) {
+      if (checked.includes(t)) {
+        // Θέλει το tag: αν ΔΕΝ το κληρονομεί, γράψ' το ρητά (θετικό).
+        if (!chanTags.includes(t)) next.push(t);
+      } else {
+        // ΔΕΝ το θέλει: αν το κληρονομεί, γράψε ΕΞΑΙΡΕΣΗ ("-tag").
+        if (chanTags.includes(t)) next.push("-" + t);
+      }
+    }
+    fetch("/set_video_tags", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ video_id: tagPopTarget.id, tags: next }) });
+    if (v) v.my_tags = next;
   } else {
+    fetch("/set_channel_tags", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel_id: tagPopTarget.id, tags: checked }) });
     CHANNEL_TAGS[tagPopTarget.id] = checked;
   }
-  // ξανατρέξε το ενεργό φίλτρο (αν υπάρχει) με τα νέα tags
-  renderCurrent();
+  // ⚡ Με ΕΝΕΡΓΟ φιλτρο: ξαναφιλτράρε (το βίντεο μπορεί να φύγει απ' τη λίστα).
+  if (selectedTags.size > 0) {
+    renderCurrent();
+  } else {
+    // Χωρίς φίλτρο: ενημέρωσε ΣΤΟΧΕΥΜΕΝΑ την κάρτα (chips + κουμπί) — χωρίς re-render όλης της λίστας.
+    updateVideoCardTags(tagPopTarget);
+    refreshCardChips(tagPopTarget);
+  }
+}
+
+/* 🔄 Ξαναφτιάχνει ΜΟΝΟ τα chips των tags σε μία κάρτα βίντεο (σέβεται τις αρνήσεις). */
+function refreshCardChips(target) {
+  try {
+    if (!target || target.type !== 'video') return;
+    const v = allVideos.find(x => x.video_id === target.id);
+    if (!v) return;
+    const card = document.querySelector('.v-card[data-id="' + target.id + '"]');
+    if (!card) return;
+    const tags = videoTags(v);   // ✅ σεβεται tags καναλιου + αρνησεις ("-tag")
+    const host = card.querySelector(".v-card-meta");
+    if (!host) return;
+    // Τα chips ζουν ΜΑΖΙ με το noteChip στο .v-card-meta → κρατάμε το noteChip, αλλάζουμε τα chips.
+    const noteChip = host.querySelector(".note-chip");
+    const noteHtml = noteChip ? noteChip.outerHTML : "";
+    host.innerHTML = tags.map(t => {
+      const on = selectedTags.has(t);
+      return `<span class="tag-chip ${on ? 'match-chip' : ''}">${esc(t)}</span>`;
+    }).join("") + noteHtml;
+  } catch (e) { /* ignore */ }
+}
+
+/* ⚡ Ενημερωνει ΜΟΝΟ την καρτα ενος στοιχειου (εμφανιση tags) — χωρις re-render. */
+function updateVideoCardTags(target) {
+  try {
+    if (!target) return;
+    if (target.type === 'video') {
+      const btn = document.querySelector('.tag-btn[data-id="' + target.id + '"]');
+      if (!btn) return;
+      const v = allVideos.find(x => x.video_id === target.id);
+      btn.classList.toggle("has-tags", !!(v && v.my_tags && v.my_tags.length));
+    } else {
+      const btn = document.querySelector('.tag-btn[data-id="' + target.id + '"]');
+      if (!btn) return;
+      const t = CHANNEL_TAGS[target.id] || [];
+      btn.classList.toggle("has-tags", t.length > 0);
+    }
+  } catch (e) { /* ignore */ }
 }
 
 function addNewTag() {
@@ -2492,6 +2657,9 @@ function addNewTag() {
 function closeTagPop() {
   const pop = document.getElementById("tag-pop");
   // Pop-out animation πριν το πραγματικό κλείσιμο.
+  // 🚫 ΚΑΝΕΝΑ load() εδώ: ξαναέχτιζε 3556 κάρτες → flicker σε κάθε κλείσιμο.
+  //    Τα tags ενημερώνονται στοχευμένα στο toggleTag (ή με renderCurrent ΜΟΝΟ
+  //    όταν υπάρχει ενεργό φίλτρο tag).
   if (pop.classList.contains("open") && !pop.classList.contains("closing")) {
     pop.classList.remove("open");
     pop.classList.add("closing");
@@ -2500,23 +2668,26 @@ function closeTagPop() {
       pop.style.display = "none";
       tagPopTarget = null;
       tagPopBtn = null;
-      load();
     }, 150);
     return;
   }
   pop.classList.remove("open");
+  pop.style.display = "none";
   tagPopTarget = null;
   tagPopBtn = null;
-  load();
 }
 
 document.addEventListener("click", (e) => {
   const pop = document.getElementById("tag-pop");
-  if (pop.classList.contains("open") && !pop.contains(e.target) && !e.target.closest(".tag-btn")) {
+  if (pop.classList.contains("open") && !pop.contains(e.target)
+      && !e.target.closest(".tag-btn") && !e.target.closest(".pop-pager")) {
     closeTagPop();
   }
   const cpop = document.getElementById("cat-pop");
-  if (cpop.classList.contains("open") && !cpop.contains(e.target) && !e.target.closest(".cat-btn")) {
+  // ⚠️ Ο pager (◀ ▶) ξαναζωγραφίζει το list → το e.target αποκολλάται → το contains()
+  //    θα έλεγε false και θα έκλεινε το popup. Γι' αυτό ελέγχουμε και το closest pager.
+  if (cpop.classList.contains("open") && !cpop.contains(e.target)
+      && !e.target.closest(".cat-btn") && !e.target.closest(".pop-pager")) {
     closeCatPop();
   }
 });
@@ -2576,34 +2747,34 @@ function backupStatus(msg, isError) {
 }
 
 function doExport() {
-  backupStatus("….φτιάχνω το export…");
+  backupStatus(t('io.exporting'));
   fetch("/export", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
     .then(r => r.json())
     .then(d => {
       if (d.cancelled) { backupStatus(""); return; }
-      if (!d.ok) { backupStatus("⚠️ Σφάλμα: " + (d.error || "άγνωστο"), true); return; }
-      backupStatus("✅ Αποθηκεύτηκε: " + d.path);
+      if (!d.ok) { backupStatus(t('msg.errorColon') + (d.error || t('msg.unknown')), true); return; }
+      backupStatus(t('io.saved') + d.path);
     })
-    .catch(e => backupStatus("⚠️ Δεν απαντά ο server", true));
+    .catch(e => backupStatus(t('msg.serverDownPlain'), true));
 }
 
 // 🔄 Έλεγχος για ενημέρωση — ρωτάει το backend (/update_check), που τσεκάρει το GitHub.
 function checkUpdate() {
   const btn = document.getElementById("update-btn");
-  if (btn) { btn.disabled = true; btn.textContent = "…έλεγχος…"; }
+  if (btn) { btn.disabled = true; btn.textContent = t('upd.checking'); }
   fetch("/update_check", { method: "GET" })
     .then(r => r.json())
     .then(d => {
-      if (btn) { btn.disabled = false; btn.textContent = "🔄 Ενημέρωση"; }
+      if (btn) { btn.disabled = false; btn.textContent = t('upd.button'); }
       if (!d.ok) {
-        showUpdatePopup(false, d.current, null, d.error || "Δεν κατάφερα να ελέγξω.");
+        showUpdatePopup(false, d.current, null, d.error || t('upd.couldntCheck'));
         return;
       }
       showUpdatePopup(true, d.current, d);
     })
     .catch(e => {
-      if (btn) { btn.disabled = false; btn.textContent = "🔄 Ενημέρωση"; }
-      showUpdatePopup(false, null, null, "Δεν απαντά ο server.");
+      if (btn) { btn.disabled = false; btn.textContent = t('upd.button'); }
+      showUpdatePopup(false, null, null, t('msg.serverDownDot'));
     });
 }
 
@@ -2621,42 +2792,43 @@ function showUpdatePopup(ok, current, data, errMsg) {
     const dlUrl = data.download_url || data.url || "";
     if (kind === "frontend" && data.frontend_url) {
       inner = `
-      <div class="dc-msg">🆕 <b>Νέα έκδοση διαθέσιμη!</b><br>
-      <span class="muted">Τρέχουσα: v${esc(current)} · Τελευταία: v${esc(data.latest)}</span><br>
+      <div class="dc-msg">🆕 <b><span data-i18n="upd.available">New version available!</span></b><br>
+      <span class="muted">${t('upd.current')}${esc(current)} · ${t('upd.latestShort')}${esc(data.latest)}</span><br>
       ${data.notes ? `<span class="dc-warn">${esc(data.notes)}</span>` : ""}</div>
       <div class="dc-btns">
-        <button class="dc-yes" onclick="doFrontendUpdate('${esc(data.frontend_url)}')">✨ Ενημέρωση τώρα</button>
-        <button class="dc-no" onclick="closeUpdatePopup()">Αργότερα</button>
+        <button class="dc-yes" onclick="doFrontendUpdate('${esc(data.frontend_url)}')"><span data-i18n="upd.updateNow">✨ Update now</span></button>
+        <button class="dc-no" onclick="closeUpdatePopup()"><span data-i18n="btn.later">Later</span></button>
       </div>`;
     } else {
       inner = `
-      <div class="dc-msg">⚠️ <b>Η εφαρμογή είναι παλιά (out of date)</b><br>
-      <span class="muted">Έχεις v${esc(current)} · η τελευταία είναι v${esc(data.latest)}.</span><br>
-      <span class="muted">Πρέπει να κατεβάσεις και να εγκαταστήσεις τη νέα έκδοση.</span><br>
+      <div class="dc-msg">⚠️ <b><span data-i18n="upd.outOfDate">The app is out of date</span></b><br>
+      <span class="muted">${t('upd.youHave')}${esc(current)}${t('upd.andLatest')}${esc(data.latest)}.</span><br>
+      <span class="muted"><span data-i18n="upd.mustInstall">You need to download and install the new version.</span></span><br>
       ${data.notes ? `<span class="dc-warn">${esc(data.notes)}</span>` : ""}</div>
       <div class="dc-btns" style="flex-wrap:wrap;">
-        <button class="dc-yes" onclick="window.open('${esc(dlUrl)}', '_blank')">⬇ Κατέβασε τη νέα έκδοση</button>
-        <button class="dc-no" onclick="closeUpdatePopup()">Αργότερα</button>
+        <button class="dc-yes" onclick="window.open('${esc(dlUrl)}', '_blank')"><span data-i18n="upd.download">⬇ Download the new version</span></button>
+        <button class="dc-no" onclick="closeUpdatePopup()"><span data-i18n="btn.later">Later</span></button>
       </div>`;
     }
   } else if (ok) {
     inner = `
-      <div class="dc-msg">✅ <b>Έχεις την τελευταία έκδοση</b><br>
+      <div class="dc-msg">✅ <b><span data-i18n="upd.latest">You have the latest version</span></b><br>
       <span class="muted">v${esc(current)}</span></div>
       <div class="dc-btns">
-        <button class="dc-no" onclick="closeUpdatePopup()">Οκ</button>
+        <button class="dc-no" onclick="closeUpdatePopup()"><span data-i18n="btn.ok">Ok</span></button>
       </div>`;
   } else {
     inner = `
-      <div class="dc-msg">⚠️ <b>Έλεγχος απέτυχε</b><br>
-      <span class="muted">${esc(errMsg || "άγνωστο σφάλμα")}</span><br>
-      ${current ? `<span class="muted">Τρέχουσα: v${esc(current)}</span>` : ""}</div>
+      <div class="dc-msg">⚠️ <b><span data-i18n="upd.checkFailed">Check failed</span></b><br>
+      <span class="muted">${esc(errMsg || t('msg.unknownError'))}</span><br>
+      ${current ? `<span class="muted">${t('upd.current')}${esc(current)}</span>` : ""}</div>
       <div class="dc-btns">
-        <button class="dc-no" onclick="closeUpdatePopup()">Οκ</button>
+        <button class="dc-no" onclick="closeUpdatePopup()"><span data-i18n="btn.ok">Ok</span></button>
       </div>`;
   }
   pop.innerHTML = inner;
   document.body.appendChild(pop);
+  applyI18n(pop);
 }
 
 function closeUpdatePopup() {
@@ -2669,8 +2841,8 @@ function doFrontendUpdate(url) {
   //    στο μόνιμο override φάκελο. ΔΕΝ χρειάζεται reinstall — μόνο restart.
   const pop = document.getElementById("update-pop");
   if (pop) pop.innerHTML = `
-    <div class="dc-msg">⏳ <b>Ενημέρωση UI…</b><br>
-    <span class="muted">Κατεβάζω το νέο interface (δεν χρειάζεται reinstall).</span></div>`;
+    <div class="dc-msg">⏳ <b><span data-i18n="upd.uiUpdating">Updating UI…</span></b><br>
+    <span class="muted"><span data-i18n="upd.downloadingUI">Downloading the new interface (no reinstall needed).</span></span></div>`;
   fetch("/frontend_update", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -2680,31 +2852,31 @@ function doFrontendUpdate(url) {
     .then(d => {
       if (d.ok) {
         if (pop) pop.innerHTML = `
-          <div class="dc-msg">✅ <b>Ενημέρωση ολοκληρώθηκε!</b><br>
-          <span class="muted">Κλείσε την εφαρμογή και ξανάνοιξέ την για να δεις το νέο interface.</span></div>
+          <div class="dc-msg">✅ <b><span data-i18n="upd.done">Update complete!</span></b><br>
+          <span class="muted"><span data-i18n="upd.restart">Close the app and reopen it to see the new interface.</span></span></div>
           <div class="dc-btns">
-            <button class="dc-no" onclick="closeUpdatePopup()">Οκ</button>
+            <button class="dc-no" onclick="closeUpdatePopup()"><span data-i18n="btn.ok">Ok</span></button>
           </div>`;
       } else {
         if (pop) pop.innerHTML = `
-          <div class="dc-msg">⚠️ <b>Η ενημέρωση απέτυχε</b><br>
-          <span class="muted">${esc(d.error || "άγνωστο σφάλμα")}</span></div>
+          <div class="dc-msg">⚠️ <b><span data-i18n="upd.failed">Update failed</span></b><br>
+          <span class="muted">${esc(d.error || t('msg.unknownError'))}</span></div>
           <div class="dc-btns">
-            <button class="dc-no" onclick="closeUpdatePopup()">Οκ</button>
+            <button class="dc-no" onclick="closeUpdatePopup()"><span data-i18n="btn.ok">Ok</span></button>
           </div>`;
       }
     })
     .catch(() => {
       if (pop) pop.innerHTML = `
-        <div class="dc-msg">⚠️ <b>Δεν απαντά ο server</b></div>
-        <div class="dc-btns"><button class="dc-no" onclick="closeUpdatePopup()">Οκ</button></div>`;
+        <div class="dc-msg">⚠️ <b><span data-i18n="msg.serverDown">Server not responding</span></b></div>
+        <div class="dc-btns"><button class="dc-no" onclick="closeUpdatePopup()"><span data-i18n="btn.ok">Ok</span></button></div>`;
     });
 }
 
 function doImport() {
   showImportModePopup(mode => {
     if (!mode) { backupStatus(""); return; }
-    backupStatus(mode === "replace" ? "….εισαγωγή (αντικατάσταση)…" : "….εισαγωγή (συγχώνευση)…");
+    backupStatus(mode === "replace" ? t('imp.loadingReplace') : t('imp.loadingMerge'));
     fetch("/import", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2713,17 +2885,17 @@ function doImport() {
       .then(r => r.json())
       .then(d => {
         if (d.cancelled) { backupStatus(""); return; }
-        if (!d.ok) { backupStatus("⚠️ Σφάλμα: " + (d.error || "άγνωστο"), true); return; }
-        backupStatus("✅ Εισαγωγή ολοκληρώθηκε (" + (mode === "replace" ? "αντικατάσταση" : "συγχώνευση") + ")");
+        if (!d.ok) { backupStatus(t('msg.errorColon') + (d.error || t('msg.unknown')), true); return; }
+        backupStatus(t('io.importDoneOpen') + (mode === "replace" ? t('imp.modeReplace') : t('imp.modeMerge')) + ")");
         load();  // ξαναφόρτωσε με τα νέα δεδομένα
       })
-      .catch(e => backupStatus("⚠️ Δεν απαντά ο server", true));
+      .catch(e => backupStatus(t('msg.serverDownPlain'), true));
   });
 }
 
 function doImportSubscriptions() {
   // 📡 Εισαγωγή καναλιών από το subscriptions.csv (Google Takeout) → γίνονται «παρακολουθούμενα».
-  backupStatus("….εισαγωγή καναλιών…");
+  backupStatus(t('imp.loadingChannels'));
   fetch("/import_subscriptions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -2732,11 +2904,11 @@ function doImportSubscriptions() {
     .then(r => r.json())
     .then(d => {
       if (d.cancelled) { backupStatus(""); return; }
-      if (!d.ok) { backupStatus("⚠️ " + (d.error || "Σφάλμα"), true); return; }
-      backupStatus("✅ Εισήχθησαν " + d.count + " κανάλια ως «παρακολουθούμενα»");
+      if (!d.ok) { backupStatus("⚠️ " + (d.error || t('msg.error')), true); return; }
+      backupStatus(t('io.imported') + d.count + t('io.asWatched'));
       load();
     })
-    .catch(() => backupStatus("⚠️ Δεν απαντά ο server", true));
+    .catch(() => backupStatus(t('msg.serverDownPlain'), true));
 }
 
 function showImportModePopup(onChoice) {
@@ -2747,12 +2919,12 @@ function showImportModePopup(onChoice) {
   overlay.className = "import-pop";
   overlay.innerHTML = `
     <div class="import-pop-card">
-      <div class="import-pop-title">Πώς θες να γίνει η εισαγωγή;</div>
-      <p class="import-pop-sub">Διάλεξε αν θα αντικατασταθούν τα τρέχοντα δεδομένα ή θα συγχωνευτούν (χωρίς διπλότυπα).</p>
+      <div class="import-pop-title"><span data-i18n="imp.how">How do you want the import?</span></div>
+      <p class="import-pop-sub"><span data-i18n="imp.howDesc">Choose whether to replace the current data or merge it (no duplicates).</span></p>
       <div class="import-pop-actions">
-        <button class="backup-btn imp-replace">🔄 Αντικατάσταση</button>
-        <button class="backup-btn imp-merge">🔗 Συγχώνευση</button>
-        <button class="backup-btn imp-cancel">Ακύρωση</button>
+        <button class="backup-btn imp-replace"><span data-i18n="imp.replace">🔄 Replace</span></button>
+        <button class="backup-btn imp-merge"><span data-i18n="imp.merge">🔗 Merge</span></button>
+        <button class="backup-btn imp-cancel"><span data-i18n="btn.cancel">Cancel</span></button>
       </div>
     </div>`;
   overlay.querySelector(".imp-replace").onclick = () => { document.querySelectorAll(".import-pop").forEach(p => p.remove()); onChoice("replace"); };
@@ -2850,24 +3022,25 @@ function fetchChannelNext(cid, btn, setSpinFn) {
         if (!allVideos.some(x => x.video_id === v.video_id)) allVideos.push(vv);
         const w = document.createElement("div");
         w.innerHTML = cardHtml(vv, "channel");
+        applyI18n(w);
         grid.appendChild(w.firstElementChild);
       }
       window[key] = (typeof d.next_offset === "number") ? d.next_offset : (window[key] + videos.length);
       const muted = group.querySelector(".muted");
-      if (muted) muted.textContent = "· " + group.querySelectorAll(".v-card").length + " βίντεο";
+      if (muted) muted.textContent = "· " + group.querySelectorAll(".v-card").length + t('misc.videosN');
       try { setupDrag(); } catch (e) {}
       if (wasImported) { try { placeBeforeFirstImported(cid); } catch (e) {} }
     }
     if (btn) {
       // 🔚 Δύο μόνο μηνύματα: «Επόμενα →» ή «Τέλος». Χωρίς τίποτα άλλο.
-      if (videos.length && d && d.has_more === true) { btn.textContent = "Επόμενα →"; btn.disabled = false; }
-      else { btn.textContent = "Τέλος"; btn.disabled = true; }
+      if (videos.length && d && d.has_more === true) { btn.textContent = t('btn.next'); btn.disabled = false; }
+      else { btn.textContent = t('btn.end'); btn.disabled = true; }
       delete btn.dataset.busy;
     }
     if (typeof setSpinFn === "function") setSpinFn(false);
   }).catch(() => {
     // Απλό: αν δεν φόρτωσε, ξαναπροσπάθησε. Καμία άλλη πληροφορία.
-    if (btn) { btn.textContent = "Επόμενα →"; btn.disabled = false; delete btn.dataset.busy; }
+    if (btn) { btn.textContent = t('btn.next'); btn.disabled = false; delete btn.dataset.busy; }
     if (typeof setSpinFn === "function") setSpinFn(false);
   });
 }
@@ -2921,6 +3094,7 @@ function fetchChannelNew(cid, setSpin) {
       if (!allVideos.some(x => x.video_id === v.video_id)) allVideos.push(vv);
       const wrapper = document.createElement("div");
       wrapper.innerHTML = cardHtml(vv, "channel");
+      applyI18n(wrapper);
       grid.appendChild(wrapper.firstElementChild);
     }
     // 🔢 Ενημέρωσε το μετρητή βίντεο στο banner (ζωντανά, χωρίς reload)
@@ -2928,7 +3102,7 @@ function fetchChannelNew(cid, setSpin) {
     const muted = group ? group.querySelector(".muted") : null;
     if (muted) {
       const count = grid.querySelectorAll(".v-card").length;
-      muted.textContent = "· " + count + " βίντεο";
+      muted.textContent = "· " + count + t('misc.videosN');
     }
     setupDrag();
     if (setSpin) setSpin(false);
@@ -2952,7 +3126,7 @@ function renderRssPanel(cid) {
   if (!rssShown || rssShown < 1) rssShown = 6;
   const all = RSS_DATA[cid] || [];
   if (!all.length) {
-    panel.innerHTML = '<div class="rss-empty">✅ Είσαι ενημερωμένος — δεν υπάρχουν νέα βίντεο.</div>';
+    panel.innerHTML = '<div class="rss-empty"><span data-i18n="feed.noNew">✅ You are up to date — no new videos.</span></div>';
     return;
   }
   // Το −/+ ορίζει ΠΟΣΑ χωράνε «με την πρώτη ματιά» (ύψος), ΟΧΙ πόσα κόβονται.
@@ -2962,12 +3136,12 @@ function renderRssPanel(cid) {
   const remaining = all.length - rssShown;
   panel.innerHTML = `
     <div class="rss-head">
-      <span class="rss-title">🆕 Νέα βίντεο (${all.length})</span>
+      <span class="rss-title">${t('feed.newVideos')}${all.length})</span>
       <span class="rss-count">
         ${remaining > 0 ? `<span class="rss-total">(+${remaining})</span>` : ""}
-        <button class="rss-countbtn" onclick="setRssCount('${esc(cid)}', -1)" title="Λιγότερα">−</button>
+        <button class="rss-countbtn" onclick="setRssCount('${esc(cid)}', -1)" data-i18n-title="btn.less" title="Show less">−</button>
         <span class="rss-num">${rssShown}</span>
-        <button class="rss-countbtn" onclick="setRssCount('${esc(cid)}', 1)" title="Περισσότερα">+</button>
+        <button class="rss-countbtn" onclick="setRssCount('${esc(cid)}', 1)" data-i18n-title="btn.more" title="Show more">+</button>
       </span>
     </div>
     <div class="rss-list" style="max-height:${viewH}px">
@@ -2975,11 +3149,11 @@ function renderRssPanel(cid) {
       <div class="new-row" data-vid="${esc(n.video_id)}">
         <img class="thumb" src="/thumb/${esc(n.video_id)}" loading="lazy" onerror="this.style.display='none'" alt="">
         <div class="vinfo">
-          <a class="vtitle" href="#" onclick="event.preventDefault(); openLightbox('${esc(n.video_id)}', 'feed'); return false;" title="Παίξε το μέσα στην εφαρμογή">${esc(n.title)}</a>
+          <a class="vtitle" href="#" onclick="event.preventDefault(); openLightbox('${esc(n.video_id)}', 'feed'); return false;" data-i18n-title="card.playInApp" title="Play inside the app">${esc(n.title)}</a>
           <div class="vmeta"><span class="muted">${n.published ? shortDate(n.published) : ""}</span></div>
         </div>
-        <button class="icon-btn" title="Πρόσθεσε στο ιστορικό μου" onclick="addFromRSS('${esc(cid)}', '${esc(n.video_id)}')">➕</button>
-        <button class="icon-btn del" title="Δεν με ενδιαφέρει (δεν θα ξαναεμφανιστεί)" onclick="dismissFromRSS('${esc(cid)}', '${esc(n.video_id)}')">×</button>
+        <button class="icon-btn" data-i18n-title="card.addToHistory" title="Add to my history" onclick="addFromRSS('${esc(cid)}', '${esc(n.video_id)}')">➕</button>
+        <button class="icon-btn del" data-i18n-title="card.dismiss" title="Not interested (will not show again)" onclick="dismissFromRSS('${esc(cid)}', '${esc(n.video_id)}')">×</button>
       </div>`).join("")}
     </div>
   `;
@@ -3036,10 +3210,11 @@ function appendVideoToChannel(cid, v) {
   if (!grid.querySelector(`.v-card[data-id="${CSS.escape(v.video_id)}"]`)) {
     const wrap = document.createElement("div");
     wrap.innerHTML = cardHtml(v, "channel");
+    applyI18n(wrap);
     grid.appendChild(wrap.firstElementChild);
     const muted = group.querySelector(".muted");
     const count = grid.querySelectorAll(".v-card").length;
-    if (muted) muted.textContent = "· " + count + " βίντεο";
+    if (muted) muted.textContent = "· " + count + t('misc.videosN');
   }
 }
 
@@ -3059,7 +3234,7 @@ function promoteChannelToFull(cid) {
     const sp = head.querySelector(".head-spacer");
     const muted = document.createElement("span");
     muted.className = "muted";
-    muted.textContent = "· 0 βίντεο";
+    muted.textContent = t('ch.zeroVideos');
     if (sp && sp.nextSibling) head.insertBefore(muted, sp.nextSibling);
     else if (sp) sp.after(muted);
     else head.appendChild(muted);
@@ -3077,7 +3252,7 @@ function promoteChannelToFull(cid) {
   if (!body.querySelector(".yt-next-wrap")) {
     const nx = document.createElement("div");
     nx.className = "yt-next-wrap";
-    nx.innerHTML = `<button class="yt-next-btn" onclick="fetchChannelNext(this.dataset.cid, this)" data-cid="${esc(cid)}">Επόμενα →</button>`;
+    nx.innerHTML = `<button class="yt-next-btn" onclick="fetchChannelNext(this.dataset.cid, this)" data-cid="${esc(cid)}"><span data-i18n="btn.next">Next →</span></button>`;
     grid.after(nx);
   }
 
@@ -3119,7 +3294,7 @@ function dismissFromRSS(cid, videoId) {
 }
 
 function renderVideos(videos) {
-  if (!videos.length) return '<span class="empty">Άδεια — δες ένα βίντεο στο YouTube.</span>';
+  if (!videos.length) return '<span class="empty"><span data-i18n="msg.empty">Empty — watch a video on YouTube.</span></span>';
   // Όταν υπάρχει ενεργό φίλτρο (αναζήτηση/αστεράκια/tag), ΟΛΑ τα matching ΑΝΟΙΓΟΥΝ.
   // ✅ ΝΕΟ: κλειστό = ΔΕΝ είναι στο expandedChannels. Όλα κλειστά by default.
   //    (Το key ελέγχεται απευθείας στο loop — δεν χρειάζεται το arr.)
@@ -3156,47 +3331,54 @@ function renderVideos(videos) {
     html += `<div class="channel-group ${isCollapsed(key) ? 'collapsed' : ''} ${first.pinned ? 'pinned' : ''} ${NEW_CHANNELS.has(key) ? 'new' : ''}" data-key="${esc(key)}">
       <div class="channel-head" onclick="toggleChannel(this)">
         <span class="chevron">▾</span>
-        <a class="chan-link" href="${chanHref}" target="_blank" rel="noopener" onclick="event.stopPropagation()" draggable="false" title="Άνοιξε το κανάλι στο YouTube">
+        <a class="chan-link" href="${chanHref}" target="_blank" rel="noopener" onclick="event.stopPropagation()" draggable="false" data-i18n-title="ch.openYouTube" title="Open channel on YouTube">
           <span class="${chanAvatarCls}">${avatarHtml(first)}</span>
-          <span class="channel-name">${esc(first.channel || "Άγνωστο κανάλι")}</span>
+          <span class="channel-name">${esc(first.channel || t('msg.unknownChannel'))}</span>
         </a>
         <span class="head-spacer"></span>
-        <span class="muted">· ${vids.length} βίντεο</span>
-        <button class="icon-btn tag-btn" style="width:32px;height:32px;font-size:16px" title="Tags καναλιού (σε όλα τα βίντεο)" onclick="event.stopPropagation();openTagPop(this, 'channel', '${esc(key)}')">🏷️</button>
-        <button class="icon-btn watch-tgl" style="width:32px;height:32px;font-size:17px" title="Fetch νέα βίντεο" onclick="event.stopPropagation();toggleWatch('${esc(key)}', this)">${watchBellHtml(false)}</button>
-        <button class="icon-btn ch-pin ${first.pinned ? 'active top' : ''}" title="Καρφίτσωμα (στην κορυφή)" onclick="event.stopPropagation();togglePinChannel('${esc(key)}', this)">${first.pinned ? '🔴' : '📌'}</button>
-        <button class="icon-btn" title="Κανάλι μία θέση πάνω" onclick="event.stopPropagation();moveChannel(this, -1)">↑</button>
-        <button class="icon-btn" title="Κανάλι μία θέση κάτω" onclick="event.stopPropagation();moveChannel(this, 1)">↓</button>
-        <button class="icon-btn del" title="Διαγραφή καναλιού" onclick="event.stopPropagation();confirmDeleteChannel('${esc(key)}', this)">−</button>
+        <span class="muted">· ${vids.length}${t('misc.videosWord')}</span>
+        <button class="icon-btn tag-btn" style="width:32px;height:32px;font-size:16px" data-i18n-title="ch.tagsAll" title="Channel tags (on all videos)" onclick="event.stopPropagation();openTagPop(this, 'channel', '${esc(key)}')">🏷️</button>
+        <button class="icon-btn watch-tgl" style="width:32px;height:32px;font-size:17px" data-i18n-title="ch.fetchNew" title="Fetch new videos" onclick="event.stopPropagation();toggleWatch('${esc(key)}', this)">${watchBellHtml(false)}</button>
+        <button class="icon-btn ch-pin ${first.pinned ? 'active top' : ''}" data-i18n-title="misc.pinTop" title="Pin (to top)" onclick="event.stopPropagation();togglePinChannel('${esc(key)}', this)">${first.pinned ? '🔴' : '📌'}</button>
+        <button class="icon-btn" data-i18n-title="ch.moveUp" title="Channel one position up" onclick="event.stopPropagation();moveChannel(this, -1)">↑</button>
+        <button class="icon-btn" data-i18n-title="ch.moveDown" title="Channel one position down" onclick="event.stopPropagation();moveChannel(this, 1)">↓</button>
+        <button class="icon-btn del" data-i18n-title="ch.delete" title="Delete channel" onclick="event.stopPropagation();confirmDeleteChannel('${esc(key)}', this)">−</button>
       </div>
       <div class="channel-body">
         <div class="rss-slot"></div>
         <div class="v-card-grid">${isCollapsed(key) ? "" : sorted.map(v => cardHtml(v, "channel")).join("")}</div>
-        <div class="yt-next-wrap"><button class="yt-next-btn" onclick="fetchChannelNext(this.dataset.cid, this)" data-cid="${esc(key)}">Επόμενα →</button></div>
+        <div class="yt-next-wrap"><button class="yt-next-btn" onclick="fetchChannelNext(this.dataset.cid, this)" data-cid="${esc(key)}"><span data-i18n="btn.next">Next →</span></button></div>
       </div>
     </div>`;
   }
-  // 📡 Εισαγμένα κανάλια (συνδρομές, χωρίς βίντεο) — στο κάτω μέρος, πορτοκαλί banner, καμπανάκι on/off.
+  // 📡 Εισαγμένα κανάλια (συνδρομές, χωρίς βίντεο) — στο κάτω μέρος, κίτρινο banner.
+  // 🚫 ΜΟΝΟ όταν ΔΕΝ υπάρχει φίλτρο: με φίλτρο δείχνουμε ΜΟΝΟ ό,τι ταιριάζει.
+  //    (Αλλιώς, με tag filter, δεκάδες κανάλια χωρίς ταιριαστά βίντεο γίνονταν
+  //     κίτρινα με το raw channel_id — το bug του χρήστη.)
+  const _noFilter = !ACTIVE_FILTER && selectedTags.size === 0 && searchRating === 0
+                    && !(document.getElementById("search-input") || {}).value;
   const existingKeys = new Set(groups.keys());
-  for (const cid of Object.keys(WATCHED_META)) {
+  for (const cid of (_noFilter ? Object.keys(WATCHED_META) : [])) {
     if (existingKeys.has(cid)) continue;  // ήδη εμφανίζεται (έχει βίντεο)
     const meta = WATCHED_META[cid] || {};
-    const name = meta.name || cid;
+    // 📛 Όνομα: meta.name → από τα βίντεο → «Άγνωστο κανάλι» (ΠΟΤΕ raw channel_id)
+    const _vn = allVideos.find(x => x.channel_id === cid && x.channel);
+    const name = meta.name || (_vn ? _vn.channel : "") || t('msg.unknownChannel');
     const isOn = meta.enabled === 1;
     html += `<div class="channel-group imported" data-key="${esc(cid)}">
         <div class="channel-head" onclick="toggleChannel(this)">
           <span class="chevron">▾</span>
-          <a class="chan-link" href="https://www.youtube.com/channel/${esc(cid)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" draggable="false" title="Άνοιξε το κανάλι στο YouTube">
+          <a class="chan-link" href="https://www.youtube.com/channel/${esc(cid)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" draggable="false" data-i18n-title="ch.openYouTube" title="Open channel on YouTube">
             <span class="avatar-wrap"><span class="avatar-fallback">${esc((name || '?').charAt(0).toUpperCase())}</span><img class="avatar" src="/avatar/${esc(cid)}" loading="lazy" decoding="async" onerror="this.style.display='none'" alt=""></span>
             <span class="channel-name">${esc(name)}</span>
           </a>
           <span class="head-spacer"></span>
-          <button class="icon-btn tag-btn" style="width:32px;height:32px;font-size:16px" title="Tags καναλιού (σε όλα τα βίντεο)" onclick="event.stopPropagation();openTagPop(this, 'channel', '${esc(cid)}')">🏷️</button>
-          <button class="icon-btn watch-tgl" style="width:32px;height:32px;font-size:17px" title="Fetch νέα βίντεο" onclick="event.stopPropagation();toggleWatch('${esc(cid)}', this)">${watchBellHtml(false)}</button>
-          <button class="icon-btn ch-pin" title="Καρφίτσωμα (στην κορυφή)" onclick="event.stopPropagation();togglePinChannel('${esc(cid)}', this)">📌</button>
-          <button class="icon-btn" title="Κανάλι μία θέση πάνω" onclick="event.stopPropagation();moveChannel(this, -1)">↑</button>
-          <button class="icon-btn" title="Κανάλι μία θέση κάτω" onclick="event.stopPropagation();moveChannel(this, 1)">↓</button>
-          <button class="icon-btn del" title="Διαγραφή καναλιού" onclick="event.stopPropagation();confirmDeleteChannel('${esc(cid)}', this)">−</button>
+          <button class="icon-btn tag-btn" style="width:32px;height:32px;font-size:16px" data-i18n-title="ch.tagsAll" title="Channel tags (on all videos)" onclick="event.stopPropagation();openTagPop(this, 'channel', '${esc(cid)}')">🏷️</button>
+          <button class="icon-btn watch-tgl" style="width:32px;height:32px;font-size:17px" data-i18n-title="ch.fetchNew" title="Fetch new videos" onclick="event.stopPropagation();toggleWatch('${esc(cid)}', this)">${watchBellHtml(false)}</button>
+          <button class="icon-btn ch-pin" data-i18n-title="misc.pinTop" title="Pin (to top)" onclick="event.stopPropagation();togglePinChannel('${esc(cid)}', this)">📌</button>
+          <button class="icon-btn" data-i18n-title="ch.moveUp" title="Channel one position up" onclick="event.stopPropagation();moveChannel(this, -1)">↑</button>
+          <button class="icon-btn" data-i18n-title="ch.moveDown" title="Channel one position down" onclick="event.stopPropagation();moveChannel(this, 1)">↓</button>
+          <button class="icon-btn del" data-i18n-title="ch.delete" title="Delete channel" onclick="event.stopPropagation();confirmDeleteChannel('${esc(cid)}', this)">−</button>
         </div>
         <div class="channel-body">
           <div class="rss-slot"></div>
@@ -3223,7 +3405,7 @@ function cardHtml(v, ctx) {
     const on = selectedTags.has(t);
     return `<span class="tag-chip ${on ? 'match-chip' : ''}">${esc(t)}</span>`;
   }).join("");
-  let stars = `<span class="stars ${info.rating ? 'match-stars' : ''}" title="Βαθμολόγησε 1-5">`;
+  let stars = `<span class="stars ${info.rating ? 'match-stars' : ''}" data-i18n-title="card.rate" title="Rate 1-5">`;
   for (let i = 1; i <= 5; i++) {
     stars += `<button type="button" class="st ${i <= (v.rating || 0) ? 'on' : ''}" onclick="event.stopPropagation(); rateVideo('${esc(v.video_id)}', ${i})">★</button>`;
   }
@@ -3236,12 +3418,12 @@ function cardHtml(v, ctx) {
     : '';
   return `
     <div class="v-card ${unseen ? 'unseen' : ''}" data-id="${esc(v.video_id)}">
-      <div class="v-card-thumb-wrap" onclick="openLightbox('${esc(v.video_id)}', '${ctx2}')" title="Παίξε το βίντεο">
+      <div class="v-card-thumb-wrap" onclick="openLightbox('${esc(v.video_id)}', '${ctx2}')" data-i18n-title="card.play" title="Play video">
         <div class="v-card-thumb-ph" data-vid="${esc(v.video_id)}" ${v.color ? `style="background:${v.color}"` : ''}></div>
         <img class="v-card-thumb" src="/thumb/${esc(v.video_id)}" loading="lazy" decoding="async" onload="this.classList.add('loaded')" onerror="this.style.display='none'" alt="">
         <span class="v-card-play">▶</span>
       </div>
-      <div class="v-card-title">${title}${unseen ? '<span class="new-badge">ΝΕΟ</span>' : ''}</div>
+      <div class="v-card-title">${title}${unseen ? '<span class="new-badge"><span data-i18n="misc.newBadge">NEW</span></span>' : ''}</div>
       <div class="v-card-meta">
         ${v.category ? `<span class="cat-chip">${esc(v.category)}</span>` : ''}
         ${stars}
@@ -3249,10 +3431,10 @@ function cardHtml(v, ctx) {
       <div class="v-card-meta">${chips}${noteChip}</div>
       <div class="v-card-actions">
         <button class="icon-btn tag-btn" title="Tags" onclick="event.stopPropagation();openTagPop(this, 'video', '${esc(v.video_id)}')">🏷️</button>
-        <button class="icon-btn cat-btn" title="Κατηγορία" onclick="event.stopPropagation();openCatPop(this, '${esc(v.video_id)}')">📁</button>
-        <button class="icon-btn lift-btn" title="Lift — απογείωσέ την" onclick="event.stopPropagation();toggleLiftCard('${esc(v.video_id)}', this)">⏫</button>
+        <button class="icon-btn cat-btn" data-id="${esc(v.video_id)}" data-i18n-title="misc.category" title="Category" onclick="event.stopPropagation();openCatPop(this, '${esc(v.video_id)}')">📁</button>
+        <button class="icon-btn lift-btn" data-i18n-title="card.lift" title="Lift — raise it" onclick="event.stopPropagation();toggleLiftCard('${esc(v.video_id)}', this)">⏫</button>
         <span class="spacer"></span>
-        <button class="icon-btn del" title="Διαγραφή" onclick="event.stopPropagation();doDeleteVideo('${esc(v.video_id)}')">−</button>
+        <button class="icon-btn del" data-i18n-title="btn.delete" title="Delete" onclick="event.stopPropagation();doDeleteVideo('${esc(v.video_id)}')">−</button>
       </div>
     </div>`;
 }
@@ -3504,7 +3686,7 @@ function liftCard(card) {
   interactionMode = "lifting";   // 🎯 ΜΟΝΟ ο lift listener ενεργός — κανένα drag/click/play
   // άλλαξε το κουμπί σε "Down"
   const btn = card.querySelector(".lift-btn");
-  if (btn) { btn.textContent = "⏬"; btn.title = "Down — προσγείωσέ την"; }
+  if (btn) { btn.textContent = "⏬"; btn.title = t('card.down'); }
   // ενεργοποίησε τον boundary listener (ΈΝΑΣ μόνο — αφαιρείται πάντα στο landCard)
   window.addEventListener("scroll", clampLiftedCard, { passive: true });
   window.addEventListener("resize", clampLiftedCard, { passive: true });
@@ -3646,7 +3828,7 @@ function landCard(card) {
     }
   }
   const btn = card.querySelector(".lift-btn");
-  if (btn) { btn.textContent = "⏫"; btn.title = "Lift — απογείωσέ την"; }
+  if (btn) { btn.textContent = "⏫"; btn.title = t('card.lift'); }
   liftedCard = null;
   liftedChannel = null;
   liftOriginTop = 0;
@@ -3707,7 +3889,7 @@ function doDeleteVideo(id) {
       if (grid) {
         const group = grid.closest(".channel-group");
         const muted = group ? group.querySelector(".muted") : null;
-        if (muted) muted.textContent = "· " + grid.querySelectorAll(".v-card").length + " βίντεο";
+        if (muted) muted.textContent = "· " + grid.querySelectorAll(".v-card").length + t('misc.videosN');
       }
     } else {
       renderCurrent();
@@ -3726,12 +3908,13 @@ function confirmDeleteChannel(key, btn) {
   pop.className = "del-confirm center";
   pop.id = "del-confirm";
   pop.innerHTML = `
-    <div class="dc-msg">Θα διαγραφεί το κανάλι:<br><b>${esc(name)}</b>${n ? `<br><span class="dc-warn">Μαζί με ${n} βίντεό του. Δεν ξαναγυρίζει.</span>` : `<br><span class="dc-warn">Δεν ξαναγυρίζει.</span>`}</div>
+    <div class="dc-msg"><span data-i18n="del.channel">The channel will be deleted:</span><br><b>${esc(name)}</b>${n ? `<br><span class="dc-warn"><span data-i18n="del.withVideosBefore">Along with its</span> ${n} <span data-i18n="del.withVideosAfter">videos. It will not come back.</span></span>` : `<br><span class="dc-warn"><span data-i18n="misc.noReturn">It will not come back.</span></span>`}</div>
     <div class="dc-btns">
-      <button class="dc-yes" onclick="doDeleteChannel('${esc(key)}')">✓ Ναι, σβήστο</button>
-      <button class="dc-no" onclick="closeDeleteConfirm()">✕ Άκυρο</button>
+      <button class="dc-yes" onclick="doDeleteChannel('${esc(key)}')"><span data-i18n="btn.yesDelete">✓ Yes, delete it</span></button>
+      <button class="dc-no" onclick="closeDeleteConfirm()"><span data-i18n="btn.noCancel">✕ Cancel</span></button>
     </div>`;
   document.body.appendChild(pop);
+  applyI18n(pop);
 }
 
 function doDeleteChannel(key) {
@@ -3754,14 +3937,36 @@ function doDeleteChannel(key) {
 function fillChannelGrid(group) {
   if (!group) return;
   const g = group.querySelector(".v-card-grid");
-  if (!g || g.dataset.filled) return;
+  if (!g) return;
+  // 🔑 Το cache ισχύει ΜΟΝΟ για το ΙΔΙΟ φίλτρο. Άλλαξε το φίλτρο → ξαναγέμισε.
+  const filterKey = [...selectedTags].sort().join("|") + "#" + searchRating
+                    + "#" + (document.getElementById("search-input").value || "").trim();
+  if (g.dataset.filled && g.dataset.filterKey === filterKey) return;
   const k = group.dataset.key;
-  const vids = allVideos.filter(v => (v.channel_id || v.channel || "__unknown__") === k);
+  let vids = allVideos.filter(v => (v.channel_id || v.channel || "__unknown__") === k);
+  // 🏷️ Με ΕΝΕΡΓΟ φίλτρο tag/rating: ΔΕΙΞΕ ΜΟΝΟ όσα ταιριάζουν (σέβεται αρνήσεις).
+  if (selectedTags.size > 0 || searchRating > 0) {
+    vids = vids.filter(v => {
+      if (searchRating > 0 && (v.rating || 0) === searchRating) return true;
+      for (const t of selectedTags) if (videoTags(v).includes(t)) return true;
+      return false;
+    });
+  }
   const sorted = vids.slice().sort((a, b) =>
     (b.rank || 0) - (a.rank || 0) || (b.watch_count || 0) - (a.watch_count || 0));
   g.innerHTML = sorted.map(v => cardHtml(v, "channel")).join("");
   g.dataset.filled = "1";
+  g.dataset.filterKey = filterKey;
+  applyI18n(g);
   setupDrag();
+}
+
+/* 🔄 Ακυρώνει το cache ΟΛΩΝ των grids — κλήσ' το όταν αλλάζει φίλτρο/tags. */
+function invalidateChannelGrids() {
+  document.querySelectorAll(".channel-group .v-card-grid").forEach(g => {
+    delete g.dataset.filled;
+    delete g.dataset.filterKey;
+  });
 }
 
 function toggleChannel(head) {
@@ -3858,14 +4063,21 @@ function saveUiState() {
 
 function togglePinChannel(key, btn) {
   // 📌 Keep-στυλ: απλό toggle (pinned ↔ unpinned), χωρίς popup.
+  if (btn) { btn.classList.add("pinning"); }
   fetch("/pin_channel", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ channel_id: key }),
-  }).then(r => r.json()).then(() => {
-    // spring feedback στο κουμπί
-    if (btn) { btn.classList.add("pinning"); }
-    load();
+  }).then(r => r.json()).then((d) => {
+    // ⚡ Αντί για load() (fetch+render 3556 κάρτες): άλλαξε τη σειρά ΤΟΠΙΚΑ και
+    //    ξαναχτίσε ΜΟΝΟ τη λίστα — χωρίς νέο fetch στο backend.
+    try {
+      const i = channelOrder.indexOf(key);
+      if (i >= 0) channelOrder.splice(i, 1);
+      if (d && d.pinned) channelOrder.unshift(key);
+      else channelOrder.push(key);
+    } catch (e) { /* ignore */ }
+    renderCurrent();   // τοπικό re-render (χωρίς δίκτυο)
   }).catch(() => {});
 }
 
@@ -3977,7 +4189,10 @@ function switchTab(name) {
   if (name === "categories" && _catDirty) renderCategories();
   if (name === "subs") renderSubs();
   if (name === "search") {
-    document.getElementById("yt-search-input").focus();
+    const _si = document.getElementById("yt-search-input");
+    _si.focus();
+    // 📋 Δείξε τα πρόσφατα ΜΟΝΟ αν το πεδίο είναι ΚΕΝΟ (αλλιώς δείχνει αποτελέσματα).
+    if (!_si.value.trim()) showRecentSearches();
     refreshBubbleField();
   } else {
     hideBubbleField();
@@ -4050,7 +4265,7 @@ function showRecentSearches() {
 function renderRecent(box) {
   const list = RECENT_SEARCHES;
   if (!list.length) { box.style.display = "none"; return; }
-  box.innerHTML = `<div class="yt-recent-head">Πρόσφατες αναζητήσεις</div>` +
+  box.innerHTML = `<div class="yt-recent-head"><span data-i18n="search.recent">Recent searches</span></div>` +
     `<div class="yt-recent-grid">` +
     list.map(s =>
       `<div class="yt-recent-item" onclick="useRecentSearch('${esc(s).replace(/'/g, "\\\\'")}')">${esc(s)}</div>`
@@ -4073,6 +4288,60 @@ document.addEventListener("click", (e) => {
     recent.style.display = "none";
   }
 });
+
+/* ── 🖱️ Κλείσιμο recent searches όταν ΦΕΥΓΕΙ το ποντίκι ─────────────────────
+   Όταν βγει το ποντίκι από το search box ΚΑΙ το dropdown:
+     • κρύβουμε τις πρόσφατες αναζητήσεις — ΕΚΤΟΣ αν ο χρήστης κινείται ΠΡΟΣ
+       το dropdown (τότε πάει να κλικάρει, άρα τις κρατάμε ανοιχτές).
+   Έτσι: focus → βγαίνουν · φεύγει αλλού → κλείνουν · πάει προς το καρτελάκι → μένουν.
+   ─────────────────────────────────────────────────────────────────────────── */
+function _recentSearchesZone() {
+  return {
+    input: document.getElementById("yt-search-input"),
+    recent: document.getElementById("yt-recent"),
+  };
+}
+
+function _hideRecentSearches() {
+  const { recent } = _recentSearchesZone();
+  if (recent && recent.style.display !== "none") recent.style.display = "none";
+}
+
+function _isLeavingTowardsRecent(e, recent) {
+  // Το σχετικό (relatedTarget) στο mouseleave μπορεί να λείπει· τότε
+  // ελέγχουμε αν το σημείο που αφήνει είναι «πάνω» προς το dropdown.
+  if (e && e.relatedTarget && recent && recent.contains(e.relatedTarget)) return true;
+  if (!recent || recent.style.display === "none") return false;
+  if (!e) return false;
+  const r = recent.getBoundingClientRect();
+  const pad = 28;   // ανοχή: κίνηση προς το dropdown (από πάνω/πλάγια)
+  return (e.clientY >= r.top - pad) && (e.clientX >= r.left - pad) && (e.clientX <= r.right + pad);
+}
+
+function initRecentSearchHover() {
+  const { input, recent } = _recentSearchesZone();
+  if (!input) return;
+
+  // Φεύγει το ποντίκι από το input → κλείσε (εκτός αν πάει προς το dropdown)
+  input.addEventListener("mouseleave", (e) => {
+    if (_isLeavingTowardsRecent(e, recent)) return;
+    setTimeout(() => _hideRecentSearches(), 120);   // μικρή χάρη για να προλάβει την κίνηση
+  });
+
+  // Φεύγει το ποντίκι από το dropdown → κλείσε (το πλησιέστερο στη λογική σου)
+  if (recent) {
+    recent.addEventListener("mouseleave", () => {
+      setTimeout(() => _hideRecentSearches(), 120);
+    });
+  }
+
+  // Όσο το ποντίκι είναι ΠΑΝΩ στο input ή στο dropdown → κρατάμε ανοιχτές
+  input.addEventListener("mouseenter", () => { if (recent && RECENT_SEARCHES.length) showRecentSearches(); });
+  if (recent) {
+    recent.addEventListener("mouseenter", () => { /* κρατάμε ανοιχτό */ });
+  }
+}
+
 
 function setSearchMode(mode) {
   SEARCH_MODE = mode;
@@ -4193,8 +4462,8 @@ function fillCardsProgressive(box, items, append, kind) {
   if (!host) {
     box.insertAdjacentHTML("beforeend",
       (kind === "channel"
-        ? '<div class="yt-sec-title">📺 Κανάλια</div><div class="yt-channels"></div>'
-        : '<div class="yt-sec-title">🎬 Βίντεο</div><div class="yt-videos"></div>'));
+        ? '<div class="yt-sec-title"><span data-i18n="misc.channels">📺 Channels</span></div><div class="yt-channels"></div>'
+        : '<div class="yt-sec-title"><span data-i18n="misc.videos">🎬 Videos</span></div><div class="yt-videos"></div>'));
     host = box.querySelector(hostSel);
   }
 
@@ -4244,7 +4513,7 @@ function appendSearchSkeletons(box) {
   if (SEARCH_MODE === "channels") {
     let host = box.querySelector(".yt-channels");
     if (!host) {
-      box.insertAdjacentHTML("beforeend", '<div class="yt-sec-title">📺 Κανάλια</div><div class="yt-channels"></div>');
+      box.insertAdjacentHTML("beforeend", '<div class="yt-sec-title"><span data-i18n="misc.channels">📺 Channels</span></div><div class="yt-channels"></div>');
       host = box.querySelector(".yt-channels");
     }
     let html = "";
@@ -4252,14 +4521,14 @@ function appendSearchSkeletons(box) {
       html += `<div class="yt-channel skeleton">
         <div class="yt-channel-logo-wrap"><div class="sk-avatar"></div></div>
         <div class="yt-channel-name"><span class="skeleton-line" style="width:70%"></span></div>
-        <button class="yt-btn add yt-add-btn" disabled>➕ Παρακολούθησε</button>
+        <button class="yt-btn add yt-add-btn" disabled><span data-i18n="ch.follow">➕ Follow</span></button>
       </div>`;
     }
     host.insertAdjacentHTML("beforeend", html);
   } else {
     let host = box.querySelector(".yt-videos");
     if (!host) {
-      box.insertAdjacentHTML("beforeend", '<div class="yt-sec-title">🎬 Βίντεο</div><div class="yt-videos"></div>');
+      box.insertAdjacentHTML("beforeend", '<div class="yt-sec-title"><span data-i18n="misc.videos">🎬 Videos</span></div><div class="yt-videos"></div>');
       host = box.querySelector(".yt-videos");
     }
     let html = "";
@@ -4279,19 +4548,20 @@ function showSearchSkeletons() {
   const results = document.getElementById("yt-search-results");
   results.innerHTML = "";
   if (SEARCH_MODE === "channels") {
-    let html = `<div class="yt-sec-title">📺 Κανάλια</div><div class="yt-channels">`;
+    let html = `<div class="yt-sec-title"><span data-i18n="misc.channels">📺 Channels</span></div><div class="yt-channels">`;
     for (let i = 0; i < 24; i++) {
       html += `
         <div class="yt-channel skeleton">
           <div class="yt-channel-logo-wrap"><div class="sk-avatar"></div></div>
           <div class="yt-channel-name"><span class="skeleton-line" style="width:70%"></span></div>
-          <button class="yt-btn add yt-add-btn" disabled>➕ Παρακολούθησε</button>
+          <button class="yt-btn add yt-add-btn" disabled><span data-i18n="ch.follow">➕ Follow</span></button>
         </div>`;
     }
     html += `</div>`;
     results.innerHTML = html;
+    applyI18n(results);
   } else {
-    let html = `<div class="yt-sec-title">🎬 Βίντεο</div><div class="yt-videos">`;
+    let html = `<div class="yt-sec-title"><span data-i18n="misc.videos">🎬 Videos</span></div><div class="yt-videos">`;
     for (let i = 0; i < 24; i++) {
       html += `
         <div class="yt-video skeleton">
@@ -4306,6 +4576,7 @@ function showSearchSkeletons() {
     }
     html += `</div>`;
     results.innerHTML = html;
+    applyI18n(results);
   }
 }
 
@@ -4350,21 +4621,21 @@ function runYTSearch(offset) {
       renderYTSearch(d.videos || [], d.channels || [], q, offset > 0);
     } else {
       status.style.display = "";
-      status.textContent = "⚠️ " + (d.error || "Σφάλμα");
+      status.textContent = "⚠️ " + (d.error || t('msg.error'));
     }
   }).catch(() => {
     releaseSearchBusy();                       // 🔓 ξεκλείδωσε ακόμα κι αν απέτυχε
     const loader = document.getElementById("yt-loading");
     if (loader) loader.remove();
     status.style.display = "";
-    status.textContent = "⚠️ Σφάλμα σύνδεσης — τρέχει ο server;";
+    status.textContent = t('msg.connServer');
   });
 }
 
 function videoCardHtml(v) {
   return `
     <div class="yt-video">
-      <div class="yt-thumb-wrap" onclick="openSearchVideo('${esc(v.video_id)}')" title="Δες το βίντεο">
+      <div class="yt-thumb-wrap" onclick="openSearchVideo('${esc(v.video_id)}')" data-i18n-title="card.seeVideo" title="See the video">
         <div class="yt-thumb-ph" data-vid="${esc(v.video_id)}" ${v.color ? `style="background:${v.color}"` : ''}></div>
         <img class="yt-thumb" src="${v.thumb}" onload="this.classList.add('loaded')" alt="">
         ${v.duration ? `<span class="yt-dur">${fmtDuration(v.duration)}</span>` : ""}
@@ -4379,14 +4650,14 @@ function videoCardHtml(v) {
 function channelCardHtml(c) {
   const watched = WATCHED_CHANNELS[c.channel_id] === 1;
   return `
-    <div class="yt-channel" onclick="openChannelPreview('${esc(c.channel_id)}','${esc(c.name).replace(/'/g, "\\'")}')" title="Δες το κανάλι">
+    <div class="yt-channel" onclick="openChannelPreview('${esc(c.channel_id)}','${esc(c.name).replace(/'/g, "\\'")}')" data-i18n-title="card.seeChannel" title="See the channel">
       <div class="yt-channel-logo-wrap">
         <div class="yt-channel-avatar-ph"></div>
         <img class="yt-channel-avatar" src="/avatar/${esc(c.channel_id)}" onload="this.classList.add('loaded')" alt="" onerror="this.style.display='none'">
       </div>
       <div class="yt-channel-name">${esc(c.name)}</div>
       <button class="yt-btn ${watched ? "watched" : "add"} yt-add-btn" onclick="event.stopPropagation();watchChannelFromSearch('${esc(c.channel_id)}')">
-        ${watched ? "✓ Παρακολουθείς" : "➕ Παρακολούθησε"}
+        ${watched ? t('ch.following') : t('ch.follow')}
       </button>
     </div>`;
 }
@@ -4404,7 +4675,7 @@ function renderYTSearch(videos, channels, q, append) {
     box.innerHTML = "";
   }
   if (!videos.length && !channels.length && !append) {
-    box.innerHTML = `<div class="yt-empty">Δεν βρέθηκαν αποτελέσματα για «${esc(q)}».</div>`;
+    box.innerHTML = `<div class="yt-empty">${t('msg.noResultsFor')}${esc(q)}».</div>`;
     return;
   }
   let html = "";
@@ -4425,7 +4696,7 @@ function renderYTSearch(videos, channels, q, append) {
   // ♾️ Ο αισθητήρας ζει στο ΤΕΛΟΣ της λίστας (μέσα στο grid container), ώστε να
   //    ξανα-οπλίζεται σωστά σε κάθε σελίδα. Το «— τέλος —» μπαίνει στο wrap.
   html += `<div class="yt-next-wrap" id="yt-next-wrap">` +
-    (SEARCH_HAS_MORE ? `` : `<span class="yt-the-end">— τέλος —</span>`) +
+    (SEARCH_HAS_MORE ? `` : `<span class="yt-the-end"><span data-i18n="msg.end">— end —</span></span>`) +
     `</div>`;
   if (SEARCH_HAS_MORE) html += `<div class="yt-sentinel" id="yt-sentinel" aria-hidden="true"></div>`;
 
@@ -4441,7 +4712,7 @@ function addVideoFromSearch(videoId, btn) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url: "https://www.youtube.com/watch?v=" + videoId }),
   }).then(r => r.json()).then(d => {
-    if (!d.ok) { alert(d.error || "Σφάλμα"); return; }
+    if (!d.ok) { alert(d.error || t('msg.error')); return; }
     // ✅ Άμεσο feedback: πρασινίζει + γίνεται ✓ με spring (όπως στο lightbox).
     if (btn) {
       btn.innerHTML = "✓ Add";
@@ -4449,7 +4720,7 @@ function addVideoFromSearch(videoId, btn) {
     }
     // 🔄 Πλήρες reload (όπως πριν) — τα δεδομένα ενημερώνονται.
     setTimeout(() => { try { load(); } catch (e) {} }, 420);
-  }).catch(() => alert("Σφάλμα σύνδεσης"));
+  }).catch(() => alert(t('msg.connErr')));
 }
 
 function watchChannelFromSearch(channelId) {
@@ -4466,7 +4737,7 @@ function watchChannelFromSearch(channelId) {
     if (q) renderYTSearch(window._lastSearchVideos || [], window._lastSearchChannels || [], q);
     // ξαναφέρε τα αποτελέσματα με ενημερωμένο state — απλά ξαναψάξε
     doYouTubeSearch();
-  }).catch(() => alert("Σφάλμα σύνδεσης"));
+  }).catch(() => alert(t('msg.connErr')));
 }
 
 function openVidInTab(videoId) {
@@ -4489,10 +4760,10 @@ function openChannelPreview(channelId, nameFallback) {
   document.getElementById("cw-title").textContent = nameFallback || channelId;
   const watchBtn = document.getElementById("cw-watch");
   const watched = WATCHED_CHANNELS[channelId] === 1;
-  watchBtn.textContent = watched ? "✓ Παρακολουθείς" : "➕ Παρακολούθησε";
+  watchBtn.textContent = watched ? t('ch.following') : t('ch.follow');
   watchBtn.classList.toggle("watched", watched);
   watchBtn.classList.toggle("add", !watched);
-  document.getElementById("cw-videos").innerHTML = '<div class="yt-empty">…φόρτωση βίντεο…</div>';
+  document.getElementById("cw-videos").innerHTML = '<div class="yt-empty"><span data-i18n="msg.loadingVideo">…loading videos…</span></div>';
 
   fetch("/channel_preview", {
     method: "POST",
@@ -4500,7 +4771,7 @@ function openChannelPreview(channelId, nameFallback) {
     body: JSON.stringify({ channel_id: channelId }),
   }).then(r => r.json()).then(d => {
     if (!d.ok || !d.preview) {
-      document.getElementById("cw-videos").innerHTML = '<div class="yt-empty">Δεν μπόρεσα να φέρω το κανάλι.</div>';
+      document.getElementById("cw-videos").innerHTML = '<div class="yt-empty"><span data-i18n="msg.channelFailed">Could not fetch the channel.</span></div>';
       return;
     }
     const p = d.preview;
@@ -4514,16 +4785,16 @@ function openChannelPreview(channelId, nameFallback) {
     }
     const vids = document.getElementById("cw-videos");
     if (!p.videos || !p.videos.length) {
-      vids.innerHTML = '<div class="yt-empty">Κανένα πρόσφατο βίντεο.</div>';
+      vids.innerHTML = '<div class="yt-empty"><span data-i18n="msg.noRecentVideos">No recent videos.</span></div>';
       return;
     }
     vids.innerHTML = p.videos.map(v => `
-      <div class="cw-video" onclick="openVidInTab('${esc(v.video_id)}')" title="Δες στο YouTube">
+      <div class="cw-video" onclick="openVidInTab('${esc(v.video_id)}')" data-i18n-title="card.seeYouTube" title="See on YouTube">
         <img class="cw-video-thumb" src="${v.thumb}" loading="lazy" alt="" onerror="this.style.display='none'">
         <span class="cw-video-title">${esc(v.title)}</span>
       </div>`).join("");
   }).catch(() => {
-    document.getElementById("cw-videos").innerHTML = '<div class="yt-empty">Σφάλμα σύνδεσης.</div>';
+    document.getElementById("cw-videos").innerHTML = '<div class="yt-empty"><span data-i18n="msg.connectionError">Connection error.</span></div>';
   });
 }
 
@@ -4539,7 +4810,7 @@ function watchChannelFromWindow() {
   // ενημέρωσε το κουμπί στο window
   const watched = WATCHED_CHANNELS[channelId] === 1;
   const btn = document.getElementById("cw-watch");
-  btn.textContent = watched ? "✓ Παρακολουθείς" : "➕ Παρακολούθησε";
+  btn.textContent = watched ? t('ch.following') : t('ch.follow');
   btn.classList.toggle("watched", watched);
   btn.classList.toggle("add", !watched);
 }
@@ -4566,12 +4837,13 @@ function confirmDeleteCategory(name, btn) {
   pop.className = "del-confirm";
   pop.id = "cat-confirm";
   pop.innerHTML = `
-    <div class="dc-msg">Θα σβηστεί η κατηγορία <b>${esc(name)}</b> από <b>ΟΛΑ</b> τα βίντεο.<br><span class="dc-warn">Τα βίντεό της θα γίνουν ακατηγοριοποίητα. Δεν ξαναγυρίζει.</span></div>
+    <div class="dc-msg"><span data-i18n="del.catBefore">The category</span> <b>${esc(name)}</b> <span data-i18n="del.catAfter">will be deleted from</span> <b><span data-i18n="tag.all">ALL</span></b> <span data-i18n="del.videosDot">the videos.</span><br><span class="dc-warn"><span data-i18n="del.categoryWarn">Its videos will become uncategorized. This cannot be undone.</span></span></div>
     <div class="dc-btns">
-      <button class="dc-yes" onclick="doDeleteCategory('${esc(name)}')">✓ Ναι, σβήστο</button>
-      <button class="dc-no" onclick="closeCatConfirm()">✕ Άκυρο</button>
+      <button class="dc-yes" onclick="doDeleteCategory('${esc(name)}')"><span data-i18n="btn.yesDelete">✓ Yes, delete it</span></button>
+      <button class="dc-no" onclick="closeCatConfirm()"><span data-i18n="btn.noCancel">✕ Cancel</span></button>
     </div>`;
   document.body.appendChild(pop);
+  applyI18n(pop);
   const popW = 280, popH = 110;
   let left = rect.left;
   let top = rect.bottom + 6;
@@ -4684,39 +4956,40 @@ function renderCategories() {
     const vids = (byCat.get(name) || []).slice().sort((a, b) =>
       (b.cat_rank || 0) - (a.cat_rank || 0) || (b.rank || 0) - (a.rank || 0)
     );
-    const open = !collapsedCats.has(name);
+    const open = expandedCats.has(name);   // ✅ κλειστό by default (όπως τα κανάλια)
     const pinned = pinnedCats.has(name);
     const rows = `<div class="v-card-grid">${vids.map(v => cardHtml(v, "category")).join("")}</div>`;
     html += `<div class="cat-group ${pinned ? 'pinned' : ''} ${open ? '' : 'collapsed'}" data-cat="${esc(name)}">
       <div class="cat-head" onclick="toggleCatGroup(this)">
         <span class="cat-chevron">${open ? '▾' : '▸'}</span>
         <span class="cat-name">${esc(name)}</span>
-        <span class="cat-count">· ${vids.length} βίντεο</span>
+        <span class="cat-count">· ${vids.length}${t('misc.videosWord')}</span>
         <span class="head-spacer"></span>
-        <button class="icon-btn ch-pin ${pinned ? 'active top' : ''}" title="Καρφίτσωμα κατηγορίας" onclick="event.stopPropagation();togglePinCategory('${esc(name)}', this)">${pinned ? '🔴' : '📌'}</button>
-        <button class="icon-btn" title="Κατηγορία μία θέση πάνω" onclick="event.stopPropagation();moveCategory(this, -1)">↑</button>
-        <button class="icon-btn" title="Κατηγορία μία θέση κάτω" onclick="event.stopPropagation();moveCategory(this, 1)">↓</button>
-        <button class="icon-btn del" title="Διαγραφή κατηγορίας" onclick="event.stopPropagation();confirmDeleteCategory('${esc(name)}', this)">−</button>
+        <button class="icon-btn ch-pin ${pinned ? 'active top' : ''}" data-i18n-title="cat.pin" title="Pin category" onclick="event.stopPropagation();togglePinCategory('${esc(name)}', this)">${pinned ? '🔴' : '📌'}</button>
+        <button class="icon-btn" data-i18n-title="cat.moveUp" title="Category one position up" onclick="event.stopPropagation();moveCategory(this, -1)">↑</button>
+        <button class="icon-btn" data-i18n-title="cat.moveDown" title="Category one position down" onclick="event.stopPropagation();moveCategory(this, 1)">↓</button>
+        <button class="icon-btn del" data-i18n-title="cat.delete" title="Delete category" onclick="event.stopPropagation();confirmDeleteCategory('${esc(name)}', this)">−</button>
       </div>
       <div class="cat-body">${rows}</div>
     </div>`;
   }
   // Ακατηγοριοποίητα → τελευταία, κάτω-κάτω
   if (uncategorized.length) {
-    const open = !collapsedCats.has("__uncategorized__");
+    const open = expandedCats.has("__uncategorized__");   // ✅ κλειστό by default
     const unc = uncategorized.slice().sort((a, b) => (b.cat_rank || 0) - (a.cat_rank || 0) || (b.rank || 0) - (a.rank || 0));
     const rows = `<div class="v-card-grid">${unc.map(v => cardHtml(v, "category")).join("")}</div>`;
     html += `<div class="cat-group ${open ? '' : 'collapsed'}" data-cat="__uncategorized__">
       <div class="cat-head" onclick="toggleCatGroup(this)">
         <span class="cat-chevron">${open ? '▾' : '▸'}</span>
-        <span class="cat-name" style="color:var(--muted)">Ακατηγοριοποίητα</span>
-        <span class="cat-count">· ${uncategorized.length} βίντεο</span>
+        <span class="cat-name" style="color:var(--muted)"><span data-i18n="msg.uncategorized">Uncategorized</span></span>
+        <span class="cat-count">· ${uncategorized.length}${t('misc.videosWord')}</span>
         <span class="head-spacer"></span>
       </div>
       <div class="cat-body">${rows}</div>
     </div>`;
   }
-  el.innerHTML = html || '<span class="empty">Κανένα βίντεο.</span>';
+  el.innerHTML = html || '<span class="empty"><span data-i18n="msg.noVideos">No videos.</span></span>';
+  applyI18n(el);
   try { setupDrag(); } catch (e) {}
   updateToggleAllCatBtn();
 }
@@ -4727,11 +5000,11 @@ function toggleCatGroup(head) {
   const chev = head.querySelector(".cat-chevron");
   if (group.classList.contains("collapsed")) {
     group.classList.remove("collapsed");
-    collapsedCats.delete(key);
+    expandedCats.add(key);
     if (chev) chev.textContent = "▾";   // ανοιχτό → κάτω
   } else {
     group.classList.add("collapsed");
-    collapsedCats.add(key);
+    expandedCats.delete(key);
     if (chev) chev.textContent = "▸";   // κλειστό → δεξιά
   }
   saveCatState();
@@ -4743,18 +5016,19 @@ function renderCatFilterPanel(allNames) {
   const activeEl = document.getElementById("cat-active");
   if (!panel) return;
   if (totalEl) totalEl.textContent = `(${allNames.length})`;
-  if (activeEl) activeEl.textContent = selectedCats.size > 0 ? `· ${selectedCats.size} ενεργά` : "";
+  if (activeEl) activeEl.textContent = selectedCats.size > 0 ? `· ${selectedCats.size}${t('misc.activeWord')}` : "";
   if (!allNames.length) {
-    panel.innerHTML = '<span class="lbl" style="font-size:12px">📁 Φτιάξε κατηγορίες για να φιλτράρεις.</span>';
+    panel.innerHTML = '<span class="lbl" style="font-size:12px"><span data-i18n="cat.makeCategories">📁 Create categories to filter.</span></span>';
     return;
   }
   panel.innerHTML = allNames.map(name => {
     const on = selectedCats.has(name);
     return `<label class="tag-chk yellow ${on ? 'on' : ''}">
       <input type="checkbox" ${on ? 'checked' : ''} onchange="toggleFilterCat('${esc(name)}', this.checked)">${esc(name)}
-      <span class="tag-filter-x" title="Διαγραφή κατηγορίας «${esc(name)}»" onclick="event.stopPropagation();confirmDeleteCategory('${esc(name)}', this)">×</span>
+      <span class="tag-filter-x" data-i18n-title="cat.delete" title="Delete category" onclick="event.stopPropagation();confirmDeleteCategory('${esc(name)}', this)">×</span>
     </label>`;
   }).join("");
+  applyI18n(panel);
 }
 
 function toggleCatPanel() {
@@ -4774,10 +5048,10 @@ function toggleAllCategories() {
     const key = g.dataset.cat;
     if (allClosed) {
       g.classList.remove("collapsed");
-      collapsedCats.delete(key);
+      expandedCats.add(key);
     } else {
       g.classList.add("collapsed");
-      collapsedCats.add(key);
+      expandedCats.delete(key);
     }
   });
   saveCatState();
@@ -4805,7 +5079,7 @@ function saveCatState() {
       tab_order: tabOrder,
       rss_shown: rssShown,
       cat_order: [...document.querySelectorAll("#categories-list .cat-group:not([data-cat='__uncategorized__'])")].map(g => g.dataset.cat),
-      cat_collapsed: [...collapsedCats],
+      cat_collapsed: [...expandedCats],   // legacy name· περιέχει τα ΑΝΟΙΧΤΑ πλέον
       cat_pinned: [...pinnedCats],
     }),
   });
@@ -4844,13 +5118,15 @@ function openCatPop(btn, videoId) {
     closeCatPop();
     return;
   }
+  closeTagPop();   // ✅ ΜΟΝΟ ένα popup ανοιχτό τη φορά (κλείσε τα tags)
   catPopTarget = videoId;
   catPopBtn = btn;
   const v = allVideos.find(x => x.video_id === videoId);
   const current = v?.category || "";
+  pop.classList.remove("no-anim");   // ✅ ΤΩΡΑ να παίξει το animation εισόδου
   renderCatPopList(current);
   pop.classList.add("open");
-  repositionCatPop();
+  repositionCatPopSoon();   // ✅ μετά το layout (όχι αμέσως — το offsetHeight είναι 0 τη στιγμή του add)
 }
 
 function closeCatPop() {
@@ -4859,26 +5135,44 @@ function closeCatPop() {
   catPopBtn = null;
 }
 
+let _catPopCurrent = "";
 function renderCatPopList(currentCat) {
+  _catPopCurrent = currentCat || "";
   const list = document.getElementById("cat-pop-list");
+  // Πρώτο item «(no category)» — πάντα ορατό, ΔΕΝ μπαίνει στο grid.
   let html = `<div class="tag-pop-item">
       <label class="tag-pop-label">
-        <input type="radio" name="cat-radio" value="" ${!currentCat ? 'checked' : ''} onchange="setVideoCategory('')">(καμία κατηγορία)
+        <input type="radio" name="cat-radio" value="" ${!_catPopCurrent ? 'checked' : ''} onchange="setVideoCategory('')"><span data-i18n="msg.noCategoryParen">(no category)</span>
       </label>
     </div>`;
-  for (const c of ALL_CATEGORIES) {
-    html += `<div class="tag-pop-item">
-      <label class="tag-pop-label">
-        <input type="radio" name="cat-radio" value="${esc(c)}" ${currentCat === c ? 'checked' : ''} onchange="setVideoCategory('${esc(c)}')">${esc(c)}
-      </label>
-      <button class="tag-del" title="Διαγραφή κατηγορίας «${esc(c)}» από παντού" onclick="confirmDeleteCategory('${esc(c)}', this)">×</button>
-    </div>`;
+  const total = ALL_CATEGORIES.length;
+  const pages = Math.max(1, Math.ceil(total / POP_PAGE_SIZE));
+  if (_catPopPage > pages - 1) _catPopPage = pages - 1;
+  const slice = ALL_CATEGORIES.slice(_catPopPage * POP_PAGE_SIZE, (_catPopPage + 1) * POP_PAGE_SIZE);
+  if (total) {
+    html += `<div class="pop-page-grid">` + slice.map(c => `
+      <div class="tag-pop-item">
+        <label class="tag-pop-label">
+          <input type="radio" name="cat-radio" value="${esc(c)}" ${_catPopCurrent === c ? 'checked' : ''} onchange="setVideoCategory('${esc(c)}')">${esc(c)}
+        </label>
+        <button class="tag-del" data-i18n-title="cat.delEverywhere" title="Delete category everywhere" onclick="confirmDeleteCategory('${esc(c)}', this)">×</button>
+      </div>`).join("") + `</div>` + _pagerHtml(_catPopPage, total, "setCatPopPage");
   }
+  const _popEl = document.getElementById("cat-pop");
+  if (_popEl) { _popEl.classList.add("paged"); _popEl.classList.add("no-anim"); }  // 🚫 χωρίς επανάληψη animation
+  list.classList.add("paged");
   list.innerHTML = html;
+  applyI18n(list);
 }
 
-function setVideoCategory(cat) {
+function setVideoCategory(cat, keepOpen) {
   if (!catPopTarget) return;
+  // 🚫 Αν η κατηγορία είναι ΙΔΙΑ με την τρέχουσα → τίποτα (αποφυγή flicker/re-render).
+  const _cv = allVideos.find(x => x.video_id === catPopTarget);
+  if (_cv && (_cv.category || "") === (cat || "")) {
+    if (!keepOpen) closeCatPop();
+    return;
+  }
   fetch("/set_category", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -4887,10 +5181,29 @@ function setVideoCategory(cat) {
     const v = allVideos.find(x => x.video_id === catPopTarget);
     if (v) v.category = cat;
     if (cat && !ALL_CATEGORIES.includes(cat)) { ALL_CATEGORIES.push(cat); ALL_CATEGORIES.sort(); }
-    closeCatPop();
-    renderCurrent();
-    renderCategories();
+    if (!keepOpen) closeCatPop();          // ✅ μόνο όταν ΔΙΑΛΕΞΕΣ υπάρχουσα
+    else { renderCatPopList(cat); repositionCatPopSoon(); }   // ✅ μένει ανοιχτό + νέα θέση
+    // ⚡ ΣΤΟΧΕΥΜΕΝΗ ενημέρωση — ΜΗΝ ξαναχτίσεις 3556 κάρτες (flicker + κόστος).
+    //    Ενημερώνεται ΜΟΝΟ η κάρτα αυτού του βίντεο (το χρώμα/ετικέτα κατηγορίας).
+    updateVideoCardCategory(catPopTarget, cat);
+    // Οι κατηγορίες ξαναχτίζονται ΜΟΝΟ αν προστέθηκε νέα (αλλιώς δεν άλλαξε κάτι ορατό).
+    if (!_catDirty) { _catDirty = true; }
+    if (currentTab === "categories") renderCategories();
   });
+}
+
+/* ⚡ Ενημερώνει ΜΟΝΟ την κάρτα ενός βίντεο (κατηγορία) — χωρίς re-render όλης της λίστας. */
+function updateVideoCardCategory(videoId, cat) {
+  try {
+    const btn = document.querySelector('.cat-btn[data-id="' + videoId + '"]');
+    if (!btn) return;
+    const card = btn.closest(".v-card, .tag-pop-item, .video-card") || btn.parentElement;
+    if (!card) return;
+    // Το χρώμα/κατάσταση του κουμπιού κατηγορίας (αν το app το χρωματίζει)
+    btn.classList.toggle("has-cat", !!cat);
+    btn.title = cat ? (cat) : "Category";
+    btn.setAttribute("data-cat", cat || "");
+  } catch (e) { /* ignore */ }
 }
 
 function saveVideoCategory() {
@@ -4898,16 +5211,35 @@ function saveVideoCategory() {
   const name = input.value.trim();
   if (!name) return;
   input.value = "";
-  setVideoCategory(name);
+  setVideoCategory(name, true);   // ✅ ΜΗΝ κλείσεις το popup όταν δημιουργείς νέα
 }
 
 function repositionCatPop() {
   const pop = document.getElementById("cat-pop");
-  if (!pop.classList.contains("open") || !catPopBtn) return;
+  if (!pop.classList.contains("open") || !catPopTarget) return;
+  // 🔄 ΑΝ το κουμπί αποκολλήθηκε (π.χ. re-render της λίστας), ΒΡΕΣ ΤΟ ΝΕΟ.
+  if (!catPopBtn || !catPopBtn.isConnected) {
+    catPopBtn = document.querySelector('.cat-btn[data-id="' + catPopTarget + '"]');
+    if (!catPopBtn) catPopBtn = document.querySelector(".cat-btn");
+    if (!catPopBtn || !catPopBtn.isConnected) return;   // δεν βρέθηκε → μη μετακινηθείς
+  }
   const r = catPopBtn.getBoundingClientRect();
+  if (r.width === 0 && r.height === 0) return;   // αποκολλημένο → ΟΧΙ (0,0)
   if (r.bottom < 0 || r.top > window.innerHeight) { closeCatPop(); return; }
-  pop.style.top = Math.min(r.bottom + 6, window.innerHeight - pop.offsetHeight - 8) + "px";
-  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 300)) + "px";
+  // 📏 offsetWidth/offsetHeight (layout box) — το animation pop-in έχει
+  //    transform:scale() και το getBoundingClientRect δίνει ΟΠΤΙΚΟ μέγεθος.
+  const pw = pop.offsetWidth || 220;
+  const ph = pop.offsetHeight || 0;
+  pop.style.top = Math.max(8, Math.min(r.bottom + 6, window.innerHeight - ph - 8)) + "px";
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pw - 8)) + "px";
+}
+
+// 🔁 Ξαναϋπολόγισε τη θέση ΑΦΟΥ στρώσει το layout ΚΑΙ τελειώσει το animation.
+//    ⚠️ Το animation pop-in χρησιμοποιεί transform: scale() → αλλάζει το
+//    getBoundingClientRect() κατά τη διάρκειά του. Άρα περιμένουμε να τελειώσει.
+function repositionCatPopSoon() {
+  // ΜΙΑ φορά, μετά το layout. (Το animation pop-in ΔΕΝ ξανατρέχει — βλ. renderCatPopList.)
+  requestAnimationFrame(() => requestAnimationFrame(() => { try { repositionCatPop(); } catch (e) {} }));
 }
 
 function addVideo() {
@@ -4923,9 +5255,9 @@ function addVideo() {
       input.value = "";
       load();
     } else {
-      alert(d.error || "Σφάλμα");
+      alert(d.error || t('msg.error'));
     }
-  }).catch(() => alert("Σφάλμα σύνδεσης — τρέχει ο server;"));
+  }).catch(() => alert(t('msg.connServerPlain')));
 }
 
 function esc(s) {
@@ -5209,17 +5541,17 @@ function renderNotes() {
     const notes = d.notes || [];
     try { renderMarkers(notes); } catch (e) {}   // 🔴 markers στη progress bar
     if (!notes.length) {
-      box.innerHTML = '<div class="lb-note-empty">⏱️ Κανένα σημείο σημειωμένο ακόμα.</div>';
+      box.innerHTML = '<div class="lb-note-empty"><span data-i18n="note.none">⏱️ No notes yet.</span></div>';
       return;
     }
     box.innerHTML = notes.map(n => `
       <div class="lb-note-item">
-        <span class="lb-note-ts" onclick="seekTo(${n.timestamp_sec})" title="Πήγαινε στο σημείο">▶ ${fmtTs(n.timestamp_sec)}</span>
+        <span class="lb-note-ts" onclick="seekTo(${n.timestamp_sec})" data-i18n-title="note.jump" title="Jump to point">▶ ${fmtTs(n.timestamp_sec)}</span>
         <div class="lb-note-body">
           ${n.title ? `<div class="lb-note-title">${esc(n.title)}</div>` : ""}
           ${n.note ? `<div class="lb-note-text">${esc(n.note)}</div>` : ""}
         </div>
-        <button class="lb-note-del" onclick="deleteNote(${n.id})" title="Διαγραφή">🗑</button>
+        <button class="lb-note-del" onclick="deleteNote(${n.id})" data-i18n-title="btn.delete" title="Delete">🗑</button>
       </div>`).join("");
   }).catch(() => {});
 }
@@ -5231,12 +5563,12 @@ function openNoteForm() {
     <div class="lb-note-form" id="lb-note-form">
       <div class="lb-note-form-row">
         <span class="ts-label">⏱️ ${fmtTs(ts)}</span>
-        <input type="text" id="note-title" placeholder="Τίτλος (π.χ. Πώς ρυθμίζω ISO)">
+        <input type="text" id="note-title" data-i18n-placeholder="note.titlePh" placeholder="Title (e.g. How to set ISO)">
       </div>
-      <textarea id="note-text" placeholder="Σημείωση…"></textarea>
+      <textarea id="note-text" data-i18n-placeholder="note.notePh" placeholder="Note…"></textarea>
       <div class="lb-note-form-actions">
-        <button onclick="closeNoteForm()">Άκυρο</button>
-        <button class="primary" onclick="saveNote()">Αποθήκευση</button>
+        <button onclick="closeNoteForm()"><span data-i18n="btn.cancel2">Cancel</span></button>
+        <button class="primary" onclick="saveNote()"><span data-i18n="btn.save">Save</span></button>
       </div>
     </div>`);
   // εστίασέ στον τίτλο
@@ -5293,7 +5625,7 @@ function showLightbox() {
   const frame = document.getElementById("lb-frame");
 
   // Προσωρινό loading (μέχρι να μάθουμε αν επιτρέπεται embed)
-  frame.innerHTML = '<div class="lb-loading">…φόρτωση…</div>';
+  frame.innerHTML = '<div class="lb-loading"><span data-i18n="msg.loading">…loading…</span></div>';
 
   // info: τίτλος + κανάλι + κατηγορία (αν υπάρχει στα δεδομένα)
   // Ο τίτλος ΔΕΝ γράφεται πια κάτω από το βίντεο (υπάρχει μέσα στο YouTube embed).
@@ -5361,7 +5693,7 @@ function showLightbox() {
         <div class="lb-blocked">
           <img class="lb-blocked-thumb" src="/thumb/${esc(videoId)}" onerror="this.style.display='none'" alt="">
           <div class="lb-blocked-title">${esc(feedTitle)}</div>
-          <button class="lb-blocked-btn" onclick="window.open('https://www.youtube.com/watch?v=${esc(videoId)}','_blank')">▶ Άνοιξε στο YouTube</button>
+          <button class="lb-blocked-btn" onclick="window.open('https://www.youtube.com/watch?v=${esc(videoId)}','_blank')"><span data-i18n="card.openYT">▶ Open on YouTube</span></button>
         </div>`;
     } else {
       // embed επιτρέπεται (ή άγνωστο → δοκιμάζουμε embed) — μέσω IFrame API για να διαβάζουμε τον χρόνο.
@@ -5439,7 +5771,7 @@ function updatePlayButton() {
     try { playing = (p.getPlayerState() === 1); } catch (_) {}
   }
   btn.textContent = playing ? "⏸" : "▶";
-  btn.title = playing ? "Παύση (Space)" : "Αναπαραγωγή (Space)";
+  btn.title = playing ? t('player.pause') : t('player.play');
   try { updateSpeedUI(); } catch (e) {}
 }
 
@@ -5778,7 +6110,7 @@ function lightboxAdd() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url, approve: true, channel_id: cid || null, channel: lbMeta.name || null }),
   }).then(r => r.json()).then(d => {
-    if (!d.ok) { alert(d.error || "Σφάλμα"); return; }
+    if (!d.ok) { alert(d.error || t('msg.error')); return; }
     // Αν είναι ακόμα στην ουρά του feed, σημείωσέ το ότι προστέθηκε (αλλά ΜΗΝ προχωρήσεις αυτόματα).
     if (cid) {
       RSS_DATA[cid] = (RSS_DATA[cid] || []).filter(n => n.video_id !== videoId);
@@ -5820,7 +6152,7 @@ function lightboxAdd() {
     //    Αυτό ανανεώνει ΚΑΙ τα κανάλια ΚΑΙ τις κατηγορίες — χωρίς επανεκκίνηση.
     //    (Το ίδιο ακριβώς κάνει το addVideoFromSearch που δουλεύει από την καρτέλα.)
     try { load(); } catch (e) {}
-  }).catch(() => alert("Σφάλμα σύνδεσης"));
+  }).catch(() => alert(t('msg.connErr')));
 }
 
 function lightboxDismiss() {
@@ -6193,7 +6525,7 @@ function checkLicenseAndBoot() {
       } else if (d.needs_activation) {
         showActivationScreen();              // 🔑 πρώτο launch → ζήτα key
       } else {
-        showLicenseBlocked(d.error || "Το license δεν είναι ενεργό.");  // ❌ ακυρωμένο/overuse
+        showLicenseBlocked(d.error || t('lic.notActiveDot'));  // ❌ ακυρωμένο/overuse
       }
     })
     .catch(() => {
@@ -6208,18 +6540,19 @@ function showActivationScreen() {
   pop.className = "del-confirm center";
   pop.id = "license-pop";
   pop.innerHTML = `
-    <div class="dc-msg"><b>🔑 Ενεργοποίηση</b><br>
-      <span class="muted">Βάλε το license key από το email της αγοράς σου.</span></div>
+    <div class="dc-msg"><b><span data-i18n="lic.title">🔑 Activation</span></b><br>
+      <span class="muted"><span data-i18n="lic.hint">Enter the license key from your purchase email.</span></span></div>
     <div class="dc-btns" style="flex-wrap:wrap; gap:8px;">
       <input id="license-key-input" type="text" placeholder="License key" autocomplete="off"
              style="width:100%; padding:9px 12px; border:1px solid var(--border);
                     border-radius:10px; background:var(--card); color:var(--text);
                     font-family:inherit; font-size:13.5px;">
-      <button class="dc-yes" onclick="activateLicense()">✓ Ενεργοποίηση</button>
-      <button class="dc-no" onclick="closeUpdatePopup()">Αργότερα</button>
+      <button class="dc-yes" onclick="activateLicense()"><span data-i18n="lic.activate">✓ Activate</span></button>
+      <button class="dc-no" onclick="closeUpdatePopup()"><span data-i18n="btn.later">Later</span></button>
     </div>
     <div id="license-err" class="muted" style="margin-top:8px; font-size:12.5px;"></div>`;
   document.body.appendChild(pop);
+  applyI18n(pop);
   const inp = document.getElementById("license-key-input");
   if (inp) { setTimeout(() => inp.focus(), 60); }
 }
@@ -6228,8 +6561,8 @@ function activateLicense() {
   const inp = document.getElementById("license-key-input");
   const err = document.getElementById("license-err");
   const key = (inp && inp.value || "").trim();
-  if (!key) { if (err) err.textContent = "Δώσε το key."; return; }
-  if (err) err.textContent = "…γίνεται έλεγχος…";
+  if (!key) { if (err) err.textContent = t('lic.giveKey'); return; }
+  if (err) err.textContent = t('lic.checking');
   fetch("/activate_license", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
@@ -6241,10 +6574,10 @@ function activateLicense() {
         closeUpdatePopup();   // κλείσε το activation screen
         load();               // ✅ ενεργοποιήθηκε → ξεκίνα
       } else {
-        if (err) err.textContent = d.error || "Η ενεργοποίηση απέτυχε.";
+        if (err) err.textContent = d.error || t('lic.failed');
       }
     })
-    .catch(() => { if (err) err.textContent = "Δεν απαντά ο server."; });
+    .catch(() => { if (err) err.textContent = t('msg.serverDownDot'); });
 }
 
 function showLicenseBlocked(msg) {
@@ -6253,20 +6586,71 @@ function showLicenseBlocked(msg) {
   pop.className = "del-confirm center";
   pop.id = "license-pop";
   pop.innerHTML = `
-    <div class="dc-msg">⛔ <b>Το license δεν είναι ενεργό</b><br>
+    <div class="dc-msg">⛔ <b><span data-i18n="lic.notActive">The license is not active</span></b><br>
       <span class="muted" style="font-size:12.5px;">${esc(msg || "")}</span></div>
     <div class="dc-btns">
-      <button class="dc-yes" onclick="closeUpdatePopup(); activateLicense()">🔑 Βάλε key ξανά</button>
-      <button class="dc-no" onclick="this.closest('#license-pop').remove()">Κλείσιμο</button>
+      <button class="dc-yes" onclick="closeUpdatePopup(); activateLicense()"><span data-i18n="lic.reenter">🔑 Enter key again</span></button>
+      <button class="dc-no" onclick="this.closest('#license-pop').remove()"><span data-i18n="btn.close">Close</span></button>
     </div>`;
   document.body.appendChild(pop);
+  applyI18n(pop);
 }
 
 window.addEventListener("scroll", scheduleFrost, { passive: true });
 window.addEventListener("resize", scheduleFrost);
 
+/* ── 🈯 Εφάρμοσε i18n σε ΔΥΝΑΜΙΚΟ περιεχόμενο (popups, panels) ──────────
+   Τα popups φτιάχνονται με innerHTML ΜΕΤΑ το φόρτωμα — άρα το data-i18n
+   μέσα τους δεν μεταφράζεται αυτόματα. Αυτή η συνάρτηση το εφαρμόζει.
+   ─────────────────────────────────────────────────────────────────────── */
+function applyI18n(el) {
+  if (!el) return;
+  if (window.i18n && window.i18n.apply) { try { window.i18n.apply(el); } catch (e) {} }
+}
+
+initRecentSearchHover();   // 🖱️ κλείσιμο recent searches όταν φεύγει το ποντίκι
 initTabDrag();   // ↕️ dragable tabs (σειρά από τον χρήστη)
 checkLicenseAndBoot();   // 🔑 license gate → αν ενεργό, τρέχει load()· αλλιώς activation screen
+
+/* ── 🌐 Γλώσσα: γέφυρα με το i18n.js ──────────────────────────────────────
+   Το i18n.js έχει setLang()/t(). Εδώ:
+     • κρατάμε το label του switch συγχρονισμένο
+     • ξαναζωγραφίζουμε ό,τι είναι ΔΥΝΑΜΙΚΟ (λίστες, popups, counters)
+   ─────────────────────────────────────────────────────────────────────── */
+function setLang(lang) {
+  // 1) άλλαξε τη γλώσσα (το i18n.js εφαρμόζει data-i18n μόνο του)
+  if (window.i18n && window.i18n.setLang) window.i18n.setLang(lang);
+  updateLangLabel();
+  // 💾 Σώσε τη στη βάση → επιμένει μετά από κλείσιμο (το localStorage δεν κρατά στο WebView)
+  try { fetch("/ui_state", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ lang: lang }) }); } catch (e) {}
+  // 🔄 Ξαναζωγράφισε τα ΔΥΝΑΜΙΚΑ (badge, counters, λίστες) στη νέα γλώσσα
+  try { if (typeof load === "function") load(); } catch (e) {}
+  // 2) ξαναζωγράφισε τα δυναμικά κομμάτια που παράγονται από JS
+  try {
+    if (typeof load === 'function' && document.getElementById('list') && !document.getElementById('list-loading')) {
+      // μόνο αν έχουμε ήδη δεδομένα (δεν κάνουμε fetch αν είναι στην αρχική)
+      if (typeof state !== 'undefined' && state && (state.channels || []).length) load();
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function updateLangLabel() {
+  var lbl = document.getElementById('lang-label');
+  var cur = (window.i18n && window.i18n.getLang) ? window.i18n.getLang() : 'en';
+  if (lbl) {
+    var on = document.getElementById('lang-' + cur);
+    if (on) { on.style.outline = '2px solid var(--accent)'; }
+    ['en','el'].forEach(function(l){ var b=document.getElementById('lang-'+l); if(b && l!==cur) b.style.outline=''; });
+    lbl.textContent = (cur === 'el') ? 'Ελληνικά' : 'English';
+  }
+}
+
+// Όταν το i18n.js τελειώσει το φόρτωμα → εφάρμοσε + ενημέρωσε το label
+window.addEventListener('pyt:i18nready', function(){ updateLangLabel(); });
+// Αν έχει ήδη φορτώσει πριν τρέξει αυτό το script
+if (window.i18n && window.i18n.ready) updateLangLabel();
+window.addEventListener('load', updateLangLabel);
 </script>
 
 <!-- 🎬 Floating player (lightbox) — το βίντεο παίζει "στον αέρα", πάνω από θολή σελίδα -->
@@ -6284,14 +6668,14 @@ checkLicenseAndBoot();   // 🔑 license gate → αν ενεργό, τρέχε�
         <span class="lb-side-title" id="lb-title-next2"></span>
       </div>
       <!-- 🎠 Πλαϊνό ΑΡΙΣΤΕΡΑ (πίσω layer) — ΞΕΧΩΡΙΣΤΟ κουτί, όχι μέσα στο κεντρικό -->
-      <div class="lb-side lb-side-prev" id="lb-side-prev" onclick="stepLightbox(-1)" title="Προηγούμενο βίντεο">
+      <div class="lb-side lb-side-prev" id="lb-side-prev" onclick="stepLightbox(-1)" data-i18n-title="player.prev" title="Previous video">
         <img class="lb-side-thumb" id="lb-thumb-prev" alt="">
         <div class="lb-side-title" id="lb-title-prev"></div>
       </div>
 
       <!-- 🎬 ΚΕΝΤΡΙΚΟΣ PLAYER — το ΜΟΝΟ λευκό κουτί -->
       <div class="lb-main" id="lb-main">
-    <button class="lb-close" onclick="closeLightbox()" title="Κλείσε (Esc)">✕</button>
+    <button class="lb-close" onclick="closeLightbox()" data-i18n-title="misc.closeEsc" title="Close (Esc)">✕</button>
         <div class="lb-frame" id="lb-frame"></div>
     <!-- 📊 PROGRESS (χωρίς χρόνους — πάνε στην κάτω γραμμή) -->
     <div class="lb-progress-wrap">
@@ -6305,7 +6689,7 @@ checkLicenseAndBoot();   // 🔑 license gate → αν ενεργό, τρέχε�
       <!-- ΑΡΙΣΤΕΡΑ: 🐇 ταχύτητα + δείκτης + χρόνος -->
       <div class="lb-bottom-left">
         <div class="lb-speed-wrap">
-          <button class="lb-speed-btn" id="lb-speed-btn" onclick="toggleSpeedMenu()" title="Ταχύτητα αναπαραγωγής (S)">
+          <button class="lb-speed-btn" id="lb-speed-btn" onclick="toggleSpeedMenu()" data-i18n-title="player.speedS" title="Playback speed (S)">
             <svg class="lb-rabbit" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M10 17C7 10 6 2 10 2c3 0 4 8 4 14m4 0c0-6 1-14 4-14 4 0 3 8 0 15"/>
               <path d="M10 16c-4 2-6 5-5 8 1 4 5 6 11 6s10-2 11-6c1-3-1-6-5-8"/>
@@ -6318,7 +6702,7 @@ checkLicenseAndBoot();   // 🔑 license gate → αν ενεργό, τρέχε�
           <div class="lb-speed-popup" id="lb-speed-popup">
             <div class="lb-thermo">
               <div class="lb-speed-range" id="lb-speed-range" role="slider" tabindex="0"
-                   aria-label="Ταχύτητα αναπαραγωγής" aria-orientation="vertical"
+                   aria-label=t('player.speed') aria-orientation="vertical"
                    aria-valuemin="0.25" aria-valuemax="2" aria-valuenow="1"
                    onpointerdown="speedPointerDown(event)" onpointermove="speedPointerMove(event)"
                    onpointerup="speedPointerUp(event)" onpointercancel="speedPointerUp(event)"
@@ -6338,26 +6722,26 @@ checkLicenseAndBoot();   // 🔑 license gate → αν ενεργό, τρέχε�
 
       <!-- ΚΕΝΤΡΟ: controls (απόλυτα κεντραρισμένα) -->
       <div class="lb-bottom-center">
-        <button class="lb-ctrl" id="lb-prev" onclick="stepLightbox(-1)" title="Προηγούμενο βίντεο (←)">|◀◀</button>
-        <button class="lb-ctrl" id="lb-back" onclick="playerSkip(-SKIP_SEC)" title="Πίσω 20 δευτ.">◀◀<span class="lb-skip-num">20</span></button>
-        <button class="lb-ctrl lb-ctrl-step" id="lb-back5" onclick="playerSkip(-SKIP_SMALL)" title="Πίσω 5 δευτ.">◀<span class="lb-skip-num">5</span></button>
+        <button class="lb-ctrl" id="lb-prev" onclick="stepLightbox(-1)" data-i18n-title="player.prevArrow" title="Previous video (←)">|◀◀</button>
+        <button class="lb-ctrl" id="lb-back" onclick="playerSkip(-SKIP_SEC)" data-i18n-title="player.back20" title="Back 20s">◀◀<span class="lb-skip-num">20</span></button>
+        <button class="lb-ctrl lb-ctrl-step" id="lb-back5" onclick="playerSkip(-SKIP_SMALL)" data-i18n-title="player.back5" title="Back 5s">◀<span class="lb-skip-num">5</span></button>
         <button class="lb-ctrl lb-ctrl-play" id="lb-play" onclick="playerToggle()" title="Play / Pause (Space)">▶</button>
-        <button class="lb-ctrl lb-ctrl-step" id="lb-fwd5" onclick="playerSkip(SKIP_SMALL)" title="Μπροστά 5 δευτ."><span class="lb-skip-num">5</span>▶</button>
-        <button class="lb-ctrl" id="lb-fwd" onclick="playerSkip(SKIP_SEC)" title="Μπροστά 20 δευτ."><span class="lb-skip-num">20</span>▶▶</button>
-        <button class="lb-ctrl" id="lb-next" onclick="stepLightbox(1)" title="Επόμενο βίντεο (→)">▶▶|</button>
+        <button class="lb-ctrl lb-ctrl-step" id="lb-fwd5" onclick="playerSkip(SKIP_SMALL)" data-i18n-title="player.fwd5" title="Forward 5s"><span class="lb-skip-num">5</span>▶</button>
+        <button class="lb-ctrl" id="lb-fwd" onclick="playerSkip(SKIP_SEC)" data-i18n-title="player.fwd20" title="Forward 20s"><span class="lb-skip-num">20</span>▶▶</button>
+        <button class="lb-ctrl" id="lb-next" onclick="stepLightbox(1)" data-i18n-title="player.nextArrow" title="Next video (→)">▶▶|</button>
       </div>
 
       <!-- ΔΕΞΙΑ: σημείωση + add/dismiss -->
       <div class="lb-bottom-right">
-        <button class="lb-add" id="lb-add" onclick="lightboxAdd()" title="Πρόσθεσε στο ιστορικό μου" style="display:none">➕</button>
-        <button class="lb-dismiss" id="lb-dismiss" onclick="lightboxDismiss()" title="Δεν με ενδιαφέρει" style="display:none">✕</button>
-        <button class="lb-note-compact" id="lb-note-btn" onclick="toggleNotes()" title="Σημειώσεις (N)">📝 Σημείωση <span id="lb-notes-count"></span></button>
+        <button class="lb-add" id="lb-add" onclick="lightboxAdd()" data-i18n-title="card.addToHistory" title="Add to my history" style="display:none">➕</button>
+        <button class="lb-dismiss" id="lb-dismiss" onclick="lightboxDismiss()" data-i18n-title="card.notInterested" title="Not interested" style="display:none">✕</button>
+        <button class="lb-note-compact" id="lb-note-btn" onclick="toggleNotes()" data-i18n-title="note.notesN" title="Notes (N)"><span data-i18n="note.title">📝 Note</span> <span id="lb-notes-count"></span></button>
       </div>
     </div>
       </div>
 
       <!-- 🎠 Πλαϊνό ΔΕΞΙΑ (πίσω layer) -->
-      <div class="lb-side lb-side-next" id="lb-side-next" onclick="stepLightbox(1)" title="Επόμενο βίντεο">
+      <div class="lb-side lb-side-next" id="lb-side-next" onclick="stepLightbox(1)" data-i18n-title="player.next" title="Next video">
         <img class="lb-side-thumb" id="lb-thumb-next" alt="">
         <div class="lb-side-title" id="lb-title-next"></div>
       </div>
@@ -6366,12 +6750,12 @@ checkLicenseAndBoot();   // 🔑 license gate → αν ενεργό, τρέχε�
     <!-- 📝 NOTES SIDEBAR (collapsible) -->
     <div class="lb-notes-panel" id="lb-notes-panel">
       <div class="lb-notes-head">
-        <span>📝 Σημειώσεις</span>
-        <button class="lb-notes-close" onclick="toggleNotes()" title="Κλείσε">✕</button>
+        <span><span data-i18n="note.notes">📝 Notes</span></span>
+        <button class="lb-notes-close" onclick="toggleNotes()" data-i18n-title="btn.close2" title="Close">✕</button>
       </div>
       <div class="lb-notes" id="lb-notes"></div>
       <div class="lb-notes-add">
-        <button class="lb-note-btn" id="lb-note-btn2" onclick="openNoteForm()" title="Σημείωσε αυτό το σημείο">⏱️ Σημείωση εδώ</button>
+        <button class="lb-note-btn" id="lb-note-btn2" onclick="openNoteForm()" data-i18n-title="note.markPoint" title="Mark this point"><span data-i18n="note.here">⏱️ Note here</span></button>
       </div>
     </div>
   </div>
@@ -6380,13 +6764,13 @@ checkLicenseAndBoot();   // 🔑 license gate → αν ενεργό, τρέχε�
 <div id="cw" class="lb" style="display:none">
   <div class="lb-backdrop" onclick="closeChannelPreview()"></div>
   <div class="cw-dialog" role="dialog" aria-modal="true">
-    <button class="lb-close" onclick="closeChannelPreview()" title="Κλείσε (Esc)">✕</button>
+    <button class="lb-close" onclick="closeChannelPreview()" data-i18n-title="misc.closeEsc" title="Close (Esc)">✕</button>
     <div class="cw-head">
       <img class="cw-avatar" id="cw-avatar" alt="" onerror="this.style.display='none'">
       <div class="cw-title" id="cw-title"></div>
-      <button class="yt-btn add" id="cw-watch" onclick="watchChannelFromWindow()">➕ Παρακολούθησε</button>
+      <button class="yt-btn add" id="cw-watch" onclick="watchChannelFromWindow()"><span data-i18n="ch.follow">➕ Follow</span></button>
     </div>
-    <div class="cw-videos-title">Πρόσφατα βίντεο</div>
+    <div class="cw-videos-title"><span data-i18n="ch.recent">Recent videos</span></div>
     <div class="cw-videos" id="cw-videos"></div>
   </div>
 </div>

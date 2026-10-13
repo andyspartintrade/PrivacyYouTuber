@@ -66,11 +66,6 @@ def find_takeout_file(export_dir, filename):
     return None
 
 
-def parse_subscriptions_csv(path):
-    """Διαβάζει το subscriptions.csv (Google Takeout) και επιστρέφει λίστα channel_id."""
-    return [r["id"] for r in parse_subscriptions_csv_with_names(path)]
-
-
 def parse_subscriptions_csv_with_names(path):
     """Διαβάζει το subscriptions.csv και επιστρέφει λίστα {id, name}.
 

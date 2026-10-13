@@ -1,0 +1,13 @@
+<!doctype html><html><body style=margin:0>
+<div id=box><button id=B style="position:absolute;top:600px;left:400px">📁</button></div>
+<pre id=R></pre><script>
+const B=document.getElementById("B");
+const before=B.getBoundingClientRect();
+// ΠΡΟΣΟΜΟΙΩΣΗ load() → ξαναφτιάχνει το DOM
+document.getElementById("box").innerHTML='<button id=B style="position:absolute;top:600px;left:400px">📁</button>';
+const after=B.getBoundingClientRect();
+document.getElementById("R").textContent=
+"ΠΡΙΝ το re-render: top="+Math.round(before.top)+" left="+Math.round(before.left)+
+" | ΜΕΤΑ (αποκολλημένο): top="+Math.round(after.top)+" left="+Math.round(after.left)+
+" | isConnected="+B.isConnected;
+</script></body></html>

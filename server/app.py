@@ -21,10 +21,16 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
-from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+# 🪟 Στο Windows, κάθε subprocess από windowed .exe (--noconsole) ΞΑΝΑΑΝΟΙΓΕΙ
+#    παράθυρο κονσόλας (flash) — ακόμα κι αν η εφαρμογή δεν έχει κονσόλα.
+#    Το CREATE_NO_WINDOW το κρύβει εντελώς. Ορίζεται άπαξ, εδώ, με ασφάλεια.
+_NO_WINDOW = getattr(__import__("subprocess"), "CREATE_NO_WINDOW", 0x08000000)
+
+from datetime import datetime
 from . import db, recommender
 
 PORT = 8765
@@ -35,6 +41,63 @@ VERSION = "1.0.0"
 
 # 📦 Πού ψάχνει το app για ενημερώσεις (GitHub raw). Public repo απαραίτητο.
 UPDATE_URL = "https://raw.githubusercontent.com/andyspartintrade/PrivacyYouTuber/main/latest.json"
+
+# 🔑 LICENSING — Gumroad license keys (δωρεάν feature, online verify).
+#    Ο χρήστης ενεργοποιεί ΜΙΑ φορά (online) με το key που πήρε στην αγορά του.
+#    Η εφαρμογή ξανατσεκάρει σιωπηλά κάθε LICENSE_RECHECK_DAYS μέρες.
+#    Όριο ενεργοποιήσεων ανά key = LICENSE_MAX_USES (κόβει το forum-leak).
+GUMROAD_VERIFY_URL = "https://api.gumroad.com/v2/licenses/verify"
+LICENSE_RECHECK_DAYS = 3          # κάθε 3 μέρες σιωπηλός επανέλεγχος
+LICENSE_MAX_USES = 5              # πάνω από 5 ενεργοποιήσεις = leak/μη νόμιμο
+LICENSE_MAX_FAILS = 1             # 1 χάρη (offline/API-down) → μετά κλείσιμο
+
+# ⚠️ Ο τίμιος ανοίγει την εφαρμογή ΠΟΛΛΕΣ φορές → το check ΔΕΝ πρέπει να ανεβάζει
+#    το uses. ΜΟΝΟ η πρώτη ενεργοποίηση ανεβάζει (increment_uses_count=true).
+#    Όλα τα recheck κάνουν increment_uses_count=false.
+
+
+# 🔐 Secrets: φορτώνονται από το .env (ΠΟΤΕ hardcoded, ΠΟΤΕ στο git).
+def _env_candidates():
+    """Πιθανές θέσεις του .env — σειρά προτεραιότητας:
+    1. Δίπλα στο .exe (PyInstaller onefile: sys.executable) ή στον φάκελο app.
+    2. Το τρέχον working directory.
+    3. Το project root (source layout)."""
+    cands = []
+    exe_dir = os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, "frozen", False) else None
+    if exe_dir:
+        cands.append(os.path.join(exe_dir, ".env"))
+    cands.append(os.path.join(os.getcwd(), ".env"))
+    cands.append(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
+    return cands
+
+
+def _load_env():
+    """Φορτώνει KEY=VALUE από το .env (stdlib-only, χωρίς python-dotenv).
+    Γραμμές που ξεκινούν με # ή είναι κενές → αγνοούνται."""
+    env = {}
+    for path in _env_candidates():
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" not in line:
+                        continue
+                    k, v = line.split("=", 1)
+                    env[k.strip()] = v.strip().strip('"').strip("'")
+            break  # βρήκαμε το πρώτο υπαρκτό .env
+        except OSError:
+            continue
+    return env
+
+
+_ENV = _load_env()
+
+
+def _env(key, default=None):
+    """Διαβάζει από .env, αλλιώς από OS env, αλλιώς default."""
+    return os.environ.get(key) or _ENV.get(key) or default
 
 
 def _version_newer(a, b):
@@ -72,6 +135,20 @@ def _web_dir():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "web")
 
 
+def _web_override_dir():
+    """Μόνιμος φάκελος για frontend updates — ζει στο data_dir (επιζεί από reinstall).
+    Αν υπάρχει νεότερο index.html εκεί, κερδίζει το built-in."""
+    return os.path.join(db.data_dir(), "web")
+
+
+def _index_html_path():
+    """Επιστρέφει το ΣΩΣΤΟ index.html: το override (αν υπάρχει) αλλιώς το built-in."""
+    override = os.path.join(_web_override_dir(), "index.html")
+    if os.path.exists(override):
+        return override
+    return os.path.join(_web_dir(), "index.html")
+
+
 def _fetch_bytes(url, timeout=8, ua="Mozilla/5.0 (privacy-yt)"):
     """Κατεβάζει bytes από ένα URL (με user-agent). Επιστρέφει bytes ή None."""
     try:
@@ -92,11 +169,29 @@ def _fetch_text(url, timeout=8, ua="Mozilla/5.0 (privacy-yt)"):
         return None
 
 
+def _safe_key(key):
+    """🔒 Καθαρίζει ένα video/channel id ώστε να είναι ΑΣΦΑΛΕΣ ως filename.
+    Τα YouTube ids περιέχουν μόνο [A-Za-z0-9_-]. Οτιδήποτε άλλο (/.\\ κλπ)
+    απορρίπτεται — αποτρέπει path traversal / arbitrary file read/write."""
+    s = str(key or "").strip()
+    if not s or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", s):
+        return None
+    return s
+
+
 def _cached_file(subdir, key, ext=".jpg"):
-    """Επιστρέφει το path ενός cached αρχείου (χωρίς να το κατεβάσει)."""
+    """Επιστρέφει το path ενός cached αρχείου (χωρίς να το κατεβάσει).
+    🔒 Το key sanitize-άρεται (whitelist chars) — κανένα path traversal."""
+    safe = _safe_key(key)
+    if safe is None:
+        return None
     d = os.path.join(db.data_dir(), subdir)
     os.makedirs(d, exist_ok=True)
-    return os.path.join(d, f"{key}{ext}")
+    path = os.path.join(d, f"{safe}{ext}")
+    # 🔒 Διπλή άμυνα: επιβεβαίωσε ότι το τελικό path μένει ΜΕΣΑ στο subdir.
+    if not os.path.realpath(path).startswith(os.path.realpath(d) + os.sep):
+        return None
+    return path
 
 
 def get_thumbnail(video_id):
@@ -112,6 +207,135 @@ def get_thumbnail(video_id):
     with open(path, "wb") as f:
         f.write(data)
     return path
+
+
+# 🚀 Prefetch pool: κατεβάζει thumbnails ΠΑΡΑΛΛΗΛΑ (8 μαζί) στο background,
+#    ώστε το πρώτο φόρτωμα σε νέο PC να μη «περιμένει» ένα-ένα (ήταν το bottleneck).
+_PREFETCH_POOL = ThreadPoolExecutor(max_workers=8)
+_PREFETCH_INFLIGHT = set()
+_PREFETCH_LOCK = threading.Lock()
+
+
+def prefetch_thumbnails(video_ids, include_small=True):
+    """Κατεβάζει παράλληλα τα thumbnails (big + small) στο background.
+    Αγνοεί ό,τι είναι ήδη cached. Ασφαλές να κληθεί πολλές φορές (dedupe)."""
+    if not video_ids:
+        return
+    todo = []
+    for vid in video_ids:
+        if not vid:
+            continue
+        big = _cached_file("thumbs", vid)
+        if not os.path.exists(big):
+            todo.append(("thumbs", vid, f"https://i.ytimg.com/vi/{vid}/mqdefault.jpg"))
+        if include_small:
+            small = _cached_file("thumbs_small", vid)
+            if not os.path.exists(small):
+                todo.append(("thumbs_small", vid, f"https://i.ytimg.com/vi/{vid}/default.jpg"))
+    if not todo:
+        return
+
+    def _one(job):
+        folder, vid, url = job
+        with _PREFETCH_LOCK:
+            if vid in _PREFETCH_INFLIGHT:
+                return
+            _PREFETCH_INFLIGHT.add(vid)
+        try:
+            path = _cached_file(folder, vid)
+            if os.path.exists(path):
+                return
+            data = _fetch_bytes(url, timeout=6)
+            if data:
+                with open(path, "wb") as f:
+                    f.write(data)
+        except Exception:
+            pass
+        finally:
+            with _PREFETCH_LOCK:
+                _PREFETCH_INFLIGHT.discard(vid)
+
+    try:
+        for job in todo:
+            _PREFETCH_POOL.submit(_one, job)
+    except Exception:
+        pass
+
+
+def get_thumbnail_small(video_id):
+    """Μικρό thumbnail (120x90) για blur-up placeholder — φορτώνει σχεδόν αμέσως."""
+    if not video_id:
+        return None
+    path = _cached_file("thumbs_small", video_id)
+    if os.path.exists(path):
+        return path
+    data = _fetch_bytes(f"https://i.ytimg.com/vi/{video_id}/default.jpg")
+    if data is None:
+        return None
+    with open(path, "wb") as f:
+        f.write(data)
+    return path
+
+
+def get_dominant_color(video_id):
+    """Υπολογίζει (μία φορά) το επικρατές χρώμα του thumbnail — cache σε .color.
+    Χρησιμοποιεί το μικρό default.jpg (γρήγορο download) — αρκετό για το placeholder χρώμα."""
+    if not video_id:
+        return None
+    color_path = _cached_file("thumbs", video_id, ext=".color")
+    if os.path.exists(color_path):
+        try:
+            with open(color_path, "r") as f:
+                return f.read().strip()
+        except Exception:
+            pass
+    small = get_thumbnail_small(video_id)
+    if not small:
+        return None
+    try:
+        from PIL import Image
+        img = Image.open(small).convert("RGB").resize((16, 16))
+        px = list(img.getdata())
+        n = len(px)
+        color = "#%02x%02x%02x" % (
+            sum(p[0] for p in px) // n,
+            sum(p[1] for p in px) // n,
+            sum(p[2] for p in px) // n,
+        )
+    except Exception:
+        return None
+    try:
+        with open(color_path, "w") as f:
+            f.write(color)
+    except Exception:
+        pass
+    return color
+
+
+def _resolve_channel_name(channel_id):
+    """🔒 Επιστρέφει το όνομα ενός καναλιού από το channel_id.
+    Πρώτα από το channel_watch (cache), αλλιώς scraping του channel page.
+    Επιστρέφει None αν δεν βρεθεί — ο caller χρησιμοποιεί το channel_id ως fallback."""
+    if not channel_id:
+        return None
+    # 1) cache από channel_watch (όνομα αν υπάρχει)
+    try:
+        meta = db.channel_watch_meta()
+        nm = (meta.get(channel_id) or {}).get("name") if isinstance(meta.get(channel_id), dict) else None
+        if nm and nm.strip():
+            return nm.strip()
+    except Exception:
+        pass
+    # 2) scraping του channel page
+    try:
+        html = _fetch_text(f"https://www.youtube.com/channel/{channel_id}", timeout=8)
+        if html:
+            m = re.search(r'<meta property="og:title" content="([^"]+)"', html)
+            if m:
+                return m.group(1).strip()
+    except Exception:
+        pass
+    return None
 
 
 def get_channel_avatar(channel_id):
@@ -182,15 +406,10 @@ def check_embeddable(video_id):
         return None
 
 
-def _is_embeddable_cached(video_id, timeout=1.2):
-    """Γρήγορος, cached έλεγχος embeddable (για φιλτράρισμα feed χωρίς spam στο δίκτυο).
-
-    Επιστρέφει True (παίζει), False (μπλοκαρισμένο), ή True (fail-open αν άγνωστο/timeout).
-    """
-    cached = db.get_embeddable(video_id)
-    if cached is not None:
-        return bool(cached)
-    # όχι στη cache → έλεγξε με μικρό timeout
+def _probe_embeddable(video_id, timeout=2.5):
+    """Ρωτά το YouTube oEmbed. Επιστρέφει (ok, definitive).
+    definitive=True μόνο για σαφή απάντηση (200 → παίζει, 401/403 → μπλοκαρισμένο).
+    Timeout/δίκτυο/άλλο σφάλμα → (True, False): fail-open ΧΩΡΙΣ να αποθηκευτεί."""
     try:
         url = (
             "https://www.youtube.com/oembed?url="
@@ -199,27 +418,38 @@ def _is_embeddable_cached(video_id, timeout=1.2):
         )
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            result = (resp.status == 200)
+            return (resp.status == 200), (resp.status == 200)
     except urllib.error.HTTPError as e:
         if e.code in (401, 403):
-            result = False
-        else:
-            result = True   # fail-open
+            return False, True
+        return True, False
     except Exception:
-        result = True       # fail-open (δεν κρύβουμε αν δεν ξέρουμε)
-    db.set_embeddable(video_id, result)
-    return result
+        return True, False
 
 
 def filter_embeddable(video_ids):
-    """Από μια λίστα video_id, κρατάει ΜΟΝΟ όσα επιτρέπουν embed (παράλληλα + cached)."""
-    from concurrent.futures import ThreadPoolExecutor
+    """Από μια λίστα video_id, κρατάει ΜΟΝΟ όσα επιτρέπουν embed.
+
+    ⚡ ΕΝΑ query για όλη τη cache → έλεγχος δικτύου ΜΟΝΟ για τα άγνωστα (παράλληλα) →
+       ΜΙΑ εγγραφή για τα νέα. Η 2η αναζήτηση της ίδιας λέξης δεν κάνει καθόλου δίκτυο."""
     if not video_ids:
         return []
-    with ThreadPoolExecutor(max_workers=8) as ex:
-        flags = list(ex.map(_is_embeddable_cached, video_ids))
-    return [vid for vid, ok in zip(video_ids, flags) if ok]
-
+    known = db.get_embeddable_many(video_ids)
+    unknown = [v for v in dict.fromkeys(video_ids) if v not in known]
+    verdict = dict(known)
+    if unknown:
+        with ThreadPoolExecutor(max_workers=12) as ex:
+            probed = list(ex.map(_probe_embeddable, unknown))
+        to_save = {}
+        for vid, (ok, definitive) in zip(unknown, probed):
+            verdict[vid] = ok
+            if definitive:
+                to_save[vid] = ok
+        try:
+            db.set_embeddable_many(to_save)
+        except Exception:
+            pass
+    return [vid for vid in video_ids if verdict.get(vid, True)]
 
 
 def extract_video_id(url):
@@ -260,7 +490,12 @@ def _backfill_one(video_id):
 
 class Handler(BaseHTTPRequestHandler):
     def _cors(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
+        # 🔒 Αυστηρό CORS: μόνο localhost (127.0.0.1). Αποτρέπει κακόβουλες ιστοσελίδες (CSRF)
+        # από το να κάνουν requests στον τοπικό σου server από τον browser.
+        origin = self.headers.get("Origin", "")
+        if origin and (origin.startswith("http://127.0.0.1") or origin.startswith("http://localhost")):
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS, GET")
 
@@ -300,28 +535,41 @@ class Handler(BaseHTTPRequestHandler):
             "rating": v.get("rating") or 0,
             "my_tags": (lambda s: json.loads(s) if s else [])(v.get("my_tags")),
             "pin_top": v.get("pin_top") or 0,
+            "cat_rank": v.get("cat_rank") or 0,
         }
 
     def _dashboard(self):
         vids = db.all_videos()
         stats = db.stats()
-        topics = recommender.top_terms(vids, n=12) if vids else []
         ui = db.get_ui_state()
-        recent = [self._video_payload(v) for v in vids[:200]]
+        # 🔧 Επιστρέφουμε ΟΛΑ τα βίντεο (όχι top 200) — τα «νέα/unseen» πρέπει να φαίνονται όλα
+        # στο grid. (Το παλιό vids[:200] έκοβε τα unseen που πέφτανε κάτω από rank>0 βίντεα.)
+        recent = [self._video_payload(v) for v in vids]
+        # 🚀 Prefetch (background, παράλληλα) των thumbnails των ΠΡΩΤΩΝ βίντεο —
+        #    ώστε το πρώτο φόρτωμα σε νέο PC να μη «περιμένει» ένα-ένα.
+        try:
+            prefetch_thumbnails([v.get("video_id") for v in vids[:60]])
+        except Exception:
+            pass
         self._json(200, {
             "stats": stats,
-            "topics": topics,
             "videos": recent,
             "all_tags": db.all_tags(),
             "channel_tags": db.channel_tags_map(),
             "all_categories": db.all_categories(),
             "channel_watch": db.all_channel_watch(),
             "channel_watch_meta": db.channel_watch_meta(),
+            "video_notes": db.all_video_notes(),     # ⚡ μέσα στο ίδιο request (πριν: 2ο request + 2ο render)
             "collapsed": ui.get("collapsed", []),
+            "expanded": ui.get("expanded", []),   # ✅ ΝΕΟ: ποια κανάλια άνοιξε ο χρήστης
             "order": ui.get("order", []),
+            "tab_order": ui.get("tab_order", []),
             "cat_order": ui.get("cat_order", []),
             "cat_collapsed": ui.get("cat_collapsed", []),
+            "cat_pinned": ui.get("cat_pinned", []),
             "rss_shown": ui.get("rss_shown", 6),
+            "theme": ui.get("theme", "light"),
+            "lang": ui.get("lang", "en"),
             "version": VERSION,
         })
 
@@ -411,33 +659,38 @@ class Handler(BaseHTTPRequestHandler):
         new_items = [n for n in new_items if n["video_id"] in ok_ids]
         self._json(200, {"new": new_items, "errors": errors})
 
-    def _serve_thumb(self, video_id):
-        path = get_thumbnail(video_id)
-        if not path:
-            self._json(404, {"error": "no thumbnail"})
-            return
+    def _send_image(self, path, max_age):
+        """Σερβίρει cached εικόνα με Cache-Control, ώστε το WebView να ΜΗΝ τη ζητά ξανά σε κάθε re-render."""
         with open(path, "rb") as f:
             data = f.read()
         self.send_response(200)
         self._cors()
         self.send_header("Content-Type", "image/jpeg")
+        self.send_header("Cache-Control", f"public, max-age={max_age}")
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def _serve_thumb(self, video_id):
+        path = get_thumbnail(video_id)
+        if not path:
+            self._json(404, {"error": "no thumbnail"})
+            return
+        self._send_image(path, 604800)      # thumbnail βίντεο: αμετάβλητο → 7 μέρες
+
+    def _serve_thumb_small(self, video_id):
+        path = get_thumbnail_small(video_id)
+        if not path:
+            self._json(404, {"error": "no thumbnail"})
+            return
+        self._send_image(path, 604800)
 
     def _serve_avatar(self, channel_id):
         path = get_channel_avatar(channel_id)
         if not path:
             self._json(404, {"error": "no avatar"})
             return
-        with open(path, "rb") as f:
-            data = f.read()
-        self.send_response(200)
-        self._cors()
-        self.send_header("Content-Type", "image/jpeg")
-        self.send_header("Content-Length", str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
+        self._send_image(path, 86400)       # avatar: μπορεί να αλλάξει σπάνια → 1 μέρα
 
     def _serve_static(self, rel_path, content_type):
         """Σερβίρει ένα στατικό αρχείο από το web/ folder (fonts/css, κλπ).
@@ -450,6 +703,16 @@ class Handler(BaseHTTPRequestHandler):
         if not os.path.realpath(full).startswith(os.path.realpath(_web_dir())):
             self._json(404, {"error": "not found"})
             return
+        # 🌐 FRONTEND OVERRIDE: αν υπάρχει το ίδιο αρχείο στο override dir,
+        #    κερδίζει το built-in (ώστε το frontend update να μπορεί να στέλνει
+        #    και νέα i18n.json / assets, όχι μόνο index.html).
+        try:
+            ov_full = os.path.join(_web_override_dir(), rel_path)
+            ov_root = os.path.realpath(_web_override_dir())
+            if os.path.realpath(ov_full).startswith(ov_root) and os.path.isfile(ov_full):
+                full = ov_full
+        except Exception:
+            pass
         if not os.path.isfile(full):
             self._json(404, {"error": "not found"})
             return
@@ -484,8 +747,20 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         if path in ("/", "/index.html"):
-            with open(os.path.join(_web_dir(), "index.html"), encoding="utf-8") as f:
+            with open(_index_html_path(), encoding="utf-8") as f:
                 self._html(200, f.read())
+        # 🌐 STATIC: i18n.js / i18n.json / ό,τι άλλο κάθεται στο web/ (όχι index.html)
+        elif path.endswith((".js", ".json", ".css", ".svg", ".png", ".woff2")):
+            name = path.lstrip("/")
+            ctype = {
+                ".js": "application/javascript; charset=utf-8",
+                ".json": "application/json; charset=utf-8",
+                ".css": "text/css; charset=utf-8",
+                ".svg": "image/svg+xml",
+                ".png": "image/png",
+                ".woff2": "font/woff2",
+            }.get(os.path.splitext(name)[1], "application/octet-stream")
+            self._serve_static(name, ctype)
         elif path == "/api/dashboard":
             self._dashboard()
         elif path == "/api/suggest":
@@ -496,6 +771,8 @@ class Handler(BaseHTTPRequestHandler):
             self._search(q)
         elif path.startswith("/thumb/"):
             self._serve_thumb(path.split("/thumb/", 1)[1])
+        elif path.startswith("/thumb_small/"):
+            self._serve_thumb_small(path.split("/thumb_small/", 1)[1])
         elif path.startswith("/avatar/"):
             self._serve_avatar(path.split("/avatar/", 1)[1])
         elif path == "/health":
@@ -517,6 +794,9 @@ class Handler(BaseHTTPRequestHandler):
                     "newer": newer,
                     "url": data.get("url", ""),
                     "notes": data.get("notes", ""),
+                    "frontend_url": data.get("frontend_url", ""),
+                    "download_url": data.get("download_url", ""),
+                    "update_kind": data.get("update_kind", "full"),
                 })
             except Exception as e:
                 self._json(200, {"ok": False, "error": str(e), "current": VERSION})
@@ -525,10 +805,6 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/video-notes":
             vid = parse_qs(parsed.query).get("video_id", [""])[0]
             self._json(200, {"notes": db.get_video_notes(vid)})
-        elif path == "/api/all-video-notes":
-            ids = parse_qs(parsed.query).get("ids", [""])[0].split(",")
-            ids = [i for i in ids if i]
-            self._json(200, {"notes": db.video_notes_for_videos(ids)})
         elif path.startswith("/fonts/"):
             self._serve_static(path.lstrip("/"), "font/woff2")
         elif path.endswith(".css"):
@@ -555,6 +831,47 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(500, {"error": str(e)})
             except Exception:
                 pass
+
+    # ─────────────────────────────────────────────────────────────
+    # 🔑 LICENSING — βοηθητικά (license.json + Gumroad verify)
+    # ─────────────────────────────────────────────────────────────
+    def _license_check_off(self):
+        """🧪 DEV MODE: αν το .env έχει LICENSE_CHECK=off, το licensing ΠΑΡΑΚΑΜΠΤΕΤΑΙ.
+        Χρησιμοποιείται ΜΟΝΟ στο dev μηχάνημα (Desktop build) για εύκολες δοκιμές.
+        Το .env ΔΕΝ μπαίνει στο installer build → ο πελάτης έχει ΠΑΝΤΑ check ενεργό."""
+        return (_env("LICENSE_CHECK", "").strip().lower() == "off")
+
+    def _license_path(self):
+        """⚠️ DEPRECATED — το license state πάει ΠΛΕΟΝ ΣΤΗ ΒΑΣΗ (όχι αρχείο).
+        Κράτησε τη μέθοδο για backward-compat αλλά ΔΕΝ χρησιμοποιείται."""
+        return os.path.join(db.data_dir(), "license.json")
+
+    def _read_license(self):
+        # 🔑 Το license state ζει ΣΤΗ ΒΑΣΗ (ui_state key='license'),
+        #    ΟΧΙ σε αρχείο — ώστε να επιζεί από update/uninstall/reinstall.
+        return db.get_key("license") or {}
+
+    def _write_license(self, state):
+        db.set_key("license", state)
+
+    def _verify_license(self, key, increment_uses):
+        """Καλεί το Gumroad /v2/licenses/verify. Επιστρέφει dict, ΠΟΤΕ δεν ρίχνει."""
+        try:
+            body = urllib.parse.urlencode({
+                "product_id": _env("GUMROAD_PRODUCT_ID", ""),
+                "license_key": key,
+                "increment_uses_count": "true" if increment_uses else "false",
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                GUMROAD_VERIFY_URL, data=body,
+                headers={"Content-Type": "application/x-www-form-urlencoded",
+                         "User-Agent": "PrivacyYouTuber/1.0"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=8) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def _handle_post(self, path, data):
         if path == "/watch":
@@ -594,14 +911,33 @@ class Handler(BaseHTTPRequestHandler):
             db.delete_tag(data.get("tag"))
             self._json(200, {"ok": True})
         elif path == "/ui_state":
-            st = {
-                "collapsed": data.get("collapsed") or [],
-                "order": data.get("order") or [],
-                "cat_order": data.get("cat_order") or [],
-                "cat_collapsed": data.get("cat_collapsed") or [],
-            }
+            # 🔁 MERGE: ξεκίνα από το υπάρχον state, ώστε partial updates (π.χ. μόνο theme)
+            #    να ΜΗΝ σβήνουν τα υπόλοιπα (tab_order, cat_order, collapsed κ.λπ.).
+            try:
+                st = dict(db.get_ui_state() or {})
+            except Exception:
+                st = {}
+            for k in ("collapsed", "expanded", "order", "tab_order", "cat_order", "cat_collapsed", "cat_pinned"):
+                if k in data and data[k]:
+                    st[k] = data[k]
+                elif k not in st:
+                    st[k] = []
+            # Συμβατότητα με την παλιά λογική (αν λείπουν τελείως):
+            st.setdefault("collapsed", [])
+            st.setdefault("expanded", [])
+            st.setdefault("order", [])
+            st.setdefault("tab_order", [])
+            st.setdefault("cat_order", [])
+            st.setdefault("cat_collapsed", [])
+            st.setdefault("cat_pinned", [])
             if "rss_shown" in data and isinstance(data["rss_shown"], int) and data["rss_shown"] >= 1:
                 st["rss_shown"] = data["rss_shown"]
+            # 🌙/☀️ Θέμα (dark/light) — επιμένει στη βάση (το localStorage δεν κρατά στο WebView).
+            if data.get("theme") in ("dark", "light"):
+                st["theme"] = data["theme"]
+            # 🌐 Γλώσσα (en/el) — ίδιος λόγος: το localStorage δεν κρατά στο WebView.
+            if data.get("lang") in ("en", "el"):
+                st["lang"] = data["lang"]
             db.set_ui_state(st)
             self._json(200, {"ok": True})
         elif path == "/pin":
@@ -620,6 +956,9 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/reorder":
             db.reorder_videos(data.get("ordered_ids") or [])
             self._json(200, {"ok": True})
+        elif path == "/reorder_cat":
+            db.reorder_cat_videos(data.get("ordered_ids") or [])
+            self._json(200, {"ok": True})
         elif path == "/watch_channel":
             db.set_channel_watch(data.get("channel_id"), data.get("enabled", True))
             self._json(200, {"ok": True})
@@ -630,18 +969,126 @@ class Handler(BaseHTTPRequestHandler):
             if not q:
                 self._json(400, {"ok": False, "error": "Δώσε κάτι να ψάξω."})
                 return
-            limit = int(data.get("limit", 10) or 10)
+            # 📄 ΜΙΑ σελίδα = 24 βίντεο (όσο κατεβάζει το YouTube ανά κλήση). Ίδιο νούμερο για ΚΑΤΕΒΑΣΜΑ και ΕΜΦΑΝΙΣΗ:
+            #    καμία σπατάλη (πριν: κατέβαζε 24, έδειχνε 10 → 14 πετιόνταν).
+            #    Μετρημένο: ytsearch16 ≈ 1,5s — το πιο γρήγορο από τα δοκιμασμένα.
+            limit = int(data.get("limit", 24) or 24)
+            page_size = max(1, min(48, limit))     # πόσα δείχνει το frontend ανά σελίδα
             mode = (data.get("mode") or "videos").strip()
             offset = int(data.get("offset", 0) or 0)
-            res = youtube_search(q, mode=mode, offset=offset)
-            videos = res["videos"]
-            # 🧹 Φιλτράρισε non-embeddable (παίζουν μόνο όσα επιτρέπουν embed) — cached/fail-open.
-            if videos:
-                vids_ids = [v["video_id"] for v in videos]
-                ok_ids = set(filter_embeddable(vids_ids))
-                videos = [v for v in videos if v["video_id"] in ok_ids]
-                # διορθώνουμε το has_more αν φιλτράραμε πολλά
-            self._json(200, {"ok": True, "videos": videos, "channels": res["channels"], "has_more": res["has_more"]})
+            # 🔍 ΑΝΑΖΗΤΗΣΗ ΜΕ CACHE (ό,τι κάναμε στα κανάλια):
+            #   • ΙΔΙΟ query+mode και ξέρουμε ήδη αποτελέσματα; → ΑΚΑΡΙΑΙΑ από τη βάση.
+            #   • Αν λείπει κι άλλο (φτάσαμε στο τέλος της cache) → φέρνουμε φρέσκα & αποθηκεύουμε.
+            #   Η CACHE είναι το «σύνολο», όπως το channel_videos_cache — τα «Επόμενα» μηδέν δίκτυο.
+
+            def _chan(rows):
+                # Μετατροπή γραμμών cache -> κανάλια (το frontend θέλει channel_id/channel/name).
+                out = []
+                for r in rows:
+                    cid = r.get("channel_id") or r.get("video_id") or ""
+                    nomi = r.get("title") or r.get("channel") or ""
+                    out.append({"channel_id": cid, "channel": nomi, "name": nomi, "title": nomi})
+                return out
+
+            def _from_cache(off, lim):
+                rows = db.get_search_results(q, mode, offset=off, limit=lim)
+                # Μετατροπή στη μορφή που περιμένει το frontend.
+                # ⚠️ ΤΟ «thumb» ΕΙΝΑΙ ΑΠΑΡΑΙΤΗΤΟ: χωρίς αυτό η <img> δεν φορτώνει και μένει το χρώμα.
+                out = []
+                for r in rows:
+                    vid = r.get("video_id") or ""
+                    out.append({"video_id": vid, "title": r.get("title") or "",
+                                "channel": r.get("channel") or "",
+                                "thumb": f"https://i.ytimg.com/vi/{vid}/mqdefault.jpg",
+                                "duration": r.get("duration") or 0, "views": r.get("views") or 0})
+                return out
+
+            cached_total = db.count_search_results(q, mode)
+            # 📥 Ζητάμε ΠΕΡΙΣΣΟΤΕΡΑ από όσα δείχνουμε: το φίλτρο embed κόβει μερικά,
+            #    και χωρίς περίσσευμα η σελίδα «γεμίζει» λιγότερο από 24 → φαινόταν «τέλος»
+            #    ενώ το YouTube είχε εκατοντάδες (π.χ. «C» → 23/24 → ΤΕΛΟΣ).
+            #    Ζητάμε 2× το page_size ώστε μετά το φίλτρο να μείνουν ≥24.
+            CHUNK = max(24, page_size * 2)
+
+            # Αν σε ΠΡΟΗΓΟΥΜΕΝΗ προσπάθεια το δίκτυο δεν έδωσε τίποτα, μην ξαναπροσπαθείς (κόβει τα 13s στο βάθος).
+            # ✅ Έχουμε ΟΛΗ τη ζητούμενη σελίδα ή ξέρουμε ότι τελείωσε → απάντηση ΧΩΡΙΣ δίκτυο.
+            if db.search_exhausted(q, mode) or cached_total >= offset + page_size:
+                rows = _from_cache(offset, page_size)
+                # ✅ ΣΥΝΤΗΡΗΤΙΚΟ: Όταν ΔΕΝ ξέρουμε σίγουρα ότι τελείωσε, λέμε «έχει κι άλλα».
+                #    Καλύτερα ένα «Επόμενα» που δεν βρίσκει τίποτα, παρά να ΚΡΥΨΟΥΜΕ
+                #    εκατοντάδες βίντεο λέγοντας ψεύτικο «τέλος» (συνέβη με το query «C»).
+                #    Το οριστικό τέλος το ξέρει ΜΟΝΟ το search_exhausted.
+                has_more = True
+                if mode == "channels":
+                    self._json(200, {"ok": True, "videos": [], "channels": _chan(rows), "has_more": has_more,
+                                     "cached": cached_total, "from_cache": True})
+                else:
+                    self._json(200, {"ok": True, "videos": rows, "channels": [], "has_more": has_more,
+                                     "cached": cached_total, "from_cache": True})
+                return
+
+            # 🛑 Αν ξέρουμε ότι το YouTube ΕΞΑΝΤΛΗΘΗΚΕ (position -1 στη cache), μη ξαναρωτάς.
+            if db.search_exhausted(q, mode):
+                rows = _from_cache(offset, page_size)
+                if mode == "channels":
+                    self._json(200, {"ok": True, "videos": [], "channels": _chan(rows), "has_more": False,
+                                     "cached": cached_total, "from_cache": True})
+                else:
+                    self._json(200, {"ok": True, "videos": rows, "channels": [], "has_more": False,
+                                     "cached": cached_total, "from_cache": True})
+                return
+
+            # 🌐 Χρειάζεται δίκτυο: ΜΙΑ κλήση με το σωστό πλήθος (CHUNK) — όχι βρόχος.
+            #    (Ο βρόχος έκανε 5 κλήσεις × yt-dlp = 25s· μία κλήση ίδιου εύρους = ~6s.)
+            res = youtube_search(q, mode=mode, offset=offset, limit=CHUNK)
+            fresh = res["videos"] if mode != "channels" else res["channels"]
+            # 🧹 Φιλτράρισε non-embeddable — ΜΟΝΟ τα βίντεο (τα κανάλια δεν έχουν video_id).
+            if fresh and mode != "channels":
+                ok_ids = set(filter_embeddable([v["video_id"] for v in fresh]))
+                fresh = [v for v in fresh if v["video_id"] in ok_ids]
+            # 💾 Αποθήκευσε στη ΣΩΣΤΗ θέση:
+            #    • offset=0 → νέα σελίδα 1: καθάρισε τα παλιά (replace_all=True).
+            #    • offset>0 → βάλε τα νέα ΜΕΤΑ τα υπάρχοντα (θέση = offset), ΧΩΡΙΣ να σβήσεις τα προηγούμενα.
+            try:
+                db.save_search_results(q, mode, fresh, start=offset, replace_all=(offset == 0))
+                # 🛑 «Εξαντλήθηκε» ΜΟΝΟ αν το YouTube (πριν το φίλτρο) δεν έδωσε απολύτως τίποτα.
+                if not (res.get("videos") if mode != "channels" else res.get("channels")):
+                    db.mark_search_exhausted(q, mode)
+            except Exception:
+                pass
+            rows = _from_cache(offset, page_size)
+            # ✅ «Έχει κι άλλα;» = ΤΟ YOUTUBE έδωσε όσα ζητήσαμε (πριν το φίλτρο) —
+            #    ΟΧΙ αν γέμισε η σελίδα μας. Αλλιώς ένα κομμένο βίντεο έλεγε «τέλος».
+            kept = db.count_search_results(q, mode)          # πόσα έχουμε συνολικά στη cache
+            # ✅ Πήραμε ΑΠΟΤΕΛΕΣΜΑΤΑ από το YouTube → υποθέτουμε ότι έχει κι άλλα.
+            #    (Ο server δεν ξέρει το σύνολο του YouTube — ας μη «κλείνει την πόρτα».)
+            more_available = bool(res.get("videos") if mode != "channels" else res.get("channels"))
+            if mode == "channels":
+                self._json(200, {"ok": True, "videos": [], "channels": _chan(rows),
+                                 "has_more": more_available,
+                                 "cached": kept, "from_cache": False})
+            else:
+                self._json(200, {"ok": True, "videos": rows, "channels": [],
+                                 "has_more": more_available,
+                                 "cached": kept, "from_cache": False})
+        elif path == "/colors":
+            # 🎨 Ασύγχρονο batch dominant color — το frontend το καλεί ΜΕΤΑ το render (δεν μπλοκάρει το search).
+            ids = data.get("ids") or []
+            ids = [i for i in ids[:48] if i]
+            colors = {}
+
+            def _col(vid):
+                try:
+                    return vid, get_dominant_color(vid)
+                except Exception:
+                    return vid, None
+
+            if ids:
+                with ThreadPoolExecutor(max_workers=8) as ex:     # ⚡ παράλληλα (πριν: σειριακά)
+                    for vid, c in ex.map(_col, ids):
+                        if c:
+                            colors[vid] = c
+            self._json(200, {"ok": True, "colors": colors})
         elif path == "/recent_search":
             db.add_recent_search(data.get("q"))
             self._json(200, {"ok": True, "searches": db.get_recent_searches()})
@@ -678,6 +1125,119 @@ class Handler(BaseHTTPRequestHandler):
             total = db.count_cached_channel_videos(cid)
             self._json(200, {"ok": True, "videos": page, "total": total,
                              "has_more": offset + limit < total})
+        elif path == "/fetch_channel":
+            # 📡 «Επόμενα» σε ένα κανάλι — ΕΞΥΠΝΟ, δύο φάσεις:
+            #   ΦΑΣΗ 1 (ψυχρή cache): κατεβάζει ΟΛΟ το ιστορικό (500) μία φορά, το αποθηκεύει
+            #                         στη channel_videos_cache, και δίνει τα πρώτα N άγνωστα.
+            #   ΦΑΣΗ 2 (ζεστή cache): ΜΗΔΕΝ δίκτυο — δίνει την επόμενη παρτίδα από τη βάση.
+            #   Αν το κανάλι αποκτήσει νέα βίντεο, το φθηνό RSS το καταλαβαίνει και ξαναγεμίζει.
+            cid = (data.get("channel_id") or "").strip()
+            if not cid:
+                self._json(400, {"ok": False, "error": "Λείπει channel_id."})
+                return
+            limit = max(1, min(48, int(data.get("limit", 24) or 24)))
+            offset = max(0, int(data.get("offset", 0) or 0))
+
+            cached_n = db.count_cached_channel_videos(cid)
+            known_first = db.first_cached_channel_video(cid)
+
+            # 🧠 Χρειάζεται ξαναγέμισμα; (πρώτη φορά, ή το RSS δείχνει νεότερο βίντεο απ' ό,τι ξέρουμε)
+            need_refill = cached_n == 0
+            if not need_refill and known_first:
+                rss_probe = fetch_rss(cid)
+                if rss_probe and rss_probe[0].get("video_id") != known_first:
+                    need_refill = True
+
+            if need_refill:
+                # ΦΑΣΗ 1: ένα βαθύ κατέβασμα (500) → μετά ΟΛΑ είναι τοπικά.
+                from concurrent.futures import ThreadPoolExecutor as _TPE
+                with _TPE(max_workers=2) as _ex:
+                    _f_rss = _ex.submit(fetch_rss, cid)
+                    _f_yt = _ex.submit(fetch_channel_videos_ytdlp, cid, 500)
+                    try:
+                        rss_entries = _f_rss.result() or []
+                    except Exception:
+                        rss_entries = []
+                    try:
+                        yt_entries = _f_yt.result() or []
+                    except Exception:
+                        yt_entries = []
+                # Ένωση: RSS (φρέσκα) πρώτα, μετά το yt-dlp — χωρίς διπλά.
+                seen_ids = set()
+                entries = []
+                for e in list(rss_entries) + list(yt_entries):
+                    vid = e.get("video_id")
+                    if not vid or vid in seen_ids:
+                        continue
+                    seen_ids.add(vid)
+                    entries.append(e)
+                if entries:
+                    try:
+                        db.cache_channel_videos(cid, entries)
+                    except Exception:
+                        pass
+
+            # ΦΑΣΗ 2: δώσε από τη cache — ΜΗΔΕΝ δίκτυο.
+            #   ⚠️ Το offset μετρά ΘΕΣΕΙΣ ΣΤΗ CACHE (όχι «πόσα νέα πήρα»): τα πρώτα πολλά
+            #   είναι ήδη γνωστά/πεταμένα, γι' αυτό ένα σκέτο +24 θα ξαναδιάβαζε τις ίδιες θέσεις.
+            seen = set(db.all_video_ids())
+            dismissed = set(db.dismissed_ids())
+            all_cached = db.get_cached_channel_videos(cid, offset=0, limit=5000)
+            new_items = []
+            cursor = offset
+            for e in all_cached[offset:]:
+                cursor += 1
+                vid = e.get("video_id")
+                if not vid or vid in seen or vid in dismissed:
+                    continue
+                new_items.append({
+                    "video_id": vid,
+                    "title": e.get("title") or vid,
+                    "channel": "",
+                    "channel_id": cid,
+                    "published": "",
+                })
+                if len(new_items) >= limit:
+                    break
+            next_offset = cursor              # ← η ΘΕΣΗ στη cache όπου σταματήσαμε
+            has_more = next_offset < len(all_cached)
+            self._json(200, {
+                "ok": True,
+                "videos": new_items,
+                "has_more": has_more,
+                "next_offset": next_offset,
+                "total_cached": len(all_cached),
+            })
+        elif path == "/add_many":
+            # 📡 Μαζική προσθήκη (για fetch) — ΧΩΡΙΣ scrape (τα metadata τα ξέρουμε ήδη).
+            # items: [{video_id, title, channel, channel_id}...]. Πολύ πιο γρήγορο από 24 χωριστά /add.
+            items = data.get("items") or []
+            added = []
+            # 🔒 Αν λείπουν ονόματα, κατέβασέ τα ΜΙΑ φορά ανά channel_id (cache στο channel_watch).
+            name_cache = {}
+            # 🚫 ΠΟΤΕ ξανά ό,τι έχεις διαγράψει: το − / το × είναι οριστικά.
+            _dismissed = set(db.dismissed_ids())
+            for it in items:
+                vid = it.get("video_id")
+                if not vid:
+                    continue
+                if vid in _dismissed:
+                    continue                      # το πέταξες → δεν ξαναμπαίνει ΠΟΤΕ
+                ch = (it.get("channel") or "").strip()
+                cid = (it.get("channel_id") or "").strip()
+                if not ch and cid:
+                    if cid not in name_cache:
+                        name_cache[cid] = _resolve_channel_name(cid)
+                    ch = name_cache[cid] or cid
+                db.record_watch({
+                    "video_id": vid,
+                    "title": it.get("title") or vid,
+                    "channel": ch,
+                    "channel_id": cid,
+                    "unseen": bool(it.get("mark_unseen", True)),
+                })
+                added.append(vid)
+            self._json(200, {"ok": True, "added": added})
         elif path == "/dismiss_video":
             db.dismiss_video(data.get("video_id"))
             self._json(200, {"ok": True})
@@ -687,10 +1247,9 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(400, {"ok": False, "error": "Δεν κατάλαβα το link — δώσε ένα YouTube URL."})
                 return
             info = scrape_video_info(vid) or {}
-            # ✅ Οποιοδήποτε ➕ (URL, search, feed, window) = ΕΓΚΡΙΝΕΤΑΙ ΑΜΕΣΩΣ.
-            # Δεν υπάρχει πια «υπό έγκριση»/ΝΕΟ για χειροκίνητη προσθήκη.
-            # Αν το frontend στέλνει channel_id/channel (από feed), τα εμπιστευόμαστε
-            # αντί να βασιστούμε στο scrape (γρηγορότερο + δεν χάνει το κανάλι).
+            # ✅ Χειροκίνητο ➕ (URL, search) = εγκεκριμένο (unseen=0).
+            # 📡 Fetch από feed → unseen=1 (δείχνει NEW badge μέχρι να το δεις).
+            mark_unseen = bool(data.get("mark_unseen", False))
             cid = (data.get("channel_id") or "").strip() or info.get("channel_id")
             chname = (data.get("channel") or "").strip() or info.get("channel")
             db.record_watch({
@@ -698,7 +1257,7 @@ class Handler(BaseHTTPRequestHandler):
                 "title": info.get("title") or vid,
                 "channel": chname,
                 "channel_id": cid,
-                "unseen": False,
+                "unseen": mark_unseen,
             })
             self._json(200, {"ok": True, "video_id": vid, "title": info.get("title") or vid})
         elif path == "/mark_seen":
@@ -728,6 +1287,120 @@ class Handler(BaseHTTPRequestHandler):
             self._do_import()
         elif path == "/import_subscriptions":
             self._import_subscriptions()
+        elif path == "/activate_license":
+            # 🧪 DEV MODE: αν LICENSE_CHECK=off, «ενεργοποίησε» αμέσως — χωρίς key.
+            if self._license_check_off():
+                state = {"activated": True, "license_key": "DEV-BYPASS",
+                         "last_check": datetime.now().isoformat(), "fail_count": 0}
+                self._write_license(state)
+                self._json(200, {"ok": True, "activated": True, "dev": True})
+                return
+            # 🔑 ΠΡΩΤΗ ενεργοποίηση (online υποχρεωτικά). Ανεβάζει το uses.
+            key = (data.get("license_key") or "").strip()
+            if not key:
+                self._json(400, {"ok": False, "error": "Δώσε το license key."})
+                return
+            res = self._verify_license(key, increment_uses=True)
+            purchase = res.get("purchase") or {}
+            if res.get("success") and not purchase.get("refunded") and not purchase.get("disputed") \
+                    and int(res.get("uses", 0)) <= LICENSE_MAX_USES:
+                state = {
+                    "activated": True,
+                    "license_key": key,
+                    "last_check": datetime.now().isoformat(),
+                    "fail_count": 0,
+                }
+                self._write_license(state)
+                self._json(200, {"ok": True, "activated": True})
+            elif not res.get("success"):
+                self._json(200, {"ok": False, "activated": False,
+                                 "error": "Μη έγκυρο key ή πρόβλημα σύνδεσης."})
+            else:
+                self._json(200, {"ok": False, "activated": False,
+                                 "error": "Αυτό το key έχει ήδη χρησιμοποιηθεί πολλές φορές ή η αγορά έχει επιστραφεί."})
+        elif path == "/verify_license":
+            # 🧪 DEV MODE: αν LICENSE_CHECK=off, πες «ενεργό» αμέσως — χωρίς δίκτυο, χωρίς Gumroad.
+            if self._license_check_off():
+                self._json(200, {"ok": True, "activated": True, "dev": True})
+                return
+            # 🔑 Σιωπηλός επανέλεγχος (3 μέρες, ΔΕΝ ανεβάζει uses). Ο τίμιος δεν βλέπει τίποτα.
+            state = self._read_license()
+            key = state.get("license_key") or (data.get("license_key") or "").strip()
+            if not state.get("activated") and not key:
+                self._json(200, {"ok": False, "activated": False, "needs_activation": True})
+                return
+            # Πέρασε το LICENSE_RECHECK_DAYS από το τελευταίο επιτυχημένο check;
+            try:
+                last = datetime.fromisoformat(state.get("last_check", "")) if state.get("last_check") else None
+            except ValueError:
+                last = None
+            if last and (datetime.now() - last).days < LICENSE_RECHECK_DAYS:
+                self._json(200, {"ok": True, "activated": True, "grace": False})
+                return
+            # Κάνε τον έλεγχο (fail-open: αν ΔΕΝ μπορείς να φτάσεις το Gumroad, δώσε 1 χάρη).
+            res = self._verify_license(key, increment_uses=False)
+            purchase = res.get("purchase") or {}
+            if res.get("success") and not purchase.get("refunded") and not purchase.get("disputed") \
+                    and int(res.get("uses", 0)) <= LICENSE_MAX_USES:
+                state.update({"activated": True, "last_check": datetime.now().isoformat(), "fail_count": 0})
+                self._write_license(state)
+                self._json(200, {"ok": True, "activated": True, "grace": False})
+            elif purchase.get("refunded") or purchase.get("disputed") or \
+                    (res.get("success") and int(res.get("uses", 0)) > LICENSE_MAX_USES):
+                # Οριστικό κλείσιμο — refund ή μη νόμιμη χρήση. Καμία χάρη.
+                state.update({"activated": False, "fail_count": 99})
+                self._write_license(state)
+                self._json(200, {"ok": False, "activated": False,
+                                 "error": "Το license έχει ακυρωθεί ή χρησιμοποιηθεί υπερβολικά."})
+            else:
+                # Δεν μπόρεσε να φτάσει το Gumroad (offline/API down) → χάρη.
+                fails = int(state.get("fail_count", 0)) + 1
+                if fails <= LICENSE_MAX_FAILS:
+                    state["fail_count"] = fails
+                    self._write_license(state)
+                    self._json(200, {"ok": True, "activated": True, "grace": True,
+                                     "fails_left": LICENSE_MAX_FAILS - fails})
+                else:
+                    state["fail_count"] = fails
+                    self._write_license(state)
+                    self._json(200, {"ok": False, "activated": False,
+                                     "error": "Χρειάζεται σύνδεση στο διαδίκτυο για έλεγχο license."})
+        elif path == "/frontend_update":
+            # 🚀 Αυτόματο frontend update: κατεβάζει το νέο index.html και το βάζει
+            #    στο ΜΟΝΙΜΟ override φάκελο (data_dir/web/). ΔΕΝ χρειάζεται reinstall.
+            #    Ο server προτιμά το override από το built-in (_index_html_path).
+            frontend_url = (data.get("frontend_url") or "").strip()
+            if not frontend_url:
+                self._json(400, {"ok": False, "error": "Λείπει frontend_url."})
+                return
+            html = _fetch_bytes(frontend_url, timeout=30)
+            if not html:
+                self._json(200, {"ok": False, "error": "Δεν κατέβηκε το αρχείο."})
+                return
+            override_dir = _web_override_dir()
+            os.makedirs(override_dir, exist_ok=True)
+            target = os.path.join(override_dir, "index.html")
+            try:
+                with open(target, "wb") as f:
+                    f.write(html)
+            except OSError as e:
+                self._json(200, {"ok": False, "error": f"Δεν γράφτηκε: {e}"})
+                return
+            # 🌐 Κατέβασε ΚΑΙ το i18n.json (νέα keys/μεταφράσεις) από τον ίδιο φάκελο
+            #    του frontend_url — αλλιώς το UI θα δείχνει raw keys (π.χ. help.title).
+            extra = {}
+            try:
+                base = frontend_url.rsplit("/", 1)[0]
+                for asset in ("i18n.json", "i18n.js"):
+                    blob = _fetch_bytes(base + "/" + asset, timeout=20)
+                    if blob:
+                        with open(os.path.join(override_dir, asset), "wb") as f:
+                            f.write(blob)
+                        extra[asset] = len(blob)
+            except Exception:
+                pass
+            self._json(200, {"ok": True, "bytes": len(html), "extra": extra,
+                             "message": "Ενημέρωση UI ολοκληρώθηκε. Κλείσε ξανά την εφαρμογή."})
         else:
             self._json(404, {"error": "not found"})
 
@@ -812,18 +1485,49 @@ def _open_private(url):
     )
     for p in brave_paths:
         if os.path.exists(p):
-            subprocess.Popen([p, "--incognito", url])
+            subprocess.Popen([p, "--incognito", url], creationflags=_NO_WINDOW)
             return
     chrome = shutil.which("chrome.exe") or shutil.which("chrome") or shutil.which("google-chrome")
     if chrome:
-        subprocess.Popen([chrome, "--incognito", url])
+        subprocess.Popen([chrome, "--incognito", url], creationflags=_NO_WINDOW)
         return
     edge = shutil.which("msedge.exe")
     if edge:
-        subprocess.Popen([edge, "--inprivate", url])
+        subprocess.Popen([edge, "--inprivate", url], creationflags=_NO_WINDOW)
         return
     webbrowser.open(url)
 
+
+
+
+def _kill_orphan_webviews():
+    """Καθαρίζει τα WebView2 processes μετά το κλείσιμο του παραθύρου.
+
+    Γιατί: το pywebview/WebView2 αφήνει ορφανά msedgewebview2 processes (~400MB, 6 procs)
+    που συνεχίζουν να τρέχουν και να ζεσταίνουν το μηχάνημα.
+
+    Πώς: το WebView2 root process έχει parent = τη δική μας διεργασία, και όλα τα
+    child renderers κρέμονται από αυτό το root. Σκοτώνοντας ΜΟΝΟ το root, τα παιδιά
+    πεθαίνουν μαζί (συμπεριφορά Chromium). Δεν αγγίζουμε WebView2 άλλων εφαρμογών.
+    """
+    import subprocess
+    mypid = os.getpid()
+    try:
+        # Χρησιμοποιούμε PowerShell (το wmic είναι deprecated/απόν από τα Win11).
+        ps = (
+            "$me=" + str(mypid) + "; "
+            "Get-CimInstance Win32_Process -Filter \"Name='msedgewebview2.exe'\" "
+            "-ErrorAction SilentlyContinue | "
+            "Where-Object { $_.ParentProcessId -eq $me } | "
+            "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+        )
+        subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+            capture_output=True, timeout=10,
+            creationflags=_NO_WINDOW,      # 🪟 κρύβει το παράθυρο κονσόλας (ήταν ορατό!)
+        )
+    except Exception:
+        pass
 
 def _open_window(url):
     """Ανοίγει το app σε native window (pywebview) αν υπάρχει· αλλιώς στον browser.
@@ -854,6 +1558,10 @@ def _open_window(url):
                 pass
         window.events.loaded += _on_loaded_max
         webview.start()
+        # 🧹 ΚΑΘΑΡΙΣΜΟΣ: το pywebview/WebView2 αφήνει ΟΡΦΑΝΑ child processes (msedgewebview2)
+        #    όταν το παράθυρο κλείσει. Χωρίς αυτό, μένουν ~400MB + 6 processes να ζεσταίνουν
+        #    το μηχάνημα. Τα σκοτώνουμε ΜΟΝΟ όσα ανήκουν στο δικό μας process tree.
+        _kill_orphan_webviews()
         return
     except Exception:
         # pywebview δεν υπάρχει ή απέτυχε → πέσε στον ασφαλή browser δρόμο.
@@ -1005,32 +1713,34 @@ def fetch_rss_with_fallback(channel_id, timeout=15):
     return fetch_channel_videos_ytdlp(channel_id)
 
 
-def youtube_search(query, mode="videos", offset=0):
+def youtube_search(query, mode="videos", offset=0, limit=24):
     """Αναζητά το YouTube (χωρίς API key, χωρίς server).
 
     mode:
-        "videos"   → ΜΟΝΟ βίντεο (50/σελίδα, με offset για Next)
-        "channels" → ΜΟΝΟ κανάλια (50 με τη μία, χωρίς pagination)
-        "both"     → 25 βίντεο + 25 κανάλια (ισορροπία)
+        "videos"   → ΜΟΝΟ βίντεο (24/σελίδα, με offset για Next)
+        "channels" → ΜΟΝΟ κανάλια (24 με τη μία, χωρίς pagination)
+        "both"     → 24 βίντεο + 24 κανάλια (ισορροπία)
 
     Επιστρέφει:
         {"videos": [...], "channels": [...], "has_more": bool}
     """
-    page = 50
+    page = max(1, int(limit or 24))
     if mode == "channels":
         videos = []
-        channels = _search_channels_scrape(query, page)
-        has_more = False          # κανάλια: χωρίς Next (best-effort stability)
+        channels = _search_channels_scrape(query, page, offset)
+        has_more = len(channels) == page
     elif mode == "both":
-        half = 25
+        half = page
         videos = _search_videos_ytdlp(query, half, offset=offset)
-        channels = _search_channels_scrape(query, half)
-        has_more = len(videos) == half
+        channels = _search_channels_scrape(query, half, offset)
+        has_more = (len(videos) == half) or (len(channels) == half)
     else:  # "videos" (default)
         videos = _search_videos_ytdlp(query, page, offset=offset)
         channels = []
         has_more = len(videos) == page
     return {"videos": videos or [], "channels": channels or [], "has_more": has_more}
+
+
 
 
 def _search_videos_ytdlp(query, limit=10, offset=0):
@@ -1068,40 +1778,100 @@ def _search_videos_ytdlp(query, limit=10, offset=0):
     return out
 
 
-def _search_channels_scrape(query, limit=10):
-    """Ψάχνει ΚΑΝάλια στο YouTube (results page, filter channels) και
-    τα παράρει από το ytInitialData JSON."""
-    import urllib.parse
-    url = ("https://www.youtube.com/results?search_query="
-           + urllib.parse.quote(query) + "&sp=EgIQAg%3D%3D")
-    txt = _fetch_text(url, timeout=12, ua="Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0")
+def _search_channels_scrape(query, limit=24, offset=0):
+    """Ψάχνει ΚΑΝάλια στο YouTube (results page, filter channels) με σελιδοποίηση
+    μέσω continuation token. Επιστρέφει τα κανάλια της «σελίδας» offset..offset+limit."""
+    import urllib.parse, urllib.request
+    UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0"
+    base = ("https://www.youtube.com/results?search_query="
+            + urllib.parse.quote(query) + "&sp=EgIQAg%3D%3D")
+    txt = _fetch_text(base, timeout=12, ua=UA)
     if not txt:
         return []
-    m = re.search(r"var ytInitialData = (\{.*?\});", txt, re.DOTALL)
-    if not m:
-        return []
-    try:
-        data = json.loads(m.group(1))
-    except Exception:
-        return []
+
+    # API key για continuation: πρώτα από το .env (YT_API_KEY), αλλιώς το γνωστό δημόσιο WEB key.
+    api_key = _env("YT_API_KEY", "")
+    m = re.search(r'"INNERTUBE_API_KEY":"([^"]+)"', txt)
+    if m:
+        api_key = m.group(1)
+
+    def collect(data):
+        out = []
+        def _walk(obj):
+            if isinstance(obj, dict):
+                if "channelRenderer" in obj:
+                    ch = obj["channelRenderer"]
+                    cid = ch.get("channelId", "")
+                    name = ch.get("title", {}).get("simpleText", "")
+                    if cid:
+                        out.append({"channel_id": cid, "name": name})
+                for v in obj.values():
+                    _walk(v)
+            elif isinstance(obj, list):
+                for v in obj:
+                    _walk(v)
+        _walk(data)
+        return out
+
+    def find_token(data):
+        found = []
+        def _walk(obj):
+            if isinstance(obj, dict):
+                if "continuationCommand" in obj:
+                    tok = obj["continuationCommand"].get("token", "")
+                    if tok:
+                        found.append(tok)
+                for v in obj.values():
+                    _walk(v)
+            elif isinstance(obj, list):
+                for v in obj:
+                    _walk(v)
+        _walk(data)
+        return found[0] if found else None
+
     channels = []
+    token = None
+    m = re.search(r"var ytInitialData = (\{.*?\});", txt, re.DOTALL)
+    if m:
+        try:
+            data = json.loads(m.group(1))
+        except Exception:
+            data = None
+        if data:
+            channels.extend(collect(data))
+            token = find_token(data)
 
-    def _walk(obj):
-        if isinstance(obj, dict):
-            if "channelRenderer" in obj:
-                ch = obj["channelRenderer"]
-                cid = ch.get("channelId", "")
-                name = ch.get("title", {}).get("simpleText", "")
-                if cid:
-                    channels.append({"channel_id": cid, "name": name})
-            for v in obj.values():
-                _walk(v)
-        elif isinstance(obj, list):
-            for v in obj:
-                _walk(v)
+    # Σελιδοποίηση: συνέχισε μέχρι να μαζέψουμε offset + limit κανάλια.
+    target = offset + limit
+    seen = {c["channel_id"] for c in channels}
+    while len(channels) < target and token and api_key:
+        body = json.dumps({
+            "context": {"client": {"clientName": "WEB", "clientVersion": "2.20240101.00.00",
+                                   "hl": "el", "gl": "GR"}},
+            "continuation": token,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://www.youtube.com/youtubei/v1/search?key=" + api_key,
+            data=body,
+            headers={"Content-Type": "application/json", "User-Agent": UA},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=12) as r:
+                resp = r.read().decode("utf-8", "ignore")
+        except Exception:
+            break
+        try:
+            d = json.loads(resp)
+        except Exception:
+            break
+        new = [c for c in collect(d) if c["channel_id"] not in seen]
+        if not new:
+            break
+        seen.update(c["channel_id"] for c in new)
+        channels.extend(new)
+        token = find_token(d)
 
-    _walk(data)
-    return channels[:limit]
+    return channels[offset:offset + limit]
 
 
 def channel_preview(channel_id):
@@ -1138,8 +1908,19 @@ def channel_preview(channel_id):
     return {"channel_id": channel_id, "name": name, "avatar": avatar, "videos": videos}
 
 
+def _warm_imports():
+    """Προθέρμανση βαριών modules στο background ΜΕΤΑ την εκκίνηση του UI,
+    ώστε το πρώτο search / πρώτο thumbnail-χρώμα να μην πληρώσει το import."""
+    for name in ("PIL.Image", "yt_dlp"):
+        try:
+            __import__(name)
+        except Exception:
+            pass
+
+
 def serve(open_browser=False):
     db.init()
+    threading.Thread(target=_warm_imports, daemon=True).start()
     srv, port = _bind_server(HOST, PORT)
     # cache-busting: μοναδικό query param ώστε ο WebView2 να ΜΗΝ φορτώσει stale HTML.
     url = f"http://{HOST}:{port}/?v={int(datetime.now().timestamp())}"

@@ -1,0 +1,1840 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+
+  :root {
+    --bg: #0d1017;
+    --card: #171c26;
+    --border: #242b38;
+    --text: #e6ebf2;
+    --muted: #8b94a6;
+    --accent: #6c8cff;
+    --accent2: #22d3a5;
+    --danger: #ff6b6b;
+    /* 🧱 Silk UI shadows (dark theme) */
+    --silk-dark: #131315;
+    --silk-light: #292a2e;
+    --silk-extruded: 6px 6px 12px #00000080, -6px -6px 12px #26282e;
+    --silk-inset: inset 6px 6px 12px #00000080, inset -6px -6px 12px #26282e;
+    --silk-extruded-soft: 4px 4px 8px #131315, -4px -4px 8px #292a2e;
+    --silk-inset-soft: inset 4px 4px 8px #131315, inset -4px -4px 8px #292a2e;
+    /* Νεον glow για ενεργά στοιχεία (dark) */
+    --silk-glow: rgba(0, 242, 254, 0.6);
+    --silk-accent: #00f2fe;
+    /* Χρώμα γραμμάτων ΠΑΝΩ στο accent (active buttons/chips) */
+    --accent-fg: #000000;
+    /* Παράγωγα χρώματα (hover / inputs / αστέρια) — για να αλλάζουν κι αυτά με το θέμα */
+    --hover: #1a202c;
+    --dragging: #1e2634;
+    --input-bg: #0d1017;
+    --star-off: #3a4456;
+    /* Κίτρινο των κατηγοριών (dark: κλασικό κίτρινο, light: σκούρο πορτοκαλί) */
+    --cat: #facc15;
+    --cat-rgb: 250, 204, 21;
+    /* Αστέρια ★ / pin 📌 / rating (dark: αμβαρ κίτρινο, light: μπλε) */
+    --star: #fbbf24;
+    --star-rgb: 251, 191, 36;
+  }
+  /* 🌞 Light theme — silk soft UI (off-white) */
+  [data-theme="light"] {
+    --bg: #f0f0f3;
+    --card: #f0f0f3;
+    --border: #d1d1d4;
+    --text: #1b2230;
+    --muted: #66708a;
+    --accent: #3a7bd5;
+    --accent2: #00d2ff;
+    --danger: #e03e3e;
+    /* 🧱 Silk UI shadows (light theme) */
+    --silk-dark: #d1d1d4;
+    --silk-light: #ffffff;
+    --silk-extruded: 6px 6px 12px #d1d1d4, -6px -6px 12px #ffffff;
+    --silk-inset: inset 6px 6px 12px #d1d1d4, inset -6px -6px 12px #ffffff;
+    --silk-extruded-soft: 4px 4px 8px #d1d1d4, -4px -4px 8px #ffffff;
+    --silk-inset-soft: inset 4px 4px 8px #d1d1d4, inset -4px -4px 8px #ffffff;
+    /* Χωρίς neon στο light (καθαρό μπλε gradient) */
+    --silk-glow: rgba(0, 210, 255, 0.35);
+    --silk-accent: #00d2ff;
+    /* Στο light, το accent είναι ΣΚΟΥΡΟ μπλε → άσπρα γράμματα πάνω του (καλό contrast) */
+    --accent-fg: #ffffff;
+    --hover: #eef1f8;
+    --dragging: #e3e8f2;
+    --input-bg: #f0f0f3;
+    --star-off: #c4cadd;
+    /* Σκούρο μπορντό για τις κατηγορίες στο light (αντί κίτρινου) */
+    --cat: #9f1239;
+    --cat-rgb: 159, 18, 57;
+    /* Σκούρο μπορντό αστέρια/pin/rating στο light (αντί αμβαρ) */
+    --star: #9f1239;
+    --star-rgb: 159, 18, 57;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Manrope', -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text);
+    background-attachment: fixed;
+    line-height: 1.5; padding: 32px 20px; max-width: 1240px; margin: 0 auto;
+    transition: background .3s ease, color .3s ease;
+  }
+  /* 🌑 Dark theme: neon glow στα ενεργά/active στοιχεία (drop-shadow cyan) */
+  :root .icon-btn:active,
+  :root .yt-mode.active,
+  :root .tag-chip.match-chip,
+  [data-theme="dark"] .icon-btn:active,
+  [data-theme="dark"] .yt-mode.active,
+  [data-theme="dark"] .tag-chip.match-chip {
+    filter: drop-shadow(0 0 6px var(--silk-glow));
+  }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  h1 { font-size: 28px; letter-spacing: -0.5px; white-space: nowrap; font-weight: 800; }
+  .lock {
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+  }
+  .privacy-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(34, 211, 165, 0.1); color: var(--accent2);
+    border: 1px solid rgba(34, 211, 165, 0.3); border-radius: 999px;
+    padding: 3px 12px; font-size: 12px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .privacy-badge .sep { opacity: .4; }
+  .privacy-badge b { color: var(--accent2); font-size: 12.5px; }
+  /* Backup / Update / Subscriptions — ΔΕΥΤΕΡΗ ΓΡΑΜΜΗ: Update αριστερά (κάτω από το P), τα υπόλοιπα δεξιά. */
+  .backup-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-basis: 100%; justify-content: space-between; }
+  .backup-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .backup-btn {
+    background: var(--bg); color: var(--text); border: none;
+    border-radius: 12px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    box-shadow: var(--silk-extruded-soft);
+    transition: box-shadow .12s, color .12s, transform .12s;
+  }
+  .backup-btn:hover { color: var(--accent); transform: translateY(-1px); }
+  .backup-btn:active { box-shadow: var(--silk-inset-soft); transform: translateY(0); }
+  /* 🌙/☀️ Διακόπτης θέματος */
+  .theme-toggle {
+    background: var(--bg); color: var(--text); border: none;
+    border-radius: 999px; padding: 6px 12px; font-size: 15px; cursor: pointer;
+    line-height: 1; box-shadow: var(--silk-extruded-soft);
+    transition: box-shadow .12s, color .12s, transform .12s; flex-shrink: 0;
+  }
+  .theme-toggle:hover { color: var(--accent); transform: scale(1.06); }
+  .theme-toggle:active { box-shadow: var(--silk-inset-soft); }
+  .backup-status { font-size: 12.5px; color: var(--muted); }
+  /* Popup επιλογής import (αντικατάσταση / συγχώνευση) */
+  .import-pop {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,.55);
+    display: flex; align-items: center; justify-content: center;
+    animation: fade-in .15s ease;
+  }
+  .import-pop-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 22px 24px; max-width: 420px; width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  .import-pop-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .import-pop-sub { font-size: 13px; color: var(--muted); margin: 0 0 16px; line-height: 1.5; }
+  .import-pop-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .import-pop-actions .imp-replace { border-color: var(--danger); color: var(--danger); }
+  .import-pop-actions .imp-replace:hover { border-color: var(--danger); color: #fff; background: rgba(239,68,68,.15); }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+/* Tabs — η γραμμή (2px) ρίχνει μαλακή σκιά προς τα πάνω· το ενεργό tab ΚΑΛΥΠΤΕΙ τη γραμμή και ενώνεται με το περιεχόμενο. */
+  .tabs { display: flex; gap: 6px; margin: 10px 0 0; padding: 0 4px; position: relative; }
+  .tabs::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px;
+    background: var(--border); box-shadow: 0 -6px 12px rgba(0,0,0,.16);
+    z-index: 1; pointer-events: none;
+  }
+  .tab {
+    position: relative; z-index: 0; cursor: grab; opacity: .7; box-shadow: none;
+    background: var(--bg); color: var(--muted); font-size: 15px; font-weight: 600;
+    padding: 10px 30px 10px 20px;
+    /* Ίδιο πλαίσιο σε ΟΛΑ τα tabs (διάφανο όταν δεν είναι ενεργό) → καμία μετατόπιση μεγέθους στην αλλαγή tab. */
+    border: 1px solid transparent; border-bottom: none;
+    border-radius: 8px 8px 0 0;                      /* στρογγυλό ΜΟΝΟ πάνω */
+    transition: color .15s, box-shadow .16s, transform .16s, opacity .16s;
+  }
+  .tab::before {   /* ⠿ λαβή drag */
+    content: "⠿"; position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    font-size: 14px; color: var(--muted); opacity: .5; pointer-events: none; letter-spacing: -1px;
+  }
+  .tab:hover { color: var(--text); opacity: .9; transform: translateY(-2px); }
+  .tab:active { transform: translateY(1px); }
+  .tab.active {
+    color: var(--accent); opacity: 1; z-index: 2;              /* μπροστά από τη γραμμή */
+    border-color: rgba(0,0,0,.08); border-bottom: none;        /* λεπτό απαλό περίγραμμα, ΟΧΙ κάτω */
+    box-shadow: 0 -2px 4px rgba(0,0,0,.04);                    /* πολύ διακριτική σκιά, ΜΟΝΟ πάνω */
+    padding-bottom: 12px; margin-bottom: -2px;                 /* = πάχος γραμμής: σβήνει το διαχωριστικό */
+  }
+  /* Το ενεργό tab ΜΕΝΕΙ καρφωμένο: αλλιώς το hover το ανέβαζε 2px και αποκάλυπτε τη γραμμή από κάτω. */
+  .tab.active:hover, .tab.active:active { transform: none; opacity: 1; color: var(--accent); }
+  .tab.active::before { opacity: .85; color: var(--accent); }
+  .tab.tab-dragging { cursor: grabbing; opacity: .55; }
+  .tab.tab-over { box-shadow: 0 0 0 2px var(--accent); }
+  /* Dark: cyan glow προς τα πάνω· μέσα στο tab ο glow είναι inset ώστε να μη «τρέχει» κάτω από την καρτέλα. */
+  [data-theme="dark"] .tabs::after { box-shadow: 0 -8px 20px rgba(0,242,254,.40), 0 -2px 6px rgba(0,242,254,.30); }
+  /* Στο dark, η εσοχή (inset) των πεδίων δεν ρίχνει έντονο ΜΑΥΡΟ — απαλό light inset ώστε να «διαβάζεται» η εσοχή. */
+  [data-theme="dark"] .search-box input,
+  [data-theme="dark"] .cat-add input {
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35),
+                inset 0 1px 2px rgba(255, 255, 255, 0.04);
+  }
+  [data-theme="dark"] .tab.active {
+    background: var(--bg); border-color: rgba(255,255,255,.10); border-bottom: none;
+    box-shadow: inset 0 2px 8px rgba(0,242,254,.10), 0 -2px 6px rgba(0,242,254,.25);
+  }
+  [data-theme="dark"] .tab.tab-over { box-shadow: 0 0 0 2px var(--accent), 0 -3px 10px rgba(0,242,254,.3); }
+
+    /* ===== ⚙️ Settings tab ===== */
+    .settings-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 16px 18px; margin: 12px 0 14px;
+      box-shadow: var(--silk-extruded-soft);
+    }
+    .settings-card-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .settings-card-body { font-size: 14px; color: var(--muted); line-height: 1.65; }
+    .settings-card-body b { color: var(--text); }
+    .settings-legend { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
+    .settings-legend span { color: var(--text); font-size: 13.5px; }
+    .settings-toolbar { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+    /* Παλιά ονόματα — κρατούνται για συμβατότητα με το Import (subs-btn) */
+    .subs-info {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 16px 18px; margin: 12px 0 14px;
+      box-shadow: var(--silk-extruded-soft);
+    }
+    .subs-info-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .subs-info-body { font-size: 14px; color: var(--muted); line-height: 1.65; }
+    .subs-info-body b { color: var(--text); }
+    .subs-info-legend { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
+    .subs-info-legend span { color: var(--text); font-size: 13.5px; }
+    .subs-info-body i { color: var(--muted); font-size: 13px; }
+    .subs-toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .subs-info {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 16px 18px; margin: 12px 0 14px;
+      box-shadow: var(--silk-extruded-soft);
+    }
+    .subs-info-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .subs-info-body { font-size: 14px; color: var(--muted); line-height: 1.65; }
+    .subs-info-body b { color: var(--text); }
+    .subs-info-legend { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
+    .subs-info-legend span { color: var(--text); font-size: 13.5px; }
+    .subs-info-body i { color: var(--muted); font-size: 13px; }
+    .subs-toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .subs-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 50px;
+      padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer;
+      box-shadow: var(--silk-extruded-soft); text-decoration: none;
+      transition: transform .16s, box-shadow .16s, border-color .16s;
+    }
+    .subs-btn:hover { transform: translateY(-2px); box-shadow: var(--silk-extruded); }
+    .subs-btn:active { transform: translateY(1px); box-shadow: var(--silk-inset-soft); }
+    .subs-btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; border: none;
+    }
+    /* 📥 Modal οδηγιών */
+    .subs-help-overlay {
+      position: fixed; inset: 0; z-index: 2000;
+      background: rgba(0,0,0,.55); backdrop-filter: blur(3px);
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .subs-help-overlay.open { display: flex; animation: fade-in .2s ease; }
+    .subs-help-modal {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      max-width: 620px; width: 100%; max-height: 85vh; overflow-y: auto;
+      padding: 22px 24px; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+      animation: pop-in .3s cubic-bezier(.18,.9,.32,1.35);
+    }
+    .subs-help-head {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 17px; font-weight: 700; margin-bottom: 14px;
+    }
+    .subs-help-body { font-size: 14px; line-height: 1.7; color: var(--text); }
+    .subs-help-steps { margin: 12px 0; padding-left: 22px; }
+    .subs-help-steps li { margin-bottom: 8px; }
+    .subs-help-steps b { color: var(--accent); }
+    .subs-help-note {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; font-size: 13px; color: var(--muted); margin-top: 14px;
+    }
+    .subs-help-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+    .cat-toolbar { margin: 8px 0 4px; }
+  .cat-add { display: flex; gap: 8px; margin-bottom: 8px; }
+  .cat-add input {
+    flex: 1; min-width: 0; background: var(--bg);
+    border: 1px solid var(--border);          /* 🔲 απαλό περίγραμμα (ίδιο ύφος με τον φακό) */
+    border-radius: 50px; padding: 10px 16px; color: var(--text); font-size: 14px;
+    box-shadow: var(--silk-inset);
+    transition: border-color .18s ease;
+  }
+  .cat-add input:focus { outline: none; border-color: var(--accent); box-shadow: var(--silk-inset), 0 0 0 2px var(--accent); }
+  .cat-add button {
+    flex-shrink: 0; background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 0 18px; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .cat-add button:hover { background: #5a7af0; }
+  /* Κατηγορία (στήλη user_category) επικεφαλίδα στο tab Κατηγορίες */
+  .cat-group { margin: 12px 0; margin-bottom: 4px; }
+  .cat-head { display: flex; align-items: center; gap: 6px; padding: 5px 8px; cursor: pointer; border: none; font-size: 13px; font-weight: 600; border-radius: 6px; background: var(--bg); box-shadow: var(--silk-extruded); transition: box-shadow .18s ease, transform .18s ease; user-select: none; }
+  .cat-head:hover { box-shadow: var(--silk-extruded), 0 0 0 2px var(--cat); transform: translateY(-2px); background: var(--hover); }
+  .cat-head:active { box-shadow: var(--silk-inset); transform: translateY(0); }
+  /* 🟣 ΚΑΡΦΙΤΣΩΜΕΝΗ κατηγορία (pinned) → μωβ banner (κάρτα), όπως τα κανάλια */
+  .cat-group.pinned .cat-head {
+    background: linear-gradient(90deg, rgba(139, 92, 246, .16), rgba(139, 92, 246, .05));
+    box-shadow: var(--silk-extruded), 0 0 0 2px rgba(139, 92, 246, .45);
+  }
+  .cat-group.pinned .cat-head:hover {
+    box-shadow: var(--silk-extruded), 0 0 0 2px #8b5cf6;
+  }
+  .cat-head .cat-chevron { font-size: 16px; transition: transform .25s cubic-bezier(.4,0,.2,1); color: var(--muted); }
+  /* Το βελάκι αλλάζει ΜΟΝΟ μέσω glyph (▸ κλειστό / ▾ ανοιχτό) — ΟΧΙ rotate. */
+  .cat-head .cat-name { flex: 1; color: var(--cat); }
+  .cat-head .cat-count { color: rgba(var(--cat-rgb), 0.6); font-size: 13px; font-weight: 400; }
+  .cat-body .vrow { margin-left: 36px; border-left: 1px solid var(--border); padding-left: 14px; }
+  .cat-group.collapsed .cat-body { display: none; }
+  .cat-chip {
+    display: inline-block; background: rgba(var(--cat-rgb), 0.15); border: 1px solid rgba(var(--cat-rgb), 0.4);
+    color: var(--cat); border-radius: 12px; padding: 1px 8px; font-size: 11px; font-weight: 600; margin-left: 6px;
+  }
+  .note-chip {
+    display: inline-block; background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+    color: var(--accent); border-radius: 12px; padding: 1px 8px; font-size: 11px; font-weight: 700; margin-left: 6px;
+    cursor: default;
+  }
+
+  .tag-chk {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 999px;
+    padding: 3px 10px; font-size: 12px; cursor: pointer; user-select: none;
+  }
+  .tag-chk:hover { border-color: var(--accent); }
+  .tag-chk input { accent-color: var(--accent); cursor: pointer; }
+  .tag-chk.on { border-color: var(--accent); background: rgba(108,140,255,0.12); }
+  /* Πράσινα (accent2) κόμπακτ tag bubbles — όπως οι πρασινοποιημένες κατηγορίες */
+  .tag-chk.green { border-color: rgba(34,211,165,0.35); background: rgba(34,211,165,0.08); }
+  .tag-chk.green.on { border-color: var(--accent2); background: rgba(34,211,165,0.18); }
+  .tag-chk.green input { accent-color: var(--accent2); }
+  /* Κίτρινα category bubbles (όπως οι κίτρινες κατηγορίες) */
+  .tag-chk.yellow { border-color: rgba(var(--cat-rgb),0.35); background: rgba(var(--cat-rgb),0.08); }
+  .tag-chk.yellow.on { border-color: var(--cat); background: rgba(var(--cat-rgb),0.16); }
+  .tag-chk.yellow input { accent-color: var(--cat); }
+  .tag-chk.yellow .tag-filter-x { color: var(--cat); }
+  .tag-filter-x {
+    margin-left: 2px; cursor: pointer; color: var(--muted); font-size: 15px; line-height: 1;
+    width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+  }
+  .tag-filter-x:hover { color: var(--danger); background: rgba(239,68,68,0.15); }
+  .tag-filter-count-title { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; color: var(--accent2); }
+  .tag-filter-count { color: var(--accent2); font-weight: 700; }
+  .tag-active-count { color: var(--muted); font-weight: 500; font-size: 12px; }
+  /* --- Πτυχωτό πάνελ φίλτρου + κατηγορίες (accordion) --- */
+  .tag-filter-head {
+    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+    padding: 4px 10px; border: 1px solid rgba(34,211,165,0.4); border-radius: 999px;
+    background: rgba(34,211,165,0.12); user-select: none;
+  }
+  .tag-filter-head:hover { border-color: var(--accent2); }
+  /* Κίτρινο κουμπί κατηγοριών (όπως οι κίτρινες κατηγορίες) */
+  .tag-filter-head.cat { border-color: rgba(var(--cat-rgb),0.4); background: rgba(var(--cat-rgb),0.1); }
+  .tag-filter-head.cat:hover { border-color: var(--cat); }
+  .tag-filter-head.cat .cat-title { color: var(--cat); }
+  .tag-filter-head.cat .tag-filter-count { color: var(--cat); }
+  .tag-filter-panel {
+    margin-top: 6px; border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; background: var(--card); max-height: 320px; overflow-y: auto;
+    display: flex; flex-wrap: wrap; gap: 7px; align-items: center;
+  }
+
+  .cat-chevron { color: var(--muted); font-size: 12px; width: 12px; text-align: center; }
+  .cat-name { color: var(--fg); }
+  .cat-count { color: var(--muted); font-size: 11px; font-weight: 400; }
+  .cat-body { padding: 4px 4px 6px 20px; }
+
+  /* Tag chips πάνω στα βίντεο */
+  .tag-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    background: var(--bg); color: var(--accent2); border: none;
+    border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600;
+    box-shadow: var(--silk-extruded-soft);
+    transition: box-shadow .15s ease, color .15s ease;
+  }
+  .tag-chip:hover { color: var(--accent); }
+  .tag-chip:active { box-shadow: var(--silk-inset-soft); }
+  .tag-chip.match-chip { color: var(--accent); box-shadow: var(--silk-inset-soft); }
+
+  /* Inline confirm διαγραφής tag */
+  .del-confirm {
+    position: fixed; z-index: 2000; width: 280px;
+    background: var(--card); border: 1px solid var(--danger); border-radius: 10px;
+    padding: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); font-size: 13px;
+  }
+  /* Κεντραρισμένο spring popup (για διαγραφή βίντεο). */
+  .del-confirm.center {
+    left: 50%; top: 50%;
+    margin-left: -140px; margin-top: -60px;
+    animation: center-pop .3s cubic-bezier(.18,.9,.32,1.4);
+  }
+  @keyframes center-pop {
+    0%   { transform: scale(.82); opacity: 0; }
+    60%  { transform: scale(1.05); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .del-confirm .dc-msg { color: var(--fg); line-height: 1.45; }
+  .del-confirm .dc-msg b { color: var(--danger); }
+  .del-confirm .dc-warn { color: var(--muted); font-size: 11px; }
+  .del-confirm .dc-btns { display: flex; gap: 8px; margin-top: 10px; }
+  .del-confirm .dc-yes { background: var(--danger); color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-weight: 600; cursor: pointer; }
+  .del-confirm .dc-yes:hover { filter: brightness(1.1); }
+  .del-confirm .dc-no { background: var(--card); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  .del-confirm .dc-no:hover { background: var(--border); }
+
+  /* Popover για tagging */
+  .tag-pop {
+    position: fixed; z-index: 1000; width: 220px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); display: none;
+  }
+  .tag-pop.open { display: block; animation: pop-in .28s cubic-bezier(.18,.9,.32,1.45); }
+  .tag-pop.closing { display: block; animation: pop-out .16s ease forwards; }
+  /* 📄 Όταν έχει pagination → φαρδαίνει (6 στήλες × ~110px = ~700px). */
+  .tag-pop.paged { width: min(760px, 94vw); }
+  @keyframes pop-in {
+    0%   { opacity: 0; transform: scale(.6) translateY(-10px); }
+    60%  { opacity: 1; transform: scale(1.08) translateY(0); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes pop-out {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(.7) translateY(-6px); }
+  }
+  .tag-pop-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .tag-pop-close { cursor: pointer; color: var(--muted); border: none; background: none; font-size: 16px; }
+  .tag-pop-close:hover { color: var(--danger); }
+  .tag-pop-list { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto; }
+  .tag-pop-item { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 4px 6px; border-radius: 6px; }
+  .tag-pop-item:hover { background: var(--hover); }
+  .tag-pop-label { display: flex; align-items: center; gap: 6px; flex: 1; cursor: pointer; }
+  .tag-pop-item input { accent-color: var(--accent); cursor: pointer; }
+
+  /* 📄 PAGINATION ΜΕΣΑ στα popups (tags / categories) — grid 6×10 = 60/καρτέλα
+     Ίδια λογική με το grid των αναζητήσεων: βελάκια ◀ ▶ + «σελίδα / σύνολο». */
+  .tag-pop-list.paged { display: block; max-height: none; overflow: visible; }
+  .pop-page-grid {
+    display: grid !important; grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    gap: 2px 6px;
+  }
+  .pop-page-grid .tag-pop-item { min-width: 0; padding: 3px 4px; }
+  .pop-page-grid .tag-pop-label { min-width: 0; }
+  /* Το label είναι flex: το κείμενο κόβεται με ellipsis αν είναι μακρύ. */
+  .pop-page-grid .tag-pop-label { overflow: hidden; text-overflow: ellipsis; }
+  .pop-pager {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 6px 2px 0; border-top: 1px solid var(--border, rgba(128,128,128,.2)); margin-top: 6px;
+  }
+  .pop-pager button {
+    border: none; background: transparent; color: var(--text, inherit);
+    font-size: 15px; line-height: 1; cursor: pointer; padding: 3px 9px; border-radius: 6px;
+  }
+  .pop-pager button:hover:not(:disabled) { background: var(--hover); }
+  .pop-pager button:disabled { opacity: .3; cursor: default; }
+  .pop-pager .pop-pager-lbl { font-size: 11.5px; color: var(--muted); min-width: 54px; text-align: center; }
+
+  .tag-del {
+    flex-shrink: 0; cursor: pointer; color: var(--muted); border: none; background: none;
+    font-size: 16px; line-height: 1; width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+  }
+  .tag-del:hover { color: var(--danger); background: rgba(239,68,68,0.12); }
+  .tag-pop-new { margin-top: 8px; display: flex; gap: 6px; }
+  .tag-pop-new input {
+    flex: 1; min-width: 0; background: var(--input-bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 8px; color: var(--text); font-size: 13px;
+  }
+  .tag-pop-new button {
+    flex-shrink: 0; background: var(--accent); color: #fff; border: none; border-radius: 6px;
+    padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s;
+  }
+  .tag-pop-new button:hover { background: #5a78e8; }
+  .tag-pop-new button:active { background: #4761c4; }
+  /* 📌 Pin popup — 3 states */
+  .pin-pop-list { display: flex; flex-direction: column; gap: 4px; }   /* κόκκινο βελάκι = πάνω-πάνω */
+  .icon-btn.ch-pin.top { color: #ef4444; }
+
+  /* Stars rating */
+  .stars {
+    display: inline-flex; gap: 2px; cursor: pointer;
+    background: var(--bg); border: none; border-radius: 999px;
+    padding: 3px 10px; box-shadow: var(--silk-extruded-soft);
+    transition: box-shadow .15s ease;
+  }
+  .stars:active { box-shadow: var(--silk-inset-soft); }
+  .stars .st {
+    font-size: 16px; color: var(--star-off); transition: color .1s; line-height: 1;
+    background: none; border: none; padding: 0; margin: 0; cursor: pointer; outline: none;
+  }
+  .stars .st.on { color: var(--star); }
+  .stars:hover .st { color: var(--star); }
+  h2 { font-size: 17px; margin-bottom: 14px; letter-spacing: -0.3px; }
+  section { margin-bottom: 32px; }
+  .list-head { display: flex; align-items: center; gap: 10px; margin: 16px 0 8px; }
+  .list-head-lbl { font-size: 14px; font-weight: 600; color: var(--muted); }
+  .list-head-count { font-weight: 400; color: var(--muted); opacity: 0.75; }
+  /* Αριθμός βίντεο που βρέθηκαν στο ενεργό φίλτρο (αντί για την μπλε μπάρα). */
+  .filter-count {
+    margin-left: 6px; font-weight: 600; color: var(--accent);
+    font-size: 13px; white-space: nowrap;
+  }
+  /* RSS Watchdog (panel μέσα στο κανάλι) */
+  .rss-panel {
+    margin: 4px 0 6px 36px; padding: 10px 12px;
+    border: 1px solid var(--accent); border-left: 3px solid var(--accent);
+    border-radius: 8px; background: rgba(99,102,241,.05);
+    animation: rss-in .25s cubic-bezier(.4,0,.2,1);
+  }
+  @keyframes rss-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes rss-out {
+    from { opacity: 1; transform: translateY(0); max-height: 400px; margin: 4px 0 6px 36px; padding: 10px 12px; }
+    to   { opacity: 0; transform: translateY(-6px); max-height: 0; margin: 0; padding: 0; }
+  }
+  .rss-panel.closing {
+    animation: rss-out .22s cubic-bezier(.4,0,.2,1) forwards;
+    overflow: hidden;
+    border-width: 0;
+  }
+  .rss-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .rss-title { font-size: 13.5px; font-weight: 600; }
+  .rss-count { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+  .rss-total {
+    font-size: 12.5px; color: var(--muted); font-weight: 600;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+    /* σταθερό πλάτος (χωράει "(+999)") → δεν κουνάει τα −/num/+ δεξιά του */
+    min-width: 6ch; width: 6ch; text-align: left; display: inline-block;
+  }
+  /* σταθερό πλάτος 3 ψηφίων → τα −/+ ΔΕΝ μετακινούνται όταν αλλάζει ο αριθμός */
+  .rss-num {
+    font-weight: 700; color: var(--accent);
+    min-width: 3ch; width: 3ch; text-align: center;
+    font-variant-numeric: tabular-nums;
+    display: inline-block;
+  }
+  .rss-countbtn {
+    width: 26px; height: 26px; cursor: pointer; font-size: 16px; line-height: 1;
+    background: var(--card); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  }
+  .rss-countbtn:hover { border-color: var(--accent); color: var(--accent); }
+  /* ⬆️⬇️ Σκρολ μέσα στο News Feed. Το ύψος (πόσα «χωράνε» πριν το scroll) ορίζεται δυναμικά
+     από το −/+ (inline max-height στο .rss-list) → βλ. renderRssPanel(). Λεπτή μπάρα, ταιριάζει
+     στο theme, και σταματά να τραβάει όλη τη σελίδα όταν είναι πολλά. */
+  .rss-list {
+    display: flex; flex-direction: column;
+    max-height: 280px;
+    overflow-y: auto;
+    padding-right: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .rss-list::-webkit-scrollbar { width: 8px; }
+  .rss-list::-webkit-scrollbar-thumb {
+    background: var(--border); border-radius: 6px;
+  }
+  .rss-list::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+  .rss-list::-webkit-scrollbar-track { background: transparent; }
+  .new-row {
+    display: flex; align-items: center; gap: 12px; padding: 8px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .new-row:last-child { border-bottom: none; }
+  .new-row .thumb { width: 84px; height: 47px; }
+  .rss-empty { font-size: 13px; color: var(--muted); padding: 6px 0; }
+  @keyframes rss-spin { to { transform: rotate(360deg); } }
+  @keyframes rss-slide { to { left: 100%; } }
+  /* 🔔 καμπάνα — ΓΥΜΝΗ (χωρίς περίγραμμα): state μόνο από χρώμα + σχήμα */
+  .watch-tgl { border-color: transparent !important; background: transparent !important; border-radius: 50% !important; transition: color .15s ease, filter .15s ease, transform .15s ease; }
+  .watch-tgl.on { color: var(--accent); filter: drop-shadow(0 0 6px rgba(108,140,255,.55)); }
+  .watch-tgl:not(.on) { color: var(--muted); }
+  /* loading = το refresh icon κάνει spin (ομαλή πλήρης περιστροφή) */
+  .watch-tgl.loading { animation: refresh-spin .8s linear infinite; }
+  .watch-tgl.loading svg { animation: refresh-spin .8s linear infinite; }
+  @keyframes refresh-spin {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  @keyframes bell-ring {
+    0%, 100% { transform: rotate(0deg); }
+    20% { transform: rotate(16deg); }
+    40% { transform: rotate(-14deg); }
+    60% { transform: rotate(10deg); }
+    80% { transform: rotate(-6deg); }
+  }
+  .toggle-all {
+    flex-shrink: 0; cursor: pointer; background: var(--card);
+    color: var(--muted); border: 1px solid var(--border); border-radius: 8px;
+    width: 44px; height: 36px; line-height: 1;
+    font-size: 30px; display: flex; align-items: center; justify-content: center;
+    transition: color .15s, border-color .15s;
+  }
+  .toggle-all:hover { color: var(--text); border-color: var(--accent); }
+  .toggle-all.all-closed { color: var(--accent); border-color: var(--accent); }
+  .refresh {
+    margin-left: auto; background: transparent; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px;
+    font-size: 13px; cursor: pointer;
+  }
+  .refresh:hover { color: var(--text); border-color: var(--accent); }
+  .add-box { display: flex; gap: 8px; margin-bottom: 8px; }
+  .add-box input {
+    flex: 1; background: var(--bg);
+    border: 1px solid var(--border);          /* 🔲 ίδιο ύφος με τα άλλα πεδία */
+    border-radius: 50px; padding: 10px 16px; color: var(--text); font-size: 14px;
+    box-shadow: var(--silk-inset);
+    transition: box-shadow .18s ease, border-color .18s ease;
+  }
+  .add-box input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--silk-inset), 0 0 0 2px var(--accent);
+  }
+  .add-box button {
+    background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; border: none; border-radius: 50px;
+    padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer;
+    box-shadow: var(--silk-extruded-soft);
+  }
+  .add-box button:hover { opacity: .92; }
+  .add-box button:active { box-shadow: var(--silk-inset-soft); }
+
+  /* Βιβλιοθήκη — group ανά κανάλι */
+  /* 🚀 VIRTUAL για τα κανάλια (μπορεί να είναι εκατοντάδες σε ένα fetch):
+     το channel-group έχει ύψος ~106px με 1 γραμμή, αλλά με πολλά βίντεο μεγαλώνει —
+     γι' αυτό χρησιμοποιούμε το δικό του «auto» intrinsic size (ο browser το θυμάται). */
+  .channel-group {
+    /* ⛔ ΧΩΡΙΣ content-visibility: το containment έσπαγε το position:fixed του lift
+       (η κάρτα «εξαφανιζόταν») και έκοβε τις άκρες των λωρίδων. */
+    margin-bottom: 4px;   /* ✅ ίδιο κενό με τις Κατηγορίες (.cat-group) */
+  }
+  .channel-head {
+    /* ✅ ΑΣΦΑΛΕΣ: 102 λωρίδες, καμία δεν έχει lift. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 62px;
+    display: flex; align-items: center; gap: 12px;
+    padding: 3px 16px; border: none; border-radius: 16px; margin-bottom: 0;
+    cursor: pointer; user-select: none; line-height: 1; min-height: 0;
+    min-width: 0; max-width: 100%; box-sizing: border-box;
+    width: 100%;               /* 🔧 να πιάνει ΑΚΡΙΒΩΣ το πλάτος του .channel-body */
+    overflow: hidden;          /* 🔧 ώστε το περιεχόμενο να μην ξεφεύγει έξω από τη λωρίδα */
+    background: var(--bg);
+    box-shadow: var(--silk-extruded);
+    transition: box-shadow .18s ease, transform .18s ease, background .18s ease;
+  }
+  .channel-head:hover {
+    box-shadow: var(--silk-extruded), 0 0 0 2px var(--accent);
+    transform: translateY(-2px);
+  }
+  .channel-head:active { box-shadow: var(--silk-inset); transform: translateY(0); }
+  .channel-head:hover .channel-name { color: var(--accent); }
+  .chevron { color: var(--muted); font-size: 16px; transition: transform .25s cubic-bezier(.4,0,.2,1); flex-shrink: 0; }
+  .channel-group.collapsed .chevron { transform: rotate(-90deg); }
+  /* 🟣 ΚΑΡΦΙΤΣΩΜΕΝΑ κανάλια (pinned) → μωβ banner (κάρτα) */
+  .channel-group.pinned .channel-head {
+    background: linear-gradient(90deg, rgba(139, 92, 246, .16), rgba(139, 92, 246, .05));
+    box-shadow: var(--silk-extruded), 0 0 0 2px rgba(139, 92, 246, .45);
+  }
+  .channel-group.pinned .channel-head:hover {
+    box-shadow: var(--silk-extruded), 0 0 0 2px #8b5cf6;
+  }
+  /* 🔵 Νέο κανάλι (μόλις προστέθηκε) — ίδιο μπλε με τα «νέα» βίντεα (.vrow.unseen) */
+  .channel-group.new .channel-head {
+    background: linear-gradient(90deg, rgba(59, 130, 246, .16), rgba(56, 189, 248, .07));
+    border-color: rgba(59, 130, 246, .45);
+  }
+  .channel-group.new .channel-head:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 10px 28px rgba(59, 130, 246, .25);
+  }
+  /* 🟠 Εισαγμένο κανάλι (από subscriptions) — πορτοκαλί/κεχριμπαρένιο banner */
+  .channel-group.imported .channel-head {
+    background: linear-gradient(90deg, rgba(245, 158, 11, .16), rgba(251, 191, 36, .06));
+    border-color: rgba(245, 158, 11, .45);
+  }
+  .channel-group.imported .channel-head:hover {
+    border-color: #f59e0b;
+    box-shadow: 0 10px 28px rgba(245, 158, 11, .25);
+  }
+  /* Accordion animation: ξεδίπλωμα/μάζεμα του σώματος (βίντεα + rss) */
+  .channel-body {
+    max-height: 50000px;
+    overflow: hidden;
+    min-width: 0;
+    transition: max-height .3s cubic-bezier(.4,0,.2,1), opacity .22s ease;
+    opacity: 1;
+    padding: 4px 6px 6px 6px;
+  }
+  .channel-group.collapsed .channel-body {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  /* Tree layout: τα βίντεο μπαίνουν «ένα βήμα μέσα» με γραμμή, σαν file tree */
+  .channel-group .vrow {
+    margin-left: 36px;
+    border-left: 1px solid var(--border);
+    padding-left: 14px;
+    border-radius: 0 8px 8px 0;
+  }
+  .channel-head .avatar-wrap { width: 56px; height: 56px; border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+  .channel-name {
+    font-weight: 700; font-size: 17px; line-height: 1; letter-spacing: -0.2px;
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .chan-link {
+    display: flex; align-items: center; gap: 10px;
+    text-decoration: none; color: inherit; line-height: 1; min-height: 0;
+    min-width: 0;              /* 🔧 να μπορεί να μικρύνει — δεν σπρώχνει τα κουμπιά έξω */
+    flex: 0 1 auto;
+  }
+  .chan-link:hover .channel-name { text-decoration: underline; }
+  .head-spacer { flex: 1; }
+  .vrow {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 4px; border-bottom: 1px solid var(--border);
+    cursor: grab; border-radius: 8px; transition: background .18s ease, transform .18s ease;
+  }
+  .vrow:hover { background: var(--hover); }
+  .vrow.dragging { opacity: .45; background: var(--dragging); cursor: grabbing; }
+  /* Βίντεο που πρόσθεσες με ➕ αλλά ΔΕΝ έχεις δει ακόμα → απαλό ΜΠΛΕ φόντο (ξεμοβίζει χειροκίνητα) */
+  .vrow.unseen { background: linear-gradient(90deg, rgba(59, 130, 246, .14), rgba(56, 189, 248, .09)); }
+  .vrow.unseen:hover { background: linear-gradient(90deg, rgba(59, 130, 246, .22), rgba(56, 189, 248, .15)); }
+  .new-badge {
+    display: inline-block; margin-left: 8px; padding: 1px 7px;
+    font-size: 10px; font-weight: 700; letter-spacing: .4px;
+    color: #fff; background: linear-gradient(135deg, #3b82f6, #38bdf8);
+    border-radius: 999px; vertical-align: middle; text-transform: uppercase;
+  }
+  /* 🃏 Καρτέλες βίντεο (grid, σαν την αναζήτηση) */
+  .v-card-grid {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;
+    padding: 10px 0 12px;
+  }
+  /* 🚀 VIRTUAL για τις καρτέλες που ΜΕΝΟΥΝ στη σελίδα (κατηγορίες):
+     ο browser ζωγραφίζει ΜΟΝΟ τις ορατές. Έχουμε 3531 .v-card — με αυτό δεν πληρώνουμε όλες.
+     (Το contain-intrinsic-size βγαίνει από το πραγματικό ύψος — αλλιώς πηδά η μπάρα.) */
+  .v-card {
+    /* ⛔ ΧΩΡΙΣ content-visibility: έσπαγε το fixed positioning του lift. */
+    display: flex; flex-direction: column; gap: 6px; padding: 10px;
+    border-radius: 16px; background: var(--bg); border: none;
+    box-shadow: var(--silk-extruded);
+    cursor: grab; transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .v-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--silk-extruded), 0 0 0 2px var(--accent);
+  }
+  .v-card:active { box-shadow: var(--silk-inset); }
+  .v-card.dragging { opacity: .88; background: var(--dragging); cursor: grabbing; transform: scale(1.03); box-shadow: var(--silk-extruded), 0 0 0 2px var(--accent); }
+  /* ⚡ Pointer-drag: το πρωτότυπο «πετάει» fixed και ακολουθεί τον κέρσορα (GPU, 60fps). */
+  .pointer-dragging {
+    position: fixed !important; z-index: 900 !important;
+    margin: 0 !important; pointer-events: none !important;
+    box-shadow: 0 20px 50px rgba(0,0,0,.45), var(--silk-extruded) !important;
+    transform: scale(1.04) !important; opacity: .95 !important;
+    transition: none !important; will-change: left, top;
+  }
+  .pointer-dragging-head { cursor: grabbing !important; }
+  /* 🎨 Όταν σηκώνεται ένα banner/κάρτα: φόντο ημιδιαφανές + ΜΟΝΟ «αιωρούμενη» σκιά
+     (μαύρη, διαφανής) — χωρίς τη silk σκιά που έσβηνε σε άσπρο. */
+  .channel-head.pointer-dragging,
+  .cat-head.pointer-dragging,
+  .v-card.pointer-dragging {
+    background: color-mix(in srgb, var(--bg) 78%, transparent) !important;
+    box-shadow: 0 18px 44px rgba(0,0,0,.34) !important;
+    backdrop-filter: blur(6px) !important;
+  }
+  /* Το κενό που αφήνει η σηκωμένη κάρτα (placeholder) — δείχνει πού θα πάει. */
+  .drag-slot {
+    border-radius: 18px; background: transparent;
+    box-shadow: inset 0 0 0 2px var(--accent);
+    pointer-events: none;
+  }
+  /* ⚡ Lag fix: όσο κάνουμε drag, κόψε τα transitions στις κάρτες (πολύ reflow σε grid 2D). */
+  body:has(.v-card.dragging) .v-card,
+  body:has(.channel-group.dragging) .channel-group,
+  body:has(.cat-group.dragging) .cat-group {
+    transition: none !important;
+  }
+  .v-card.drop-target, .vrow.drop-target { box-shadow: var(--silk-inset), 0 0 0 2px var(--accent) !important; }
+  /* 🚀 Lift: η καρτέλα «απογειώνεται» — floating πάνω από το grid, μένει σταθερή στο scroll. */
+  .v-card.lifted {
+    position: fixed; z-index: 500;
+    width: 280px; max-width: 80vw;
+    transform: scale(1.08);
+    box-shadow: 0 30px 70px rgba(0,0,0,.55), var(--silk-extruded);
+    cursor: default;
+    transition: none;
+  }
+  .v-card.lifted .lift-btn { color: var(--accent); }
+  .lift-btn {
+    font-size: 16px;
+    /* 🏔️ Ανάγλυφο λευκό κουμπάκι (πιο έντονο embossed) */
+    background: var(--bg);
+    color: var(--text);
+    box-shadow: var(--silk-extruded);
+    transition: box-shadow .15s ease, color .15s ease, transform .15s ease;
+  }
+  .lift-btn:hover { color: var(--accent); transform: translateY(-1px); }
+  .lift-btn:active { box-shadow: var(--silk-inset); transform: translateY(0); }
+  .v-card.lifted:hover { transform: scale(1.08); box-shadow: 0 30px 70px rgba(0,0,0,.55), var(--silk-extruded); }
+  .v-card-thumb-wrap { position: relative; min-width: 0; width: 100%; aspect-ratio: 16/9; cursor: pointer; overflow: hidden; border-radius: 8px; }
+  .v-card-thumb-ph { position: absolute; inset: 0; background: linear-gradient(110deg, var(--card) 8%, var(--hover) 18%, var(--card) 33%); background-size: 200% 100%; animation: thumb-shimmer 1.6s linear infinite; }
+  .v-card-thumb { position: relative; width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: block; background: #000; opacity: 0; filter: blur(4px); transition: filter .35s ease-out, opacity .35s ease-out ease-out; }
+  .v-card-thumb.loaded { opacity: 1; filter: blur(0); }
+  @keyframes thumb-shimmer { to { background-position-x: -200%; } }
+  .skeleton-line { display: inline-block; height: 13px; border-radius: 4px; background: linear-gradient(110deg, var(--card) 8%, var(--hover) 18%, var(--card) 33%); background-size: 200% 100%; animation: thumb-shimmer 1.6s linear infinite; }
+  .sk-avatar { width: 128px; height: 128px; border-radius: 16px; background: linear-gradient(110deg, var(--card) 8%, var(--hover) 18%, var(--card) 33%); background-size: 200% 100%; animation: thumb-shimmer 1.6s linear infinite; }
+  .v-card-play {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 34px; color: #fff; opacity: 0; transition: opacity .15s;
+    background: rgba(0,0,0,.25); border-radius: 8px; text-shadow: 0 2px 10px rgba(0,0,0,.6);
+  }
+  .v-card-thumb-wrap:hover .v-card-play { opacity: 1; }
+  .v-card-title {
+    font-size: 14.5px; font-weight: 600; line-height: 1.35;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .v-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+  .v-card-actions { display: flex; align-items: center; gap: 6px; margin-top: auto; }
+  .v-card-actions .spacer { flex: 1; }
+  .thumb {
+    width: 112px; height: 63px; object-fit: cover; border-radius: 6px;
+    border: 1px solid var(--border); flex-shrink: 0; background: #000;
+  }
+  .vinfo { flex: 1; min-width: 0; }
+  .vtitle { color: var(--text); text-decoration: none; font-size: 14px; font-weight: 500; display: block; }
+  .vtitle:hover { color: var(--accent); }
+  .vmeta { display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 12.5px; flex-wrap: wrap; }
+  .avatar-wrap { position: relative; width: 22px; height: 22px; flex-shrink: 0; }
+  .avatar-fallback {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: var(--hover); color: var(--text); font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .avatar {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    border-radius: 50%; object-fit: cover; border: 1px solid var(--border);
+  }
+  .cat {
+    color: var(--accent); cursor: pointer; border-bottom: 1px dashed var(--accent);
+    padding: 1px 2px; white-space: nowrap;
+  }
+  .cat:hover { opacity: .8; }
+  .count { color: var(--accent2); font-weight: 600; font-size: 14px; }
+  .pinned { color: var(--star); font-size: 12px; }
+  .icon-btn {
+    background: var(--bg); color: var(--muted); border: none;
+    border-radius: 12px; width: 42px; height: 42px; font-size: 20px; line-height: 1;
+    cursor: pointer; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    box-shadow: var(--silk-extruded-soft);
+    transition: color .15s ease, box-shadow .15s ease, transform .15s ease;
+  }
+  .icon-btn:hover { color: var(--text); transform: translateY(-1px); }
+  .icon-btn:active { box-shadow: var(--silk-inset-soft); transform: translateY(0); }
+  .icon-btn.del:hover { color: var(--danger); }
+  .icon-btn.pin.active { color: var(--star); box-shadow: var(--silk-inset-soft); }
+  .icon-btn.pin.pinning { animation: pin-pop .5s cubic-bezier(.18,.9,.32,1.35); }
+  .icon-btn.ch-pin.pinning { animation: pin-pop .5s cubic-bezier(.18,.9,.32,1.35); }
+  @keyframes pin-pop {
+    0%   { transform: scale(1) rotate(0deg); }
+    35%  { transform: scale(1.35) rotate(-14deg); }
+    65%  { transform: scale(.9) rotate(5deg); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  @keyframes seen-out {
+    to { opacity: 0; }
+  }
+  @keyframes deleting {
+    0%   { opacity: 1; max-height: 400px; margin: 0; padding: 10px 4px; }
+    100% { opacity: 0; max-height: 0; margin: 0; padding-top: 0; padding-bottom: 0; border-bottom-width: 0; }
+  }
+
+  /* Θέματα */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sugg-item { display: flex; align-items: center; gap: 8px; }
+  .sugg-item a {
+    flex: 1; color: var(--text); text-decoration: none; font-size: 14px;
+    padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); transition: border-color .15s, background .15s;
+  }
+  .sugg-item a:hover { border-color: var(--accent); background: var(--hover); }
+  .sugg-item a::before { content: "🔎 "; }
+
+  .empty { color: var(--muted); font-size: 14px; }
+  .loading { color: var(--muted); font-size: 13px; }
+  .muted { color: var(--muted); }
+  .search-box { margin: 4px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .search-box input {
+    flex: 1; min-width: 200px; background: var(--bg);
+    border: 1px solid var(--border);          /* 🔲 απαλό περίγραμμα (ίδιο ύφος με τον φακό) */
+    border-radius: 50px; padding: 10px 18px; color: var(--text); font-size: 14px;
+    box-shadow: var(--silk-inset);
+    transition: box-shadow .18s ease, border-color .18s ease;
+  }
+  .search-box input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--silk-inset), 0 0 0 2px var(--accent);
+  }
+  /* 🔍 Search buttons — Apple round-glass: κυκλικό, γυάλινο, με soft glow στο hover. */
+  .search-box button {
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 2px solid var(--border);          /* 🔲 πιο παχύ περίγραμμα (πιο ορατό) */
+    background: var(--card);
+    color: var(--muted); font-size: 17px; line-height: 1;
+    cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    transition: color .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
+  }
+  .search-box button:hover {
+    color: var(--text); border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, var(--card));
+    box-shadow: 0 0 0 4px rgba(108,140,255,.12), 0 6px 18px rgba(0,0,0,.22);
+    transform: translateY(-1px);
+  }
+  .search-box button:active { transform: translateY(0); }
+  .rating-filter {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--bg); border: none; border-radius: 999px;
+    height: 40px; padding: 0 12px; flex-shrink: 0;
+    box-shadow: var(--silk-inset-soft);
+  }
+  .rating-filter .stars { display: inline-flex; gap: 1px; cursor: pointer; }
+  .rating-filter .st { font-size: 18px; color: var(--star-off); transition: color .1s; line-height: 1; }
+  .rating-filter .st.on { color: var(--star); }
+  /* Ακυρώνουμε το global hover εδώ — ΟΧΙ mouse-over φωτισμό στο φίλτρο */
+  .rating-filter .stars:hover .st { color: var(--star-off); }
+  .rating-filter .stars:hover .st.on { color: var(--star); }
+  .rating-filter .rf-clear {
+    color: var(--muted); cursor: pointer; font-size: 14px; line-height: 1;
+    width: 30px; height: 30px; border-radius: 50%; border: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--bg); box-shadow: var(--silk-extruded-soft);
+    transition: box-shadow .15s ease, color .15s ease;
+  }
+  .rating-filter .rf-clear:hover { color: var(--danger); }
+  .rating-filter .rf-clear:active { box-shadow: var(--silk-inset-soft); }
+  .rating-filter .rf-clear.active {
+    color: var(--danger);
+    font-weight: 800;
+    text-shadow: 0 0 6px color-mix(in srgb, var(--danger) 70%, transparent);
+  }
+  /* Στρογγυλό × για το search field (μπροστά από τη λούπα) — απαλό, μόλις γράψεις λέξη. */
+  .input-clear {
+    background: var(--card); color: var(--muted); border: 1px solid var(--border);
+    border-radius: 50%; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+    transition: color .12s ease, border-color .12s ease, transform .12s ease;
+  }
+  .input-clear:hover { color: var(--danger); border-color: var(--danger); transform: scale(1.06); }
+  .match-stars { box-shadow: 0 0 0 2px var(--danger); border-radius: 4px; }
+  .match-chip { box-shadow: 0 0 0 2px var(--danger); }
+  .vtitle mark.hl { color: var(--danger); font-weight: 700; background: none; }
+  .fc { padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+
+  /* Προσβασιμότητα: σεβασμός στο «μείωσε την κίνηση» του λειτουργικού */
+  @media (prefers-reduced-motion: reduce) {
+    .channel-body, .chevron, .rss-panel, .watch-tgl.loading {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+
+  /* 🎬 Floating player (lightbox) — sexy, μοντέρνο, βίντεο "στον αέρα" */
+  .lb {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    animation: lb-fade .18s ease;
+  }
+  @keyframes lb-fade { from { opacity: 0; } to { opacity: 1; } }
+  .lb-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(0, 0, 0, .55);
+    backdrop-filter: blur(14px) saturate(1.1);
+    -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  }
+  .lb-dialog {
+    position: relative; z-index: 1;
+    width: min(1180px, 96vw);          /* φαρδύτερο — χωράει και τα 3 κουτιά */
+    background: transparent;            /* 🔴 ΚΑΝΕΝΑ ΛΕΥΚΟ ΦΟΝΤΟ */
+    border: none;                       /* 🔴 ΚΑΝΕΝΑ ΠΛΑΙΣΙΟ */
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;                         /* 🔴 ΚΑΝΕΝΑ ΚΕΝΟ */
+    display: flex; flex-direction: column; gap: 10px;
+    align-items: center;
+  }
+  /* 🌞 Light: ίδιο λεπτό μπλε outline (χωρίς glow γύρω-γύρω) */
+  [data-theme="light"] .lb-dialog {
+    border: 1.5px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    box-shadow: none;
+  }
+  @keyframes lb-pop {
+    from { transform: scale(.94) translateY(14px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  .lb-close {
+    position: absolute; top: -12px; right: -12px;
+    width: 34px; height: 34px; border-radius: 50%;
+    border: none; background: var(--bg);
+    color: var(--text); font-size: 16px; font-weight: 700;
+    cursor: pointer; z-index: 2; box-shadow: var(--silk-extruded-soft);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .12s, box-shadow .12s;
+  }
+  .lb-close:hover { transform: scale(1.1); }
+  .lb-close:active { box-shadow: var(--silk-inset-soft); }
+  .lb-frame { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 10px; overflow: hidden; }
+
+  /* ═══════════ 🎠 3D OVERLAY CAROUSEL ═══════════
+     Τα πλαϊνά preview είναι ΠΙΣΩ από το κεντρικό βίντεο (overlay, όχι flex),
+     ώστε το κεντρικό να δεσπόζει στο κέντρο με πλήρες μέγεθος. */
+  /* Five-card staircase. All cards share one grid cell; no absolute previews. */
+  .lb-stage {
+    display: grid; grid-template-columns: minmax(0, 1fr);
+    align-items: center; justify-items: center; width: 100%; min-width: 0;
+  }
+  .lb-main {
+    grid-area: 1 / 1; position: relative; z-index: 10;
+    width: 64%; max-width: 900px; min-width: 0;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 16px;
+    padding: 10px; box-shadow: 0 8px 22px rgba(0,0,0,.22);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .lb-main .lb-frame { max-height: 64vh; }
+  .lb-side {
+    grid-area: 1 / 1; position: relative; z-index: 3;
+    width: 44%; max-width: 630px; min-width: 0; margin: 0;
+    padding: 6px; border: 1px solid var(--border); border-radius: 12px;
+    background: var(--bg); color: var(--text); font: inherit;
+    cursor: pointer; display: flex; flex-direction: column; gap: 4px;
+    opacity: 1; box-shadow: 0 6px 18px rgba(0,0,0,.25);
+    transform: translateX(var(--side-offset)) scale(.96);
+    transition: transform .25s ease;
+    user-select: none;
+  }
+  .lb-side-prev { --side-offset: -52%; }
+  .lb-side-next { --side-offset: 52%; }
+  .lb-side::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: rgba(0,0,0,.2); pointer-events: none;
+    transition: background .25s ease;
+  }
+  .lb-side-far { width: 34%; max-width: 490px; z-index: 1; opacity: 1; cursor: default; }
+  .lb-side-far::after { background: rgba(0,0,0,.4); }
+  .lb-side-prev2 { --side-offset: calc(-50vw + 44%); }
+  .lb-side-next2 { --side-offset: calc(50vw - 44%); }
+  .lb-side:not(.lb-side-far):hover::after, .lb-side:not(.lb-side-far):focus-visible::after { background: transparent; }
+  .lb-side:not(.lb-side-far):hover, .lb-side:not(.lb-side-far):focus-visible {
+    opacity: 1; transform: translateX(var(--side-offset)) translateY(-8px) scale(1);
+    z-index: 11;
+  }
+  .lb-side-thumb { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; background: #000; display: block; }
+  .lb-side-title { font-size: 11px; color: var(--muted); line-height: 1.3; text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .lb-side.hidden { visibility: hidden; pointer-events: none; }
+  /* Navigation spring uses independent translate/scale properties, preserving
+     the layout/hover transforms and opaque cards. No idle or hover bounce on far cards. */
+  .lb-side:not(.lb-side-far) { transition: transform .3s cubic-bezier(.22,1.25,.36,1); }
+
+  /* ═══════════ 🎛️ COMPACT BOTTOM BAR (μία γραμμή) ═══════════ */
+  .lb-bottom {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;   /* αριστερά | κέντρο | δεξιά */
+    align-items: center;                    /* ⬅️ ΟΛΑ κατακόρυφα κεντραρισμένα */
+    gap: 10px;
+    min-height: 46px;
+  }
+  .lb-bottom > div { min-height: 46px; display: flex; align-items: center; }
+  .lb-bottom-left {
+    display: flex; align-items: center; gap: 6px;
+    justify-self: start;
+    font-size: 12.5px; color: var(--muted);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .lb-bottom-center { display: flex; align-items: center; gap: 8px; justify-self: center; }
+  .lb-bottom-right { display: flex; align-items: center; gap: 8px; justify-self: end; }
+  .lb-time-sep { opacity: .45; }
+  .lb-skip-num { font-size: 10.5px; opacity: .85; margin: 0 1px; }
+  .lb-note-compact {
+    height: 38px; padding: 0 14px; border-radius: 50px; border: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));  /* 🎯 μπλε gradient */
+    color: #fff; font-size: 13px; font-weight: 600;
+    cursor: pointer; box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 40%, transparent);
+    display: inline-flex; align-items: center; justify-content: center;  /* 🎯 ΑΠΟΛΥΤΟ κέντρο */
+    line-height: 1; gap: 5px; text-align: center;
+    transition: transform .14s, filter .14s;
+  }
+  .lb-note-compact:hover { transform: translateY(-1px); filter: brightness(1.06); }
+  .lb-note-compact:active { transform: translateY(0); }
+  .lb-note-compact:hover { transform: translateY(-1px); filter: brightness(1.08); }
+  .lb-note-compact:active { box-shadow: var(--silk-inset-soft); }
+
+  /* ═══════════ 🐇 PLAYBACK SPEED (κάθετο popup) ═══════════ */
+  .lb-speed-wrap { position: relative; display: inline-flex; }
+  .lb-speed-btn {
+    height: 38px; padding: 0 12px; border-radius: 50px; border: none;
+    background: var(--bg); color: var(--text);
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    box-shadow: var(--silk-extruded-soft);
+    transition: transform .12s, box-shadow .12s, color .12s;
+    white-space: nowrap;
+  }
+  .lb-speed-btn svg { width: 19px; height: 19px; display: block; }
+  .lb-speed-btn:hover { color: var(--accent); transform: translateY(-1px); }
+  .lb-speed-btn:active { box-shadow: var(--silk-inset-soft); }
+  .lb-speed-btn.active { color: var(--accent); }
+  .lb-speed-val { font-variant-numeric: tabular-nums; font-size: 12.5px; min-width: 30px; text-align: right; }
+
+  /* το κάθετο overlay — ανοίγει ΠΡΟΣ ΤΑ ΠΑΝΩ, δεν σπρώχνει τίποτα */
+  .lb-speed-popup {
+    position: absolute; bottom: calc(100% + 12px); left: 0;
+    z-index: 20;
+    background: var(--bg); border-radius: 16px; padding: 14px 14px 10px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.4), var(--silk-extruded);
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    opacity: 0; transform: translateY(8px) scale(.96); pointer-events: none;
+    transition: opacity .2s ease, transform .2s cubic-bezier(.2,.8,.3,1);
+    width: 210px;
+  }
+  .lb-speed-popup.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+  .lb-speed-head { font-size: 12.5px; font-weight: 700; color: var(--muted); }
+
+  /* 🌡️ ΘΕΡΜΟΜΕΤΡΟ — στενή κάψουλα + floating badges */
+  .lb-thermo {
+    position: relative; display: flex; align-items: stretch; gap: 8px;
+    padding: 2px 0;
+  }
+  /* ο άξονας: λεπτή κάψουλα */
+  .lb-speed-range {
+    position: relative; width: 7px; height: 210px; margin: 10px 7px;
+    flex: 0 0 7px; border-radius: 999px; background: var(--border);
+    touch-action: none; cursor: pointer; --speed-position: 42.857%;
+  }
+  .lb-speed-range::before { content: ""; position: absolute; inset: -10px -9px; }
+  .lb-speed-thumb {
+    position: absolute; left: 50%; bottom: var(--speed-position);
+    width: 18px; height: 18px; border: 2px solid var(--bg); border-radius: 50%;
+    background: var(--accent); transform: translate(-50%, 50%); pointer-events: none;
+  }
+  .lb-speed-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
+  /* 🏷️ floating badges: λιτά, χωρίς πλαίσιο */
+  .lb-speed-ticks {
+    display: flex; flex-direction: column; justify-content: space-between;
+    height: 218px; flex: 1 1 auto;
+  }
+  .lb-speed-tick {
+    border: none; background: transparent; color: var(--muted);
+    font-size: 11px; font-weight: 600; padding: 1px 0; border-radius: 6px;
+    cursor: pointer; text-align: left; line-height: 1;
+    transition: color .14s, transform .14s;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .lb-speed-tick:hover { color: var(--text); transform: translateX(3px); }
+  .lb-speed-tick.on {
+    color: #fff; font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    padding: 2px 7px; margin-left: -3px;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  /* 🧊 το popup = στενή κάψουλα glass */
+  .lb-speed-popup {
+    width: auto; min-width: 0;
+    padding: 12px 12px 10px;
+    border-radius: 24px;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  }
+  .lb-speed-head { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; opacity: .7; }
+
+
+
+  /* 📱 responsive */
+  @media (max-width: 860px) {
+    .lb-speed-popup { width: 180px; padding: 12px 12px 8px; }
+    .lb-speed-range { height: 150px; }
+    .lb-speed-val { display: none; }
+  }
+  .lb-ctrl {
+    height: 38px; min-width: 40px; padding: 0 10px; border-radius: 50px;
+    border: none; background: var(--bg); color: var(--text);
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--silk-extruded-soft);
+    transition: transform .12s, box-shadow .12s, color .12s;
+    font-variant-numeric: tabular-nums;
+  }
+  .lb-ctrl:hover { color: var(--accent); transform: translateY(-1px); }
+  .lb-ctrl:active { box-shadow: var(--silk-inset-soft); transform: translateY(1px); }
+  .lb-ctrl-play {
+    width: 46px; min-width: 46px; height: 46px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff; font-size: 19px;
+  }
+  .lb-ctrl-play:hover { color: #fff; transform: scale(1.06); }
+  /* 🎯 τα μονά βελάκια (±5s): πιο διακριτικά από τα 20άρια */
+  .lb-ctrl-step { min-width: 34px; padding: 0 8px; opacity: .92; }
+  /* 🎯 hover στα άκρα → η κάρτα σηκώνεται σαν να την άγγιξες (ίδιο look με :hover) */
+  .lb-side.hover-preview {
+    opacity: 1;
+    transform: translateX(var(--side-offset)) translateY(-8px) scale(1);
+    z-index: 11;
+  }
+  .lb-side.hover-preview::after { background: transparent; }
+  .lb-ctrl-step:hover { color: var(--accent); }
+  .lb-skip-num { color: inherit; }
+
+  /* ═══════════ 📊 PROGRESS ═══════════ */
+  .lb-progress-wrap { display: flex; align-items: center; gap: 10px; margin-top: 2px; }
+  .lb-time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 38px; text-align: center; }
+  .lb-progress {
+    flex: 1 1 auto; height: 6px; border-radius: 999px; background: var(--bg);
+    box-shadow: var(--silk-inset-soft); cursor: pointer; position: relative; overflow: hidden;
+  }
+  .lb-progress-fill {
+    height: 100%; width: 0%; border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width .2s linear;
+  }
+  .lb-progress:hover { height: 8px; }
+
+  /* 🔴 MARKERS: τελείες σημειώσεων πάνω στη progress bar */
+  .lb-marker {
+    position: absolute; top: 50%;
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #ff3b5c; border: 1.5px solid #fff;
+    transform: translate(-50%, -50%);
+    z-index: 3; cursor: pointer; padding: 0;
+    box-shadow: 0 0 5px rgba(0,0,0,.45);
+    transition: transform .16s ease;
+  }
+  .lb-marker:hover { transform: translate(-50%, -50%) scale(1.5); }
+  .lb-progress { overflow: visible; }   /* να φαίνονται οι τελείες */
+  .lb-progress-fill { border-radius: 999px; }
+
+  /* ═══════════ 📝 NOTES SIDEBAR ═══════════ */
+  .lb-notes-panel {
+    position: absolute; top: 14px; right: 14px; bottom: 14px;
+    width: 300px; max-width: 82vw; z-index: 50;   /* 🎯 ΠΑΝΩ από βίντεο (10) και speed (20) */
+    background: var(--bg); border-radius: 16px; padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+    box-shadow: 0 18px 50px rgba(0,0,0,.35), var(--silk-extruded);
+    transform: translateX(calc(100% + 22px)); opacity: 0;
+    transition: transform .28s cubic-bezier(.2,.8,.3,1), opacity .28s ease;
+    pointer-events: none;
+  }
+  .lb-notes-panel.open { transform: translateX(0); opacity: 1; pointer-events: auto; }
+  .lb-notes-head {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 14px; font-weight: 700;
+  }
+  .lb-notes-close {
+    border: none; background: var(--bg); color: var(--muted);
+    width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+    box-shadow: var(--silk-extruded-soft); font-size: 13px;
+  }
+  .lb-notes-close:hover { color: var(--danger, #e5533d); }
+  .lb-notes-panel .lb-notes { margin-top: 0; max-height: none; flex: 1 1 auto; overflow-y: auto; }
+  .lb-notes-add { margin-top: auto; }
+  .lb-notes-add .lb-note-btn { width: 100%; justify-content: center; }
+  /* 📱 σε στενές οθόνες: το sidebar γίνεται full-width overlay */
+  @media (max-width: 860px) {
+    .lb-notes-panel { width: auto; left: 14px; right: 14px; }
+    .lb-side { width: 22%; min-width: 90px; }
+    .lb-dialog { width: 98vw; padding: 10px; }
+    .lb-bottom-left .lb-time-sep, .lb-bottom-left #lb-time-tot { display: none; }  /* χώρος */
+    .lb-ctrl { height: 34px; min-width: 36px; padding: 0 8px; font-size: 13px; }
+    .lb-ctrl-play { width: 42px; min-width: 42px; height: 42px; }
+    .lb-note-compact { padding: 0 10px; }
+  }
+  .lb-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .lb-loading {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 14px;
+  }
+  .lb-blocked {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+    background: radial-gradient(circle at 50% 40%, #1a1f2b, #000);
+    padding: 20px; text-align: center;
+  }
+  .lb-blocked-thumb { max-width: 60%; max-height: 45%; border-radius: 8px; border: 1px solid var(--border); }
+  .lb-blocked-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.35; }
+  .lb-blocked-btn {
+    padding: 10px 22px; border-radius: 999px; border: none;
+    background: var(--accent); color: var(--accent-fg); font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: transform .12s, filter .12s;
+  }
+  .lb-blocked-btn:hover { transform: scale(1.05); filter: brightness(1.08); }
+  .lb-controls {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+  }
+  .lb-nav {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: none; background: var(--bg);
+    color: var(--text); font-size: 17px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--silk-extruded-soft);
+    transition: transform .12s, box-shadow .12s, opacity .12s;
+  }
+  .lb-nav:hover { transform: scale(1.08); }
+  .lb-nav:active { box-shadow: var(--silk-inset-soft); }
+  .lb-nav:disabled { opacity: .3; cursor: default; transform: none; box-shadow: none; }
+  .lb-pos { font-size: 13px; color: var(--muted); min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; }
+  .lb-add {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: none; background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff; font-size: 19px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--silk-extruded-soft);
+    transition: transform .12s, filter .12s, box-shadow .12s;
+  }
+  .lb-add:hover { transform: scale(1.1); filter: brightness(1.08); }
+  .lb-add:active { box-shadow: var(--silk-inset-soft); }
+  /* Το «magic moment»: όταν προστίθεται ένα βίντεο, το ➕ γίνεται ✓ με spring + draw. */
+  .lb-add.added {
+    background: #22c55e;
+    border-color: #22c55e;
+    color: #fff;
+    animation: add-pop .55s cubic-bezier(.18,.9,.32,1.35);
+  }
+  @keyframes add-pop {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.4); }
+    60%  { transform: scale(.86); }
+    80%  { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+  @keyframes check-draw { to { stroke-dashoffset: 0; } }
+  .lb-add.added svg, .lb-add.added .add-check { display: block; }
+  .lb-dismiss {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--danger, #e5533d); background: var(--danger, #e5533d);
+    color: #fff; font-size: 17px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,.3);
+    transition: transform .12s, filter .12s;
+  }
+  .lb-dismiss:hover { transform: scale(1.1); filter: brightness(1.08); }
+  .lb-note-btn {
+    height: 44px; padding: 0 16px; border-radius: 50px;
+    border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff;
+    font-size: 14px; cursor: pointer; white-space: nowrap;
+    display: flex; align-items: center; gap: 6px;
+    box-shadow: var(--silk-extruded-soft);
+    transition: transform .12s, box-shadow .12s, filter .12s;
+  }
+  .lb-note-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+  .lb-note-btn:active { box-shadow: var(--silk-inset-soft); transform: translateY(0); }
+  .lb-notes { margin-top: 14px; max-height: 180px; overflow-y: auto; font-size: 13px; }
+  .lb-note-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: var(--bg); border: none; border-radius: 14px;
+    padding: 10px 12px; margin-bottom: 8px; text-align: left;
+    box-shadow: var(--silk-extruded-soft);
+  }
+  .lb-note-ts {
+    flex: 0 0 auto; padding: 3px 10px; border-radius: 999px;
+    background: var(--bg); color: var(--accent); font-weight: 700; font-size: 12px;
+    font-variant-numeric: tabular-nums; cursor: pointer;
+    white-space: nowrap; box-shadow: var(--silk-inset-soft);
+  }
+  .lb-note-body { flex: 1; min-width: 0; }
+  .lb-note-title { font-weight: 600; margin-bottom: 2px; }
+  .lb-note-text { color: var(--muted); word-wrap: break-word; }
+  .lb-note-del {
+    flex: 0 0 auto; border: none; background: var(--bg); color: var(--muted);
+    cursor: pointer; font-size: 14px; padding: 6px 8px; border-radius: 10px;
+    box-shadow: var(--silk-extruded-soft);
+    transition: color .12s, box-shadow .12s;
+  }
+  .lb-note-del:hover { color: var(--danger, #e5533d); }
+  .lb-note-del:active { box-shadow: var(--silk-inset-soft); }
+  .lb-note-empty { color: var(--muted); padding: 6px 2px; }
+  /* φόρμα note */
+  .lb-note-form {
+    background: var(--bg); border: none; border-radius: 16px;
+    padding: 14px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px;
+    text-align: left; box-shadow: var(--silk-extruded);
+  }
+  .lb-note-form input, .lb-note-form textarea {
+    background: var(--bg); border: none; border-radius: 10px;
+    color: var(--text); font-size: 13px; padding: 10px 12px; width: 100%;
+    font-family: inherit; box-shadow: var(--silk-inset-soft);
+    outline: none;
+  }
+  .lb-note-form input:focus, .lb-note-form textarea:focus {
+    box-shadow: var(--silk-inset-soft), 0 0 0 2px var(--accent);
+  }
+  .lb-note-form textarea { min-height: 56px; resize: vertical; }
+  .lb-note-form-row { display: flex; gap: 8px; align-items: center; }
+  .lb-note-form .ts-label { color: var(--accent); font-weight: 700; font-size: 12px; white-space: nowrap; }
+  .lb-note-form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .lb-note-form-actions button {
+    border: none; background: var(--bg); color: var(--text);
+    border-radius: 50px; padding: 8px 16px; cursor: pointer; font-size: 13px;
+    box-shadow: var(--silk-extruded-soft);
+    transition: box-shadow .12s, transform .12s;
+  }
+  .lb-note-form-actions button:hover { transform: translateY(-1px); }
+  .lb-note-form-actions button:active { box-shadow: var(--silk-inset-soft); transform: translateY(0); }
+  .lb-note-form-actions button.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-weight: 600; }
+
+  /* 🔍 YouTube Αναζήτηση (tab) */
+  .yt-search-box { max-width: 760px; margin-bottom: 14px; position: relative; }
+  .yt-search-status { margin: 0 0 12px; color: var(--muted); font-size: 14px; display: flex; align-items: center; gap: 10px; }
+  
+  .yt-search-status .spin {
+    width: 16px; height: 16px; flex: 0 0 auto;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: rss-spin .7s linear infinite;
+  }
+  .yt-empty { color: var(--muted); font-size: 15px; padding: 24px 0; text-align: center; }
+  .yt-sec-title {
+    font-size: 15px; font-weight: 700; margin: 16px 0 8px; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .yt-videos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; width: 100%; max-width: 100%; }
+  /* 🚀 VIRTUAL SCROLLING (ασφαλής εκδοχή):
+     Ο browser ΔΕΝ ζωγραφίζει τις κάρτες εκτός οθόνης — αλλά το ύψος μένει,
+     οπότε η μπάρα κύλισης δεν «πηδά» και το scroll παραμένει ομαλό.
+     Είναι το ίδιο που κάνουν YouTube/Netflix: το DOM μένει, το ΖΩΓΡΑΦΙΣΜΑ περιορίζεται. */
+  .yt-video {
+    /* ✅ ΑΣΦΑΛΕΣ: οι κάρτες αναζήτησης ΔΕΝ έχουν lift → content-visibility OK.
+       (Στο .v-card / .channel-group ΑΠΑΓΟΡΕΥΕΤΑΙ — σπάει το position:fixed του lift.) */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 293px;
+    display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 18px;
+    background: var(--bg); border: none;
+    box-shadow: var(--silk-extruded);
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .yt-video:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--silk-extruded), 0 0 0 2px var(--accent);
+  }
+  .yt-video:active { box-shadow: var(--silk-inset); }
+  .yt-thumb-wrap { position: relative; width: 100%; aspect-ratio: 16/9; cursor: pointer; overflow: hidden; border-radius: 8px; }
+  .yt-thumb-ph { position: absolute; inset: 0; background: linear-gradient(110deg, var(--card) 8%, var(--hover) 18%, var(--card) 33%); background-size: 200% 100%; animation: thumb-shimmer 1.6s linear infinite; }
+  /* 🎨 ΕΛΑΦΡΥ blur-up: 20px → 4px ΚΑΙ χωρίς scale.
+     Το blur(20px) + scale(1.08) ήταν το πιο ακριβό GPU φίλτρο × κάθε κάρτα.
+     Στο light theme δεν φαινόταν καν — αλλά το πληρώναμε σε κάθε φόρτωση. */
+  .yt-thumb { position: relative; width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: block; opacity: 0; filter: blur(4px); transition: filter .35s ease-out, opacity .35s ease-out; }
+  .yt-thumb.loaded { opacity: 1; filter: blur(0); }
+  .yt-play-icon {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 34px; color: #fff; opacity: 0; transition: opacity .15s;
+    background: rgba(0,0,0,.25); border-radius: 8px; text-shadow: 0 2px 10px rgba(0,0,0,.6);
+  }
+  .yt-thumb-wrap:hover .yt-play-icon { opacity: 1; }
+  .yt-dur {
+    position: absolute; right: 6px; bottom: 6px; background: rgba(0,0,0,.8);
+    color: #fff; font-size: 12px; padding: 2px 6px; border-radius: 4px;
+  }
+  .yt-video-title {
+    font-size: 14.5px; font-weight: 600; line-height: 1.35;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .yt-video-meta { font-size: 12.5px; color: var(--muted); }
+  .yt-add-btn { align-self: center; }
+  .yt-btn {
+    padding: 8px 16px; border-radius: 999px; border: none; cursor: pointer;
+    font-size: 13px; font-weight: 700; box-shadow: var(--silk-extruded-soft);
+    transition: transform .12s, filter .12s, box-shadow .12s;
+  }
+  .yt-btn.add { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+  /* ✅ Το «magic moment»: όταν προστίθεται από την καρτέλα → πρασινίζει + ✓ + pop. */
+  .yt-btn.add.added {
+    background: #22c55e; border-color: #22c55e; color: #fff;
+    animation: add-pop .55s cubic-bezier(.18,.9,.32,1.35);
+    pointer-events: none;
+  }
+  .yt-btn.watch { background: var(--bg); color: var(--text); }
+  .yt-btn.watched { background: var(--bg); color: var(--accent); box-shadow: var(--silk-inset-soft); cursor: default; animation: watch-pop .35s cubic-bezier(.18,.9,.32,1.3); }
+  @keyframes watch-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.12); }
+    100% { transform: scale(1); }
+  }
+  .yt-btn:hover { transform: scale(1.04); filter: brightness(1.06); }
+  .yt-btn:active { box-shadow: var(--silk-inset-soft); transform: scale(.97); }
+  .yt-search-sticky {
+    position: sticky; top: 0; z-index: 30;
+    background: transparent;   /* ίδιο με το φόντο — χωρίς χρωματική διαφορά */
+    padding: 8px 20px 6px;
+    /* 🌫️ Frosted glass: θολώνει ό,τι περνά από κάτω του ΌΤΑΝ σκρολάρει (.scrolled). */
+    backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
+    transition: backdrop-filter .25s ease, -webkit-backdrop-filter .25s ease;
+  }
+  /* Full-bleed frost σε ξεχωριστό layer (absolute, εκτός flow) — πίσω από το κεντραρισμένο περιεχόμενο. */
+  .yt-search-sticky::before {
+    content: ""; position: absolute; z-index: -1;
+    left: calc(50% - 50vw); right: calc(50% - 50vw);
+    top: 0; bottom: 0;
+    background: var(--bg); opacity: 0; pointer-events: none;
+    transition: opacity .25s ease;
+  }
+  .yt-search-sticky.scrolled {
+    backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+  .yt-search-sticky.scrolled::before {
+    opacity: 0.9;
+    /* Λεπτή ανοιχτόχρωμη γραμμή (glow) στο κάτω άκρο — ανάλογα με το θέμα. */
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 12px 28px -10px color-mix(in srgb, var(--border) 80%, transparent);
+  }
+  /* 🧊 Κοινό frosted-glass sticky για όλα τα tabs (Κανάλια / Κατηγορίες / Αναζήτηση). */
+  .sticky-head {
+    position: sticky; top: 0; z-index: 30;
+    background: transparent;
+    padding: 8px 20px 6px;
+    backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
+    transition: backdrop-filter .25s ease, -webkit-backdrop-filter .25s ease;
+  }
+  .sticky-head::before {
+    content: ""; position: absolute; z-index: -1;
+    left: calc(50% - 50vw); right: calc(50% - 50vw);
+    top: 0; bottom: 0;
+    background: var(--bg); opacity: 0; pointer-events: none;
+    transition: opacity .25s ease;
+  }
+  .sticky-head.scrolled {
+    backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+  }
+  .sticky-head.scrolled::before {
+    opacity: 0.9;
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 12px 28px -10px color-mix(in srgb, var(--border) 80%, transparent);
+  }
+  .yt-recent {
+    position: absolute; left: 0; right: 0; top: calc(100% + 4px);
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.4); padding: 6px; z-index: 40;
+    min-width: 560px;   /* 📐 χωράει το πλέγμα 6 στηλών */
+  }
+  .yt-recent-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: 7px; cursor: pointer; font-size: 14px;
+  }
+  .yt-recent-item:hover { background: color-mix(in srgb, var(--card) 60%, var(--accent) 14%); }
+  /* 📐 Πλέγμα 6 στηλών για τις πρόσφατες αναζητήσεις (όλες σε ένα dropdown, δίπλα-δίπλα). */
+  .yt-recent-grid {
+    display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px;
+  }
+  .yt-recent-grid .yt-recent-item {
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+    font-size: 12.5px; padding: 6px 8px;
+  }
+  .yt-recent-head {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted);
+    padding: 4px 10px 6px;
+  }
+
+  .yt-modes { display: flex; gap: 8px; margin: 0 0 14px; width: 100%; max-width: 100%; }
+  .yt-mode {
+    padding: 8px 18px; border-radius: 999px; border: none;
+    background: var(--bg); color: var(--text); font-size: 13px; font-weight: 600;
+    cursor: pointer; box-shadow: var(--silk-extruded-soft);
+    transition: box-shadow .12s, color .12s;
+  }
+  .yt-mode.active { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; box-shadow: var(--silk-extruded-soft); }
+  .yt-mode:hover { color: var(--accent); }
+  .yt-mode:active { box-shadow: var(--silk-inset-soft); }
+
+  /* 🫧 Bubble Field — αιωρούμενα θέματα (trending) στην αρχική σελίδα αναζήτησης */
+  #bubble-field {
+    position: relative;
+    width: 100%;
+    height: 460px;
+    border-radius: 0;       /* ίδιο φόντο με τη σελίδα — αόρατο */
+    overflow: hidden;
+    margin: 4px 0 18px;
+    background: transparent;  /* ΚΑΝΕΝΑ φόντο → τα bubbles «βγαίνουν από το πουθενά» */
+    cursor: default;
+  }
+  #bubble-field canvas { position: absolute; inset: 0; display: block; }
+
+  .yt-channels {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px; width: 100%; max-width: 100%;   /* 🎯 χωρίς cap — να μη κόβεται καμία */
+  }
+  .yt-channel {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    padding: 18px 12px; border-radius: 18px;
+    background: var(--bg); border: none;
+    cursor: pointer; text-align: center;
+    box-shadow: var(--silk-extruded);
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .yt-channel:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--silk-extruded), 0 0 0 2px var(--accent);
+  }
+  .yt-channel:active { box-shadow: var(--silk-inset); }
+  .yt-channel-logo-wrap { width: 100%; display: flex; justify-content: center; position: relative; }
+  .yt-channel-avatar-ph { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 128px; height: 128px; border-radius: 16px; background: linear-gradient(110deg, var(--card) 8%, var(--hover) 18%, var(--card) 33%); background-size: 200% 100%; animation: thumb-shimmer 1.6s linear infinite; }
+  .yt-channel-avatar { width: 128px; height: 128px; border-radius: 16px; object-fit: cover; opacity: 0; filter: blur(4px); transition: filter .35s ease-out, opacity .35s ease-out; }
+  .yt-channel-avatar.loaded { opacity: 1; filter: blur(0); }
+  .yt-channel-name {
+    font-size: 14px; font-weight: 600; line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  
+  .yt-next-wrap { display: flex; justify-content: center; margin: 20px 0 8px; width: 100%; max-width: 100%; }
+  /* «Επόμενα» μέσα στο κανάλι: ίδιο ύφος με το κουμπί της αναζήτησης, στο ΤΕΛΟΣ της λίστας. */
+  .yt-sentinel { height: 1px; width: 100%; }
+  .yt-next-btn {
+    padding: 9px 22px; border: none; border-radius: 999px; cursor: pointer;
+    background: var(--card); color: var(--text); font-weight: 600; font-size: 14px;
+    box-shadow: var(--silk-extruded-soft, 0 2px 8px rgba(0,0,0,.08));
+    transition: transform .12s, filter .12s;
+  }
+  .yt-next-btn:hover { transform: scale(1.04); filter: brightness(1.05); }
+  .yt-next-btn:active { box-shadow: var(--silk-inset-soft, inset 0 2px 6px rgba(0,0,0,.12)); transform: scale(.98); }
+  .yt-next-btn:disabled { cursor: default; transform: none; }
+  /* 🏁 Διακριτικό σημείο τέλους — όχι κουμπί, μόνο μια ανάσα. */
+  .yt-the-end {
+    font-size: 13px; letter-spacing: .12em; text-transform: lowercase;
+    color: var(--muted); opacity: .55; user-select: none; padding: 6px 0;
+  }
+  .yt-next-wrap .spin { margin-right: 6px; }
+  .yt-loading {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 18px 0; color: var(--muted); font-size: 14px;
+  }
+  .yt-loading .spin {
+    width: 16px; height: 16px; flex: 0 0 auto;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: rss-spin .7s linear infinite;
+  }
+  /* ⏳ Loading indicator που δείχνει ότι η λίστα «ξαναχτίζεται» (μετά από add/delete). */
+  #list-loading {
+    display: none; align-items: center; justify-content: center; gap: 10px;
+    padding: 22px 0; color: var(--muted); font-size: 14px;
+  }
+  #list-loading.show { display: flex; }
+  #list-loading .spin {
+    width: 20px; height: 20px; flex: 0 0 auto;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: rss-spin .7s linear infinite;
+  }
+
+  /* 👁️ Channel window (eye) — σαν το video lightbox */
+  .cw-dialog {
+    background: var(--bg); border: none; border-radius: 20px;
+    width: min(560px, 92vw); max-height: 82vh; overflow-y: auto;
+    padding: 22px; position: relative; box-shadow: var(--silk-extruded), 0 24px 80px rgba(0,0,0,.4);
+  }
+  .cw-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .cw-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+  .cw-title { flex: 1; font-size: 18px; font-weight: 700; line-height: 1.3; min-width: 0; }
+  .cw-videos-title { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+  .cw-videos { display: flex; flex-direction: column; gap: 8px; }
+  .cw-video { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; background: var(--bg, #111); cursor: pointer; }
+  .cw-video:hover { background: color-mix(in srgb, var(--card) 60%, var(--accent) 14%); }
+  .cw-video-thumb { width: 96px; aspect-ratio: 16/9; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+  .cw-video-title { font-size: 13.5px; font-weight: 500; line-height: 1.3; }
+
+  /* 📱 Responsive ladder — 4 → 3 → 2 → 1.
+     Base (>1240px): 4 στήλες παντού. Κάθε βήμα ΚΑΤΕΒΑΙΝΕΙ μία στήλη. */
+  @media (max-width: 1240px) {
+    .yt-videos   { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .yt-channels { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .v-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 1000px) {
+    .yt-videos   { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .yt-channels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .v-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    body { padding: 20px 14px; }
+  }
+  @media (max-width: 700px) {
+    .yt-videos   { grid-template-columns: minmax(0, 1fr); }
+    .yt-channels { grid-template-columns: minmax(0, 1fr); }
+    .v-card-grid { grid-template-columns: minmax(0, 1fr); }
+    .yt-video-title { -webkit-line-clamp: 2; }
+  }
+  @media (max-width: 480px) {
+    body { padding: 14px 10px; }
+    .yt-channels { gap: 10px; }
+    .v-card-grid { gap: 10px; }
+  }
+  /* 📱 Tablet/κινητό: το search γίνεται sticky ΚΑΤΩ (όπως Pinterest) */
+  @media (max-width: 900px) {
+    .yt-search-sticky {
+      position: sticky; top: auto; bottom: 0;
+      border-top: 1px solid var(--border);
+      padding: 8px 0 6px;
+    }
+    .yt-recent { top: auto; bottom: calc(100% + 4px); }
+  }
+
+  /* Player card contract: controls INSIDE; transparent shell; restrained shadows. */
+  #lb .lb-dialog { width: min(1400px, 96vw); padding: 0; border: 0; background: transparent; box-shadow: none; }
+  #lb .lb-close { top: -12px; right: -12px; z-index: 60; box-shadow: none; border: 1px solid var(--border); }
+  #lb { overflow: clip; }
+  #lb .lb-main { container-type: inline-size; }
+  #lb .lb-bottom { width: 100%; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 6px; min-height: 34px; }
+  #lb .lb-bottom > div { min-width: 0; min-height: 34px; gap: 4px; }
+  #lb .lb-bottom-left { font-size: 11px; }
+  #lb .lb-time { font-size: 11px; min-width: 0; }
+  #lb .lb-ctrl { height: 30px; min-width: 30px; padding: 0 6px; font-size: 12px; }
+  #lb .lb-ctrl-play { width: 34px; min-width: 34px; height: 34px; font-size: 16px; }
+  #lb .lb-note-compact, #lb .lb-speed-btn { height: 30px; padding: 0 8px; font-size: 11px; }
+  #lb .lb-speed-btn { color: var(--accent); }
+  #lb .lb-speed-val { display: inline; font-size: 11px; min-width: 0; }
+  #lb .lb-add, #lb .lb-dismiss { width: 30px; height: 30px; font-size: 14px; }
+  #lb .lb-progress-wrap { width: 100%; margin: 0; height: 10px; flex-shrink: 0; }
+  #lb .lb-progress { background: var(--border); box-shadow: none; }
+  #lb button, #lb .lb-speed-range, #lb .lb-speed-tick.on, #lb .lb-marker { box-shadow: none; filter: none; text-shadow: none; }
+  #lb .lb-side-far { box-shadow: 0 4px 12px rgba(0,0,0,.16); }
+  #lb .lb-speed-popup { width: auto; padding: 10px; border-radius: 18px; background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: 0 5px 16px rgba(0,0,0,.18); }
+  #lb .lb-speed-range { height: 210px; transform: none; writing-mode: horizontal-tb; direction: ltr; }
+  #lb .lb-speed-ticks { height: 230px; flex-direction: column; justify-content: space-between; }
+  #lb .lb-speed-tick { height: 20px; line-height: 20px; padding: 0 5px; margin: 0; }
+  #lb .lb-speed-tick.on { padding: 0 5px; margin: 0; }
+  #lb .lb-notes-panel { z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,.22); }
+  #lb .lb-notes-panel:not(.open) { visibility: hidden; }
+  @container (max-width: 670px) {
+    #lb .lb-bottom-left #lb-time-tot, #lb .lb-bottom-left .lb-time-sep { display: none; }
+  }
+  @container (max-width: 540px) {
+    #lb .lb-bottom { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+    #lb .lb-bottom-center { grid-row: 1; grid-column: 1 / -1; }
+    #lb .lb-bottom-left { grid-row: 2; grid-column: 1; }
+    #lb .lb-bottom-right { grid-row: 2; grid-column: 2; }
+  }
+  @media (max-width: 860px) {
+    #lb .lb-main { width: 76%; }
+    #lb .lb-side { width: 48%; min-width: 0; }
+    #lb .lb-side-prev { --side-offset: -48%; }
+    #lb .lb-side-next { --side-offset: 48%; }
+    #lb .lb-side-far { width: 34%; }
+    #lb .lb-side-prev2 { --side-offset: calc(-50vw + 44%); }
+    #lb .lb-side-next2 { --side-offset: calc(50vw - 44%); }
+  }
+  @media (max-width: 560px) {
+    #lb .lb-main { width: 94%; padding: 8px; }
+    #lb .lb-side { display: none; }
+  }
+  @media (max-height: 600px) {
+    #lb .lb-main .lb-frame { max-height: 48vh; }
+    #lb .lb-speed-range { height: 140px; }
+    #lb .lb-speed-ticks { height: 160px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #lb *, #lb *::before { animation: none !important; transition: none !important; }
+  }
+
+
+</style></head><body style="background:#16181d;color:#eee;font-family:sans-serif;padding:40px">
+<div class="tag-pop open paged" id="cat-pop" style="position:relative;display:block">
+  <div class="tag-pop-head">📁 Category <button class="tag-pop-close">×</button></div>
+  <div class="tag-pop-list" id="cat-pop-list"></div>
+  <div class="tag-pop-new">
+    <input type="text" placeholder="+ new category">
+    <button>Add</button>
+  </div>
+</div>
+<script>
+// ── Ελάχιστο περιβάλλον ──
+const esc = (s) => String(s);
+const ALL_CATEGORIES = ["Photography","Music Production","Gaming","Cooking","Travel","Tech Reviews","Fitness","Books","Finance","DIY Projects","Languages","History","Art","Science"];
+const POP_PAGE_SIZE = 6;
+let _catPopPage = 0;
+let _catPopCurrent = "";
+const t = (k) => k;
+const applyI18n = () => {};
+
+function _pagerHtml(page, total, fnName) {
+  const pages = Math.max(1, Math.ceil(total / POP_PAGE_SIZE));
+  if (pages <= 1) return "";
+  const p = Math.min(page, pages - 1);
+  return `<div class="pop-pager">
+      <button ${p === 0 ? "disabled" : ""} onclick="${fnName}(${p - 1})">◀</button>
+      <span class="pop-pager-lbl">${p + 1} / ${pages}</span>
+      <button ${p >= pages - 1 ? "disabled" : ""} onclick="${fnName}(${p + 1})">▶</button>
+    </div>`;
+}
+
+function renderCatPopList(currentCat) {
+  _catPopCurrent = currentCat || "";
+  const list = document.getElementById("cat-pop-list");
+  let html = `<div class="tag-pop-item">
+      <label class="tag-pop-label">
+        <input type="radio" name="cat-radio" value="">(no category)
+      </label>
+    </div>`;
+  const total = ALL_CATEGORIES.length;
+  const pages = Math.max(1, Math.ceil(total / POP_PAGE_SIZE));
+  if (_catPopPage > pages - 1) _catPopPage = pages - 1;
+  const slice = ALL_CATEGORIES.slice(_catPopPage * POP_PAGE_SIZE, (_catPopPage + 1) * POP_PAGE_SIZE);
+  if (total) {
+    html += `<div class="pop-page-grid">` + slice.map(c => `
+      <div class="tag-pop-item">
+        <label class="tag-pop-label">
+          <input type="radio" name="cat-radio" value="${esc(c)}">${esc(c)}
+        </label>
+        <button class="tag-del">×</button>
+      </div>`).join("") + `</div>` + _pagerHtml(_catPopPage, total, "setCatPopPage");
+  }
+  document.getElementById("cat-pop").classList.add("paged");
+  list.classList.add("paged");
+  list.innerHTML = html;
+}
+
+renderCatPopList("");
+
+// ── ΕΛΕΓΧΟΙ ──
+(() => {
+  const out = [];
+  const list = document.getElementById("cat-pop-list");
+  const grid = document.querySelector(".pop-page-grid");
+  const pop = document.getElementById("cat-pop");
+  out.push("list.className = " + list.className);
+  out.push("grid υπάρχει: " + !!grid);
+  if (grid) {
+    const cs = getComputedStyle(grid);
+    out.push("grid.display = " + cs.display);
+    out.push("grid.gridTemplateColumns = " + cs.gridTemplateColumns);
+    out.push("grid πλάτος = " + grid.getBoundingClientRect().width);
+  }
+  out.push("pop πλάτος = " + pop.getBoundingClientRect().width);
+  const firstLabel = document.querySelector(".pop-page-grid .tag-pop-label");
+  if (firstLabel) {
+    out.push("label πλάτος = " + firstLabel.getBoundingClientRect().width);
+    out.push("label textContent = '" + firstLabel.textContent.trim() + "'");
+    const sp = firstLabel.querySelector("span");
+    out.push("έχει span: " + !!sp);
+  }
+  // Δες τα items
+  const items = document.querySelectorAll(".pop-page-grid .tag-pop-item");
+  out.push("items: " + items.length);
+  items.forEach((it, i) => {
+    out.push(`  item[${i}] text='${it.textContent.trim()}' width=${it.getBoundingClientRect().width}`);
+  });
+  document.title = "DONE";
+  window.__RESULT = out.join("\n");
+  document.body.setAttribute("data-result", out.join("\n"));
+  console.log(out.join("\n"));
+})();
+</script>
+<pre id="R"></pre><script>document.getElementById("R").textContent="items="+document.querySelectorAll(".pop-page-grid .tag-pop-item").length+" | pager="+(document.querySelector(".pop-pager")?document.querySelector(".pop-pager-lbl").textContent:"ΔΕΝ ΥΠΑΡΧΕΙ")+" | arrows="+document.querySelectorAll(".pop-pager button").length+" | names="+[...document.querySelectorAll(".pop-page-grid .tag-pop-label")].map(l=>l.textContent.trim()).join(",");</script></body></html>

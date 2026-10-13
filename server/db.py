@@ -100,6 +100,22 @@ CREATE TABLE IF NOT EXISTS video_notes (
     created_at      TEXT NOT NULL
 );
 
+-- 🔍 Cache αποτελεσμάτων αναζήτησης (ανά query+mode): ώστε το «Επόμενα» να είναι ακαριαίο.
+--    Το position κρατά τη ΣΕΙΡΑ που έδωσε το YouTube (0 = πρώτο αποτέλεσμα).
+CREATE TABLE IF NOT EXISTS search_cache (
+    query           TEXT NOT NULL,
+    mode            TEXT NOT NULL,
+    position        INTEGER NOT NULL,
+    video_id        TEXT,
+    title           TEXT DEFAULT '',
+    channel         TEXT DEFAULT '',
+    channel_id      TEXT DEFAULT '',
+    duration        INTEGER DEFAULT 0,
+    views           INTEGER DEFAULT 0,
+    cached_at       TEXT NOT NULL,
+    PRIMARY KEY (query, mode, position)
+);
+
 CREATE TABLE IF NOT EXISTS channel_videos_cache (
     channel_id      TEXT NOT NULL,
     video_id        TEXT NOT NULL,
@@ -142,10 +158,29 @@ def init():
             c.execute("ALTER TABLE videos ADD COLUMN is_embeddable INTEGER")
         if "pin_top" not in cols:
             c.execute("ALTER TABLE videos ADD COLUMN pin_top INTEGER DEFAULT 0")
+        if "cat_rank" not in cols:
+            c.execute("ALTER TABLE videos ADD COLUMN cat_rank INTEGER DEFAULT 0")
         # channel_watch: πρόσθεσε στήλη name (για εισαγμένα subscriptions).
         wcols = [r[1] for r in c.execute("PRAGMA table_info(channel_watch)").fetchall()]
         if "name" not in wcols:
             c.execute("ALTER TABLE channel_watch ADD COLUMN name TEXT")
+        # ⚡ Cache embeddable ΑΝΕΞΑΡΤΗΤΗ από τον πίνακα videos — ώστε να θυμάται και βίντεο
+        #    που βρέθηκαν στην αναζήτηση (δεν είναι στη βιβλιοθήκη, άρα το UPDATE videos δεν έπιανε).
+        c.execute(
+            "CREATE TABLE IF NOT EXISTS embeddable_cache ("
+            " video_id TEXT PRIMARY KEY, ok INTEGER NOT NULL, checked_at TEXT NOT NULL)"
+        )
+        # ⚡ Indexes: κάνουν γρήγορα τα lookups ανά κανάλι/κατηγορία/βίντεο (πριν: full scan).
+        for _idx in (
+            "CREATE INDEX IF NOT EXISTS idx_videos_channel ON videos(channel_id)",
+            "CREATE INDEX IF NOT EXISTS idx_videos_usercat ON videos(user_category)",
+            "CREATE INDEX IF NOT EXISTS idx_events_video ON watch_events(video_id)",
+            "CREATE INDEX IF NOT EXISTS idx_notes_video ON video_notes(video_id)",
+        ):
+            try:
+                c.execute(_idx)
+            except Exception:
+                pass
 
 
 def now_iso():
@@ -157,6 +192,13 @@ def record_watch(event):
     vid = event.get("video_id")
     if not vid:
         return
+    # 🔒 Fallback: αν λείπει το όνομα καναλιού, χρησιμοποίησε το channel_id — ΠΟΤΕ κενό
+    #    (αλλιώς «Άγνωστο κανάλι» και, παλαιότερα, το COALESCE έσβηνε υπάρχοντα ονόματα).
+    _ch = (event.get("channel") or "").strip()
+    _cid = (event.get("channel_id") or "").strip()
+    if not _ch and _cid:
+        _ch = _cid
+    event = dict(event, channel=_ch)
     now = now_iso()
     with _conn() as c:
         exists = c.execute(
@@ -169,8 +211,8 @@ def record_watch(event):
                 SET last_watched_at = ?,
                     watch_count      = watch_count + 1,
                     title            = COALESCE(NULLIF(?, ''), title),
-                    channel          = COALESCE(?, channel),
-                    channel_id       = COALESCE(?, channel_id),
+                    channel          = COALESCE(NULLIF(?, ''), channel),
+                    channel_id       = COALESCE(NULLIF(?, ''), channel_id),
                     unseen           = ?
                 WHERE video_id = ?
                 """,
@@ -329,20 +371,6 @@ def set_pin(video_id, state):
         return state
 
 
-def set_pin_channel(channel_id, state):
-    """Καρφιτσώνει/ξεκαρφιτσώνει ΟΛΑ τα βίντεα ενός καναλιού (Keep-στυλ: pinned 1 / unpinned 0)."""
-    with _conn() as c:
-        vids = c.execute(
-            "SELECT video_id FROM videos WHERE channel_id = ?", (channel_id,)
-        ).fetchall()
-        if not vids:
-            return 0
-        new = 1 if state else 0
-        for r in vids:
-            c.execute("UPDATE videos SET pinned = ? WHERE video_id = ?", (new, r["video_id"]))
-        return new
-
-
 def toggle_pin_channel(channel_id):
     """Toggle pin για όλο το κανάλι. Επιστρέφει τη νέα κατάσταση (1/0)."""
     with _conn() as c:
@@ -379,6 +407,14 @@ def reorder_videos(ordered_ids):
             c.execute("UPDATE videos SET rank = ? WHERE video_id = ?", (n - i, vid))
 
 
+def reorder_cat_videos(ordered_ids):
+    """Ενημερώνει τα cat_rank (ξεχωριστή σειρά για ΚΑΤΗΓΟΡΙΕΣ — ΔΕΝ μπλέκεται με το rank των καναλιών)."""
+    with _conn() as c:
+        n = len(ordered_ids)
+        for i, vid in enumerate(ordered_ids):
+            c.execute("UPDATE videos SET cat_rank = ? WHERE video_id = ?", (n - i, vid))
+
+
 def count_videos():
     with _conn() as c:
         return c.execute("SELECT COUNT(*) FROM videos").fetchone()[0]
@@ -394,11 +430,21 @@ def stats():
             "WHERE channel IS NOT NULL AND channel != '' "
             "GROUP BY channel ORDER BY n DESC LIMIT 1"
         ).fetchone()
+        # 🔧 ΣΩΣΤΟ μέτρημα καναλιών: COUNT(DISTINCT COALESCE(channel_id, channel))
+        #    — ταυτίζεται με το πώς ομαδοποιεί το frontend (key = channel_id || channel).
+        #    (Το σκέτο COUNT(DISTINCT channel) έδινε 106 αντί 104, γιατί μετρούσε
+        #    διαφορετικά ΟΝΟΜΑΤΑ του ίδιου channel_id ξεχωριστά.)
+        channels = c.execute(
+            "SELECT COUNT(DISTINCT COALESCE(channel_id, channel)) FROM videos "
+            "WHERE COALESCE(channel_id, channel) IS NOT NULL "
+            "AND COALESCE(channel_id, channel) != ''"
+        ).fetchone()[0]
     return {
         "videos": videos,
         "events": events,
         "top_channel": top["channel"] if top else None,
         "top_channel_count": top["n"] if top else 0,
+        "channel_count": channels,
     }
 
 
@@ -439,23 +485,53 @@ def mark_video_unseen_off(video_id):
 
 
 def set_embeddable(video_id, ok):
-    """Αποθηκεύει αν ένα βίντεο επιτρέπει embed (1=ναι, 0=όχι)."""
+    """Αποθηκεύει αν ένα βίντεο επιτρέπει embed (1=ναι, 0=όχι) — και στη βιβλιοθήκη και στη cache."""
+    set_embeddable_many({video_id: ok})
+
+
+def set_embeddable_many(results):
+    """Batch: {video_id: bool}. ΜΙΑ σύνδεση/συναλλαγή για όλα (αντί για μία ανά βίντεο)."""
+    if not results:
+        return
+    now = now_iso()
     with _conn() as c:
-        c.execute(
-            "UPDATE videos SET is_embeddable = ? WHERE video_id = ?",
-            (1 if ok else 0, video_id),
+        c.executemany(
+            "INSERT INTO embeddable_cache (video_id, ok, checked_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(video_id) DO UPDATE SET ok = excluded.ok, checked_at = excluded.checked_at",
+            [(vid, 1 if ok else 0, now) for vid, ok in results.items()],
         )
+        c.executemany(
+            "UPDATE videos SET is_embeddable = ? WHERE video_id = ?",
+            [(1 if ok else 0, vid) for vid, ok in results.items()],
+        )
+
+
+def get_embeddable_many(video_ids):
+    """Batch: επιστρέφει {video_id: bool} ΜΟΝΟ για όσα ξέρουμε ήδη. ΕΝΑ query."""
+    ids = [v for v in video_ids if v]
+    if not ids:
+        return {}
+    out = {}
+    with _conn() as c:
+        for i in range(0, len(ids), 500):          # όριο μεταβλητών SQLite
+            chunk = ids[i:i + 500]
+            q = ",".join("?" for _ in chunk)
+            for r in c.execute(f"SELECT video_id, ok FROM embeddable_cache WHERE video_id IN ({q})", chunk):
+                out[r[0]] = bool(r[1])
+            missing = [v for v in chunk if v not in out]
+            if missing:
+                q2 = ",".join("?" for _ in missing)
+                for r in c.execute(
+                    f"SELECT video_id, is_embeddable FROM videos WHERE is_embeddable IS NOT NULL AND video_id IN ({q2})",
+                    missing,
+                ):
+                    out[r[0]] = bool(r[1])
+    return out
 
 
 def get_embeddable(video_id):
     """Επιστρέφει True/False/None (άγνωστο) για το embed status."""
-    with _conn() as c:
-        r = c.execute(
-            "SELECT is_embeddable FROM videos WHERE video_id = ?", (video_id,)
-        ).fetchone()
-        if not r or r[0] is None:
-            return None
-        return bool(r[0])
+    return get_embeddable_many([video_id]).get(video_id)
 
 
 def set_channel_tags(channel_id, tags):
@@ -543,6 +619,27 @@ def set_ui_state(state):
         c.execute(
             "INSERT OR REPLACE INTO ui_state (key, value) VALUES ('ui', ?)",
             (json.dumps(state, ensure_ascii=False),),
+        )
+
+
+def get_key(key):
+    """Γενικό key-value store στη βάση (για license state κλπ). Επιστρέφει dict ή None."""
+    with _conn() as c:
+        r = c.execute("SELECT value FROM ui_state WHERE key = ?", (key,)).fetchone()
+    if r:
+        try:
+            return json.loads(r["value"])
+        except (json.JSONDecodeError, TypeError):
+            return None
+    return None
+
+
+def set_key(key, value):
+    """Γενικό key-value store. Αποθηκεύει ένα JSON-able dict."""
+    with _conn() as c:
+        c.execute(
+            "INSERT OR REPLACE INTO ui_state (key, value) VALUES (?, ?)",
+            (key, json.dumps(value, ensure_ascii=False)),
         )
 
 
@@ -676,26 +773,26 @@ def dismissed_ids():
 
 
 def add_recent_search(query):
-    """Αποθηκεύει μια πρόσφατη αναζήτηση. Dedupe (case-insensitive) + κρατάει τις 10 πιο πρόσφατες."""
+    """Αποθηκεύει μια πρόσφατη αναζήτηση. Dedupe (case-insensitive) + κρατάει τις 50 πιο πρόσφατες."""
     query = (query or "").strip()
     if not query:
         return
     with _conn() as c:
         c.execute("DELETE FROM recent_searches WHERE lower(query) = lower(?)", (query,))
         c.execute("INSERT INTO recent_searches (query, searched_at) VALUES (?, ?)", (query, now_iso()))
-        # κράτα μόνο τις 10 πιο πρόσφατες
+        # κράτα μόνο τις 50 πιο πρόσφατες
         c.execute("""
             DELETE FROM recent_searches WHERE id NOT IN (
-                SELECT id FROM recent_searches ORDER BY id DESC LIMIT 10
+                SELECT id FROM recent_searches ORDER BY id DESC LIMIT 50
             )
         """)
 
 
 def get_recent_searches():
-    """Επιστρέφει τις 10 πιο πρόσφατες αναζητήσεις, από τη νεότερη στην παλαιότερη."""
+    """Επιστρέφει τις 50 πιο πρόσφατες αναζητήσεις, από τη νεότερη στην παλαιότερη."""
     with _conn() as c:
         return [r[0] for r in c.execute(
-            "SELECT query FROM recent_searches ORDER BY id DESC LIMIT 10"
+            "SELECT query FROM recent_searches ORDER BY id DESC LIMIT 50"
         ).fetchall()]
 
 
@@ -733,15 +830,11 @@ def delete_video_note(note_id):
         c.execute("DELETE FROM video_notes WHERE id = ?", (note_id,))
 
 
-def video_notes_for_videos(video_ids):
-    """Επιστρέφει {video_id: [notes]} για μια λίστα βίντεο (για τα cards)."""
-    if not video_ids:
-        return {}
+def all_video_notes():
+    """Επιστρέφει {video_id: [notes]} για ΟΛΑ τα βίντεο — ΕΝΑ query (μπαίνει μέσα στο /api/dashboard)."""
     with _conn() as c:
-        qmarks = ",".join("?" for _ in video_ids)
         rows = c.execute(
-            f"SELECT video_id, id, title, note, timestamp_sec FROM video_notes WHERE video_id IN ({qmarks}) ORDER BY timestamp_sec ASC, id ASC",
-            tuple(video_ids),
+            "SELECT video_id, id, title, note, timestamp_sec FROM video_notes ORDER BY timestamp_sec ASC, id ASC"
         ).fetchall()
     out = {}
     for r in rows:
@@ -750,8 +843,6 @@ def video_notes_for_videos(video_ids):
         )
     return out
 
-
-# --- Cache ιστορικού καναλιού (preload/pagination) ---
 
 def cache_channel_videos(channel_id, videos):
     """Αποθηκεύει (ή ενημερώνει) τα βίντεο ενός καναλιού στη cache, με τη σειρά τους.
@@ -789,6 +880,96 @@ def get_cached_channel_videos(channel_id, offset=0, limit=10):
         return [{"video_id": r["video_id"], "title": r["title"]} for r in rows]
 
 
+# --- 🔍 Cache αναζήτησης ---
+
+def save_search_results(query, mode, entries, start=0, replace_all=False):
+    """Αποθηκεύει σελίδα αποτελεσμάτων (με τη σειρά) για ένα query+mode.
+
+    start       → σε ποια θέση ξεκινά (π.χ. offset=24 → θέση 24), ωστόσο η cache
+                  κρατά ΜΙΑ ΣΥΝΕΧΗ ακολουθία από το 0 — δεν σβήνει τις προηγούμενες σελίδες.
+    replace_all → True μόνο όταν ξεκινάμε ΝΕΑ αναζήτηση (καθαρίζει τα παλιά).
+    """
+    query = (query or "").strip()
+    if not query or not entries:
+        return
+    now = now_iso()
+    with _conn() as c:
+        if replace_all:
+            # Νέα αναζήτηση: σβήσε τα παλιά αποτελέσματα (ΚΡΑΤΑ το «εξαντλήθηκε» = position -1).
+            c.execute("DELETE FROM search_cache WHERE query = ? AND mode = ? AND position >= 0", (query, mode))
+        c.executemany(
+            """INSERT OR REPLACE INTO search_cache
+               (query, mode, position, video_id, title, channel, channel_id, duration, views, cached_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            # 🔑 Και τα βίντεο ΚΑΙ τα κανάλια: κλειδί = video_id ή channel_id (τα κανάλια δεν έχουν video_id).
+            # Τα κανάλια έχουν «name» (όχι title/channel) — γι' αυτό εδώ το name μπαίνει πρώτο.
+            [(query, mode, start + i, e.get("video_id") or e.get("channel_id"),
+              e.get("title") or e.get("name") or "",
+              e.get("channel") or e.get("name") or e.get("title") or "", e.get("channel_id") or "",
+              int(e.get("duration") or 0), int(e.get("views") or 0), now)
+             for i, e in enumerate(entries) if (e.get("video_id") or e.get("channel_id"))],
+        )
+
+
+def get_search_results(query, mode, offset=0, limit=100):
+    """Διαβάζει σελίδα αποτελεσμάτων από τη cache — ΜΗΔΕΝ δίκτυο."""
+    query = (query or "").strip()
+    if not query:
+        return []
+    with _conn() as c:
+        rows = c.execute(
+            """SELECT video_id, title, channel, channel_id, duration, views FROM search_cache
+               WHERE query = ? AND mode = ? ORDER BY position ASC LIMIT ? OFFSET ?""",
+            (query, mode, limit, offset),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def search_exhausted(query, mode):
+    """🔚 True αν ξέρουμε ότι το YouTube δεν έχει άλλα για αυτό το query+mode.
+    Σημειώνεται με ειδική γραμμή position = -1."""
+    query = (query or "").strip()
+    if not query:
+        return False
+    with _conn() as c:
+        r = c.execute("SELECT 1 FROM search_cache WHERE query = ? AND mode = ? AND position = -1 LIMIT 1",
+                      (query, mode)).fetchone()
+        return bool(r)
+
+
+def mark_search_exhausted(query, mode):
+    """Σημειώνει ότι το YouTube δεν έδωσε άλλα αποτελέσματα (τέλος)."""
+    query = (query or "").strip()
+    if not query:
+        return
+    with _conn() as c:
+        c.execute("""INSERT OR REPLACE INTO search_cache
+                     (query, mode, position, video_id, title, channel, channel_id, duration, views, cached_at)
+                     VALUES (?, ?, -1, NULL, '', '', '', 0, 0, ?)""", (query, mode, now_iso()))
+
+
+def count_search_results(query, mode):
+    """Πόσα αποτελέσματα ξέρουμε για αυτό το query+mode."""
+    query = (query or "").strip()
+    if not query:
+        return 0
+    with _conn() as c:
+        r = c.execute("SELECT COUNT(*) AS n FROM search_cache WHERE query = ? AND mode = ?",
+                      (query, mode)).fetchone()
+        return r["n"] if r else 0
+
+
+def first_cached_channel_video(channel_id):
+    """Το ΝΕΟΤΕΡΟ βίντεο που ξέρουμε από αυτό το κανάλι (θέση 0). None αν δεν ξέρουμε.
+    Χρησιμοποιείται για το γρήγορο «δεν υπάρχει τίποτα νέο» — χωρίς δεύτερο δικτυακό αίτημα."""
+    with _conn() as c:
+        r = c.execute(
+            "SELECT video_id FROM channel_videos_cache WHERE channel_id = ? ORDER BY position ASC LIMIT 1",
+            (channel_id,),
+        ).fetchone()
+        return r["video_id"] if r else None
+
+
 def count_cached_channel_videos(channel_id):
     with _conn() as c:
         r = c.execute(
@@ -815,13 +996,34 @@ EXPORT_TABLES = [
 ]
 
 
+def _safe_table(table):
+    """Επιστρέφει το table name μόνο αν είναι σε whitelist (αποτρέπει SQL injection μέσω
+    κακόβουλου export αρχείου). Αλλιώς κάνει raise."""
+    if table not in EXPORT_TABLES:
+        raise ValueError(f"Μη επιτρεπτός πίνακας: {table}")
+    return table
+
+
+def _safe_cols(table, cols):
+    """Επικυρώνει ότι ΟΛΑ τα column names ανήκουν πραγματικά στον πίνακα (whitelist βάσει
+    PRAGMA table_info). Αποτρέπει SQL injection μέσω κακόβουλων ονομάτων στηλών σε export."""
+    cols = [str(c) for c in (cols or [])]
+    with _conn() as c:
+        valid = {r[1] for r in c.execute(f"PRAGMA table_info({_safe_table(table)})").fetchall()}
+    for col in cols:
+        if col not in valid:
+            raise ValueError(f"Μη επιτρεπτή στήλη για {table}: {col}")
+    return cols
+
+
 def export_all():
     """Σειριοποιεί ΟΛΟΥΣ τους πίνακες σε ένα dict (JSON-ready)."""
     out = {"version": 1, "tables": {}}
     with _conn() as c:
         for table in EXPORT_TABLES:
-            rows = c.execute(f"SELECT * FROM {table}").fetchall()
-            cols = [d[0] for d in c.execute(f"SELECT * FROM {table}").description]
+            t = _safe_table(table)
+            rows = c.execute(f"SELECT * FROM {t}").fetchall()
+            cols = [d[0] for d in c.execute(f"SELECT * FROM {t}").description]
             out["tables"][table] = {
                 "columns": cols,
                 "rows": [list(r) for r in rows],
@@ -852,11 +1054,13 @@ def import_all(data, mode="replace"):
                 cols, rows = _spec(table)
                 if not cols:
                     continue
+                cols = _safe_cols(table, cols)
+                t = _safe_table(table)
                 col_list = ", ".join(cols)
                 ph = ", ".join("?" for _ in cols)
-                c.execute(f"DELETE FROM {table}")
+                c.execute(f"DELETE FROM {t}")
                 c.executemany(
-                    f"INSERT OR IGNORE INTO {table} ({col_list}) VALUES ({ph})",
+                    f"INSERT OR IGNORE INTO {t} ({col_list}) VALUES ({ph})",
                     [tuple(r) for r in rows],
                 )
             return
@@ -865,6 +1069,7 @@ def import_all(data, mode="replace"):
         # 1) categories: UNIQUE(name) → κράτα τοπικά ονόματα.
         cols, rows = _spec("categories")
         if cols:
+            cols = _safe_cols("categories", cols)
             ph = ", ".join("?" for _ in cols)
             c.executemany(
                 f"INSERT OR IGNORE INTO categories ({', '.join(cols)}) VALUES ({ph})",
@@ -874,6 +1079,7 @@ def import_all(data, mode="replace"):
         # 2) videos: PRIMARY KEY video_id → μην ξαναγράψεις υπάρχοντα.
         cols, rows = _spec("videos")
         if cols:
+            cols = _safe_cols("videos", cols)
             ph = ", ".join("?" for _ in cols)
             c.executemany(
                 f"INSERT OR IGNORE INTO videos ({', '.join(cols)}) VALUES ({ph})",
@@ -885,6 +1091,7 @@ def import_all(data, mode="replace"):
         local_ids = {r[0] for r in c.execute("SELECT video_id FROM videos").fetchall()}
         cols, rows = _spec("watch_events")
         if cols:
+            cols = _safe_cols("watch_events", cols)
             col_list = ", ".join(cols)
             ph = ", ".join("?" for _ in cols)
             # βρες τη θέση του video_id στις στήλες
@@ -899,6 +1106,7 @@ def import_all(data, mode="replace"):
             cols, rows = _spec(table)
             if not cols:
                 continue
+            cols = _safe_cols(table, cols)
             ph = ", ".join("?" for _ in cols)
             c.executemany(
                 f"INSERT OR IGNORE INTO {table} ({', '.join(cols)}) VALUES ({ph})",
@@ -908,6 +1116,7 @@ def import_all(data, mode="replace"):
         # 5) tag_stats: πρόσθεσε τα use_count στα υπάρχοντα (να μην ξαναμηδενίζει).
         cols, rows = _spec("tag_stats")
         if cols:
+            cols = _safe_cols("tag_stats", cols)
             tag_idx = cols.index("tag") if "tag" in cols else None
             cnt_idx = cols.index("use_count") if "use_count" in cols else None
             for r in rows:

@@ -1134,5 +1134,9 @@
   "cat.delEverywhere": {
     "en": "Delete category everywhere",
     "el": "Διαγραφή κατηγορίας από παντού"
+  },
+  "misc.videoWord": {
+    "en": " video",
+    "el": " βίντεο"
   }
 }

@@ -1998,7 +1998,7 @@ async function load() {
   const s = d.stats || {};
   document.getElementById("privacy-badge").innerHTML =
     `🔒 <span data-i18n="misc.localBadge">100% local</span>` +
-    `<span class="sep">·</span><b>${s.videos ?? 0}</b>${t('misc.videosWord')}` +
+    `<span class="sep">·</span><b>${s.videos ?? 0}</b>${vidsWord(s.videos ?? 0)}` +
     `<span class="sep">·</span><b>${s.channel_count ?? 0}</b>${t('misc.channelsWord')}`;
   applyI18n(document.getElementById("privacy-badge"));
 
@@ -2203,7 +2203,7 @@ async function runSearch(q) {
 function showUnifiedBanner(count) {
   hideFilterBanner();
   const fc = document.getElementById("filter-count");
-  if (fc) fc.textContent = `· ${count}${t('misc.videosWord')}`;
+  if (fc) fc.textContent = `· ${count}${vidsWord(count)}`;
 }
 
 // Αφαιρεί ΜΟΝΟ τη λέξη αναζήτησης (κρατά τα tags/rating).
@@ -3336,7 +3336,7 @@ function renderVideos(videos) {
           <span class="channel-name">${esc(first.channel || t('msg.unknownChannel'))}</span>
         </a>
         <span class="head-spacer"></span>
-        <span class="muted">· ${vids.length}${t('misc.videosWord')}</span>
+        <span class="muted">· ${vids.length}${vidsWord(vids.length)}</span>
         <button class="icon-btn tag-btn" style="width:32px;height:32px;font-size:16px" data-i18n-title="ch.tagsAll" title="Channel tags (on all videos)" onclick="event.stopPropagation();openTagPop(this, 'channel', '${esc(key)}')">🏷️</button>
         <button class="icon-btn watch-tgl" style="width:32px;height:32px;font-size:17px" data-i18n-title="ch.fetchNew" title="Fetch new videos" onclick="event.stopPropagation();toggleWatch('${esc(key)}', this)">${watchBellHtml(false)}</button>
         <button class="icon-btn ch-pin ${first.pinned ? 'active top' : ''}" data-i18n-title="misc.pinTop" title="Pin (to top)" onclick="event.stopPropagation();togglePinChannel('${esc(key)}', this)">${first.pinned ? '🔴' : '📌'}</button>
@@ -4044,7 +4044,7 @@ function updateListHeadLabel() {
   const allClosed = chCount > 0 && groups.every(g => g.classList.contains("collapsed"));
   // Μ = όλα τα βίντεο που εμφανίζονται αυτή τη στιγμή (σύνολο των φορτωμένων)
   const vidTotal = allVideos.length;
-  el.innerHTML = allClosed ? `${chCount}` : `${chCount} · Βίντεο ${vidTotal}`;
+  el.innerHTML = allClosed ? `${chCount}` : `${chCount} · ${t("misc.videos")} ${vidTotal}`;
 }
 
 function saveUiState() {
@@ -4903,7 +4903,15 @@ function catFilteredVideos() {
 }
 
 function toggleFilterCat(name, on) {
-  if (on) selectedCats.add(name); else selectedCats.delete(name);
+  if (on) {
+    selectedCats.add(name);
+    // ✅ Όταν τσεκάρεις κατηγορία-φίλτρο → ΑΝΟΙΞΕ την αυτόματα (να δεις τα βίντεό της).
+    if (name && name !== "__uncategorized__") expandedCats.add(name);
+  } else {
+    selectedCats.delete(name);
+  }
+  // ✅ Όταν ΞΕΤΣΕΚΑΡΕΙΣ την ΤΕΛΕΥΤΑΙΑ κατηγορία-φίλτρο → κλείσε όλες (καθαρή κατάσταση).
+  if (selectedCats.size === 0) expandedCats.clear();
   renderCategories();
 }
 
@@ -4963,7 +4971,7 @@ function renderCategories() {
       <div class="cat-head" onclick="toggleCatGroup(this)">
         <span class="cat-chevron">${open ? '▾' : '▸'}</span>
         <span class="cat-name">${esc(name)}</span>
-        <span class="cat-count">· ${vids.length}${t('misc.videosWord')}</span>
+        <span class="cat-count">· ${vids.length}${vidsWord(vids.length)}</span>
         <span class="head-spacer"></span>
         <button class="icon-btn ch-pin ${pinned ? 'active top' : ''}" data-i18n-title="cat.pin" title="Pin category" onclick="event.stopPropagation();togglePinCategory('${esc(name)}', this)">${pinned ? '🔴' : '📌'}</button>
         <button class="icon-btn" data-i18n-title="cat.moveUp" title="Category one position up" onclick="event.stopPropagation();moveCategory(this, -1)">↑</button>
@@ -5258,6 +5266,16 @@ function addVideo() {
       alert(d.error || t('msg.error'));
     }
   }).catch(() => alert(t('msg.connServerPlain')));
+}
+
+
+/* 🔢 Πληθυντικός: 1 video / N videos (+ ΕΛ: 1 βίντεο / N βίντεο — ίδιο και στα δύο). */
+function vidsWord(n) {
+  // Αγγλικά: 1 → " video", αλλιώς " videos". Ελληνικά: αμετάβλητο (" βίντεο").
+  if ((window.i18n && window.i18n.getLang && window.i18n.getLang() === "el") || n !== 1) {
+    return t("misc.videosWord");
+  }
+  return t("misc.videoWord");
 }
 
 function esc(s) {

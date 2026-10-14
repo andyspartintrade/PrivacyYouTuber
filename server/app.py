@@ -37,7 +37,7 @@ PORT = 8765
 HOST = "127.0.0.1"  # δέχεται ΜΟΝΟ τοπικές συνδέσεις — ποτέ από το internet
 
 # 📦 Η τρέχουσα έκδοση του app. Το auto-update τη συγκρίνει με το latest.json.
-VERSION = "1.0.0"
+VERSION = "1.2.0"
 
 # 📦 Πού ψάχνει το app για ενημερώσεις (GitHub raw). Public repo απαραίτητο.
 UPDATE_URL = "https://raw.githubusercontent.com/andyspartintrade/PrivacyYouTuber/main/latest.json"

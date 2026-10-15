@@ -22,6 +22,42 @@ def ensure_pyinstaller():
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
 
 
+def ensure_icon():
+    """Βρίσκει (ή φτιάχνει) το .ico. Δεν σκάει ποτέ — το icon είναι προαιρετικό."""
+    ico = os.path.join("assets", "PrivacyYouTuber.ico")
+    if os.path.exists(ico):
+        return ico
+    try:
+        # Δοκίμασε με ΑΥΤΟ το python· αν το Pillow είναι σπασμένο, δοκίμασε τα επόμενα.
+        for py in _python_candidates():
+            try:
+                subprocess.check_call([py, "make_app_icon.py"])
+                if os.path.exists(ico):
+                    return ico
+            except Exception:
+                continue
+    except Exception as e:
+        print(f"   (δεν φτιάχτηκε το icon: {e})")
+    return ico if os.path.exists(ico) else None
+
+
+def _python_candidates():
+    """[τρέχον python] + όποια άλλα βρεθούν (το Pillow μπορεί να λείπει από το venv του build)."""
+    out = [sys.executable]
+    import glob as _glob
+    for pat in (
+        os.path.expandvars(r"%LOCALAPPDATA%\hermes\tools\python-3*\python.exe"),
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Python\Python3*\python.exe"),
+    ):
+        out += [p for p in _glob.glob(pat) if p not in out]
+    import shutil as _sh
+    for exe in ("py", "python"):
+        p = _sh.which(exe)
+        if p and p not in out:
+            out.append(p)
+    return out
+
+
 def main():
     ensure_pyinstaller()
 
@@ -39,8 +75,13 @@ def main():
         "--hidden-import", "pythonnet",
         "--collect-all", "webview",
         "--clean",
-        "cli.py",
     ]
+    # 🎨 Icon εφαρμογής: φαίνεται σε taskbar/Explorer/Alt+Tab. Μόνο για Windows (το .ico).
+    icon = ensure_icon()
+    if icon and os.name == "nt":
+        cmd += ["--icon", icon]
+        print(f"🎨 Icon: {icon}")
+    cmd.append("cli.py")
     print("🔨 Χτίζω:", " ".join(cmd))
     subprocess.check_call(cmd)
     print()

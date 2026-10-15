@@ -1,0 +1,21 @@
+This is YouTube, with everything turned off.
+
+No account. No history. No recommendations.
+
+Sounds private, doesn't it?
+
+Open your subscriptions, and there is nothing there. "Don't miss new videos." You already missed all of them.
+
+Open your history. Nothing. "Keep track of what you watch." You can't. Not anymore.
+
+So you search for wildlife, and you get generic results. Nothing like what you are used to.
+
+Years of your saved preferences, gone. And YouTube becomes a search box that does not know you.
+
+I turned everything off because I wanted privacy. I did not want to start from zero.
+
+So I built PrivacyYouTuber. Your own library for YouTube. Search it. Save it. Tag it. Take notes at the exact second. No account. No tracking. No ads.
+
+Remember what you watch, without telling Google, YouTube, or their partners. No one.
+
+PrivacyYouTuber. Your YouTube, on your own terms.

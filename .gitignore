@@ -6,6 +6,11 @@ __pycache__/
 .venv/
 venv/
 
+# 🔐 Secrets (ΠΟΤΕ στο repo)
+.env
+.env.*
+!.env.example
+
 # Δεδομένα χρήστη (προσωπικά — ΠΟΤΕ στο repo)
 data/*.db
 data/*.db-journal

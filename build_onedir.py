@@ -142,16 +142,15 @@ def main():
                 shutil.rmtree(dest, ignore_errors=True)
             shutil.copytree(app_dir, dest)
             print(f"   ✅ Αντιγράφηκε στην επιφάνεια εργασίας: {dest}")
-            # 🔐 DEV .env: το build ΔΕΝ περιέχει .env (σωστά — δεν πρέπει να πάει στους πελάτες).
-            #    Για τις ΤΟΠΙΚΕΣ δοκιμές όμως το χρειαζόμαστε (LICENSE_CHECK=off → χωρίς serial).
-            #    Το αντιγράφουμε ΑΥΤΟΜΑΤΑ, ώστε να μη ξεχνιέται σε κάθε build.
-            env_src = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+            # 🔐 DEV .env: ΔΕΝ το αντιγράφουμε ΠΛΕΟΝ αυτόματα.
+            #    Από την 1.4.1 το license verify δουλεύει με hardcoded product_id
+            #    (GUMROAD_PRODUCT_ID_DEFAULT στο server/app.py) — ο πελάτης ΔΕΝ
+            #    χρειάζεται .env και το app ζητάει κανονικά serial.
+            #    Για τοπικές δοκιμές χωρίς serial: βάλε .env ΧΕΙΡΟΚΙΝΗΤΑ με
+            #    LICENSE_CHECK=off δίπλα στο exe (δεν πρέπει να μπει σε installer).
             env_dst = os.path.join(dest, ".env")
-            if os.path.isfile(env_src):
-                shutil.copy2(env_src, env_dst)
-                print("   🔐 .env αντιγράφηκε δίπλα στο exe (dev mode — χωρίς serial)")
-            else:
-                print("   ⚠️  Δεν βρέθηκε .env — η εφαρμογή θα ζητήσει serial (ένδειξη υγείας: OK)")
+            if os.path.isfile(env_dst):
+                print(f"   ℹ️  Υπάρχει ήδη .env στο {dest} (dev) — το αφήνω ως έχει.")
             print("      (Άνοιξέ το από εκεί — όχι από το dist_onedir/)")
         except Exception as e:
             print(f"   ⚠️  Δεν αντιγράφηκε στο Desktop: {e}")

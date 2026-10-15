@@ -37,7 +37,7 @@ PORT = 8765
 HOST = "127.0.0.1"  # δέχεται ΜΟΝΟ τοπικές συνδέσεις — ποτέ από το internet
 
 # 📦 Η τρέχουσα έκδοση του app. Το auto-update τη συγκρίνει με το latest.json.
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 
 # 📦 Πού ψάχνει το app για ενημερώσεις (GitHub raw). Public repo απαραίτητο.
 UPDATE_URL = "https://raw.githubusercontent.com/andyspartintrade/PrivacyYouTuber/main/latest.json"
@@ -47,6 +47,11 @@ UPDATE_URL = "https://raw.githubusercontent.com/andyspartintrade/PrivacyYouTuber
 #    Η εφαρμογή ξανατσεκάρει σιωπηλά κάθε LICENSE_RECHECK_DAYS μέρες.
 #    Όριο ενεργοποιήσεων ανά key = LICENSE_MAX_USES (κόβει το forum-leak).
 GUMROAD_VERIFY_URL = "https://api.gumroad.com/v2/licenses/verify"
+
+# 🔑 Hardcoded product_id — ΔΕΝ είναι secret (φαίνεται στο product URL).
+#    Χρειάζεται για το license verify ώστε ο ΠΕΛΑΤΗΣ να μη χρειάζεται .env.
+#    Το .env (αν υπάρχει) έχει προτεραιότητα — για dev/testing.
+GUMROAD_PRODUCT_ID_DEFAULT = "sOap88TaNJAKelU4sjM4IQ=="
 LICENSE_RECHECK_DAYS = 3          # κάθε 3 μέρες σιωπηλός επανέλεγχος
 LICENSE_MAX_USES = 5              # πάνω από 5 ενεργοποιήσεις = leak/μη νόμιμο
 LICENSE_MAX_FAILS = 1             # 1 χάρη (offline/API-down) → μετά κλείσιμο
@@ -854,11 +859,11 @@ class Handler(BaseHTTPRequestHandler):
     def _write_license(self, state):
         db.set_key("license", state)
 
-    def _verify_license(self, key, increment_uses):
-        """Καλεί το Gumroad /v2/licenses/verify. Επιστρέφει dict, ΠΟΤΕ δεν ρίχνει."""
+    def _verify_license_once(self, product_id, key, increment_uses):
+        """Ένα μόνο call στο Gumroad. Επιστρέφει (http_ok, dict)."""
         try:
             body = urllib.parse.urlencode({
-                "product_id": _env("GUMROAD_PRODUCT_ID", ""),
+                "product_id": product_id,
                 "license_key": key,
                 "increment_uses_count": "true" if increment_uses else "false",
             }).encode("utf-8")
@@ -869,9 +874,42 @@ class Handler(BaseHTTPRequestHandler):
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=8) as r:
-                return json.loads(r.read().decode("utf-8"))
+                return True, json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            # 404 = «δεν υπάρχει τέτοιο license» -> μπορούμε να δοκιμάσουμε άλλο format
+            try:
+                return False, json.loads(e.read().decode("utf-8"))
+            except Exception:
+                return False, {"success": False, "error": f"HTTP {e.code}"}
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            # Δίκτυο/άλλο: ΔΕΝ έχει νόημα retry με άλλο format
+            return False, {"success": False, "error": str(e), "_network": True}
+
+    def _verify_license(self, key, increment_uses):
+        """Καλεί το Gumroad /v2/licenses/verify — ΧΩΡΙΣ αυτόματες μετατροπές.
+
+        Στέλνει το key ΑΚΡΙΒΩΣ όπως το έδωσε ο χρήστης (μόνο strip κενών).
+        Αν το format φαίνεται λάθος (πεζά γράμματα), ΔΕΝ το διορθώνουμε σιωπηλά —
+        επιστρέφουμε ειδικό σήμα ώστε το UI να πει στον χρήστη «πρόσεξε τα
+        πεζοκεφαλαία». Έτσι ο χρήστης ξέρει τι να κάνει και δεν υπάρχει
+        κρυφή συμπεριφορά. Επιστρέφει dict, ΠΟΤΕ δεν ρίχνει.
+        """
+        # 🔑 .env (dev) → αλλιώς hardcoded default → αλλιώς κενό.
+        product_id = _env("GUMROAD_PRODUCT_ID", "") or GUMROAD_PRODUCT_ID_DEFAULT
+        raw = (key or "").strip()
+        if not raw:
+            return {"success": False, "error": "empty key"}
+
+        ok, res = self._verify_license_once(product_id, raw, increment_uses)
+        if res.get("success"):
+            return res
+
+        # Αν έφταιξε το format (υπάρχουν πεζά), δώσε σαφές, μεταφράσιμο σήμα.
+        has_lower = any(ch.islower() for ch in raw)
+        if has_lower:
+            res = dict(res or {})
+            res["error_code"] = "lowercase_key"
+        return res
 
     def _handle_post(self, path, data):
         if path == "/watch":
@@ -1313,8 +1351,17 @@ class Handler(BaseHTTPRequestHandler):
                 self._write_license(state)
                 self._json(200, {"ok": True, "activated": True})
             elif not res.get("success"):
-                self._json(200, {"ok": False, "activated": False,
-                                 "error": "Μη έγκυρο key ή πρόβλημα σύνδεσης."})
+                payload = {"ok": False, "activated": False,
+                           "error": "Μη έγκυρο key ή πρόβλημα σύνδεσης."}
+                # 🔤 Αιτία format: το key είχε πεζά -> πες το ξεκάθαρα στο UI.
+                if res.get("error_code") == "lowercase_key":
+                    payload["error_code"] = "lowercase_key"
+                    payload["error"] = "Το key πρέπει να είναι με ΚΕΦΑΛΑΙΑ γράμματα."
+                # 🌐 Αιτία δικτύου: ξεχώρισέ το από «λάθος key».
+                if res.get("_network"):
+                    payload["error_code"] = "network"
+                    payload["error"] = "Δεν υπάρχει σύνδεση. Έλεγξε το internet και ξαναδοκίμασε."
+                self._json(200, payload)
             else:
                 self._json(200, {"ok": False, "activated": False,
                                  "error": "Αυτό το key έχει ήδη χρησιμοποιηθεί πολλές φορές ή η αγορά έχει επιστραφεί."})
@@ -1541,6 +1588,34 @@ def _open_window(url):
     """
     try:
         import webview
+        # 📋 Native clipboard για τον πελάτη: το WebView2 ΔΕΝ επιτρέπει
+        #    navigator.clipboard ούτε native right-click menu (το pywebview
+        #    κλείνει τα AreDefaultContextMenusEnabled). Γι' αυτό εκθέτουμε
+        #    Python συνάρτηση που διαβάζει το clipboard μέσω tkinter/click.
+        class _Api:
+            def paste_license(self):
+                """Επιστρέφει το κείμενο του clipboard (ή "" αν αποτύχει)."""
+                try:
+                    import tkinter as tk
+                    r = tk.Tk()
+                    r.withdraw()
+                    r.update()                      # απαραίτητο σε Windows
+                    try:
+                        txt = r.clipboard_get()
+                    finally:
+                        r.destroy()
+                    return (txt or "").strip()
+                except Exception:
+                    return ""
+            def open_url(self, u):
+                """Ανοίγει εξωτερικό link στον default browser."""
+                try:
+                    import webbrowser
+                    webbrowser.open(str(u))
+                    return True
+                except Exception:
+                    return False
+
         window = webview.create_window(
             "Privacy-YouTuber",
             url,
@@ -1549,6 +1624,7 @@ def _open_window(url):
             min_size=(900, 600),
             hidden=True,       # ξεκινάει κρυφό → εμφανίζεται όταν φορτώσει
             background_color="#0e1116",
+            js_api=_Api(),     # 🔌 window.pywebview.api.paste_license()
         )
         def _on_loaded_max():
             try:

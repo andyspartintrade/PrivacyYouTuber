@@ -1138,5 +1138,45 @@
   "misc.videoWord": {
     "en": " video",
     "el": " βίντεο"
+  },
+  "lic.paste": {
+    "en": "Paste",
+    "el": "Επικόλληση"
+  },
+  "lic.cut": {
+    "en": "Cut",
+    "el": "Αποκοπή"
+  },
+  "lic.selectall": {
+    "en": "Select all",
+    "el": "Επιλογή όλων"
+  },
+  "lic.pasteHint": {
+    "en": "Press Ctrl+V to paste",
+    "el": "Πάτησε Ctrl+V για επικόλληση"
+  },
+  "lic.pasteTip": {
+    "en": "Click 📋 Paste — or press Ctrl+V",
+    "el": "Πάτησε 📋 Επικόλληση — ή Ctrl+V"
+  },
+  "lic.errLower": {
+    "en": "The key must be in UPPERCASE letters. Copy it again from your email.",
+    "el": "Το key πρέπει να είναι με ΚΕΦΑΛΑΙΑ γράμματα. Αντίγραψέ το ξανά από το email."
+  },
+  "lic.errNetwork": {
+    "en": "No internet connection. Check it and try again.",
+    "el": "Δεν υπάρχει σύνδεση. Έλεγξε το internet και ξαναδοκίμασε."
+  },
+  "lic.pasteBtn": {
+    "en": "Paste",
+    "el": "Επικόλληση"
+  },
+  "lic.errRevoked": {
+    "en": "This key has been used too many times, or the purchase was refunded.",
+    "el": "Αυτό το key έχει χρησιμοποιηθεί πολλές φορές ή η αγορά έχει επιστραφεί."
+  },
+  "lic.errInactive": {
+    "en": "The license is not active.",
+    "el": "Το license δεν είναι ενεργό."
   }
 }

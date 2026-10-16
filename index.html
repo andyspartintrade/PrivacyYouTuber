@@ -2832,8 +2832,13 @@ function showUpdatePopup(ok, current, data, errMsg) {
 }
 
 function closeUpdatePopup() {
+  // ⚠️ Κλείνει ΚΑΙ τα δύο popups: το update-pop ΚΑΙ το license-pop.
+  //    (Το license-pop είχε διαφορετικό id, οπότε το παλιό closeUpdatePopup()
+  //     δεν το έκλεινε → το activation screen έμενε κολλημένο.)
   const p = document.getElementById("update-pop");
   if (p) p.remove();
+  const lp = document.getElementById("license-pop");
+  if (lp) lp.remove();
 }
 
 function doFrontendUpdate(url) {
@@ -6561,18 +6566,70 @@ function showActivationScreen() {
     <div class="dc-msg"><b><span data-i18n="lic.title">🔑 Activation</span></b><br>
       <span class="muted"><span data-i18n="lic.hint">Enter the license key from your purchase email.</span></span></div>
     <div class="dc-btns" style="flex-wrap:wrap; gap:8px;">
-      <input id="license-key-input" type="text" placeholder="License key" autocomplete="off"
-             style="width:100%; padding:9px 12px; border:1px solid var(--border);
-                    border-radius:10px; background:var(--card); color:var(--text);
-                    font-family:inherit; font-size:13.5px;">
+      <div style="display:flex; gap:8px; width:100%; align-items:stretch;">
+        <input id="license-key-input" type="text" placeholder="License key" autocomplete="off"
+               spellcheck="false"
+               style="flex:1; min-width:0; padding:9px 12px; border:1px solid var(--border);
+                      border-radius:10px; background:var(--card); color:var(--text);
+                      font-family:inherit; font-size:13.5px; user-select:text; cursor:text;">
+        <button type="button" onclick="pasteLicenseFromClipboard()" title="Paste from clipboard"
+                style="padding:9px 14px; border:1px solid var(--border); border-radius:10px;
+                       background:var(--card); color:var(--text); cursor:pointer;
+                       font-family:inherit; font-size:13px; white-space:nowrap;">
+          📋 <span data-i18n="lic.pasteBtn">Paste</span>
+        </button>
+      </div>
       <button class="dc-yes" onclick="activateLicense()"><span data-i18n="lic.activate">✓ Activate</span></button>
-      <button class="dc-no" onclick="closeUpdatePopup()"><span data-i18n="btn.later">Later</span></button>
     </div>
     <div id="license-err" class="muted" style="margin-top:8px; font-size:12.5px;"></div>`;
   document.body.appendChild(pop);
   applyI18n(pop);
   const inp = document.getElementById("license-key-input");
-  if (inp) { setTimeout(() => inp.focus(), 60); }
+  if (inp) {
+    setTimeout(() => inp.focus(), 60);
+  }
+}
+
+// 📋 Επικόλληση από το clipboard — 3 επίπεδα (το WebView2 δεν έχει native paste).
+//    1) Python (pywebview js_api) → native Windows clipboard, πιο αξιόπιστο
+//    2) navigator.clipboard (secure context: localhost) — μπορεί να το μπλοκάρει
+//    3) μήνυμα «πάτησε Ctrl+V»
+async function pasteLicenseFromClipboard() {
+  const inp = document.getElementById("license-key-input");
+  const err = document.getElementById("license-err");
+  if (!inp) return;
+
+  const put = (txt) => {
+    if (!txt) return false;
+    inp.value = String(txt).trim();
+    inp.focus();
+    if (err) err.textContent = "";
+    return true;
+  };
+  if (err) err.textContent = "";
+
+  // 1️⃣ Python μέσω pywebview (το πιο αξιόπιστο)
+  try {
+    const api = window.pywebview && window.pywebview.api;
+    if (api && typeof api.paste_license === "function") {
+      const txt = await api.paste_license();
+      if (put(txt)) return;
+    }
+  } catch (e) { /* πέσε στο επόμενο */ }
+
+  // 2️⃣ Web clipboard API (μπορεί να μπλοκάρεται στο WebView2)
+  try {
+    const txt = await navigator.clipboard.readText();
+    if (put(txt)) return;
+  } catch (e) { /* πέσε στο επόμενο */ }
+
+  // 3️⃣ Τίποτα δεν δούλεψε → πες του τι να κάνει
+  if (err) err.textContent = t('lic.pasteHint') || "Πάτησε Ctrl+V για επικόλληση";
+}
+
+function showLicenseCtxHint() {
+  const err = document.getElementById("license-err");
+  if (err) err.textContent = t('lic.pasteHint') || "Πάτησε Ctrl+V για επικόλληση";
 }
 
 function activateLicense() {
@@ -6589,10 +6646,17 @@ function activateLicense() {
     .then(r => r.json())
     .then(d => {
       if (d.ok && d.activated) {
-        closeUpdatePopup();   // κλείσε το activation screen
+        closeUpdatePopup();   // κλείνει και το license-pop (βλ. ορισμό)
         load();               // ✅ ενεργοποιήθηκε → ξεκίνα
       } else {
-        if (err) err.textContent = d.error || t('lic.failed');
+        // 🔤/🌐 Μεταφρασμένα μηνύματα ανά error_code (en/el).
+        const MAP = {
+          lowercase_key: t('lic.errLower'),
+          network:       t('lic.errNetwork'),
+          revoked:       t('lic.errRevoked'),
+          inactive:      t('lic.errInactive'),
+        };
+        if (err) err.textContent = MAP[d.error_code] || d.error || t('lic.failed');
       }
     })
     .catch(() => { if (err) err.textContent = t('msg.serverDownDot'); });

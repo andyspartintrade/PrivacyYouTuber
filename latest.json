@@ -1,8 +1,8 @@
 {
-  "version": "1.4.0",
-  "update_kind": "frontend",
-  "url": "https://github.com/andyspartintrade/PrivacyYouTuber/releases/latest",
-  "download_url": "https://github.com/andyspartintrade/PrivacyYouTuber/releases/latest",
-  "notes": "Νέο: switch γλώσσας Αγγλικά/Ελληνικά (Settings). Αγγλικά ως προεπιλογή. Σελιδοποίηση στα popup tags/κατηγοριών (6/καρτέλα, βελάκια). Τσεκάροντας κατηγορία-φίλτρο ανοίγει αυτόματα. Διορθώσεις: πληθυντικός (1 video / N videos), σωστές θέσεις popup, ταχύτερο UI, φιλτράρισμα tags μέσα στα κανάλια, κληρονομιά tags καναλιού.",
+  "version": "1.4.3",
+  "update_kind": "full",
+  "url": "https://andyspartinart.gumroad.com/l/yysgn",
+  "download_url": "https://andyspartinart.gumroad.com/l/yysgn",
+  "notes": "Διορθώσεις: το backup/export δεν περιέχει πλέον το license key. Η έκδοση εμφανίζεται στις Ρυθμίσεις. Πιο αξιόπιστος έλεγχος άδειας χωρίς σύνδεση.",
   "frontend_url": "https://raw.githubusercontent.com/andyspartintrade/PrivacyYouTuber/main/index.html"
 }

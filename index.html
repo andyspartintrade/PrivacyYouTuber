@@ -1859,6 +1859,7 @@
           </div>
           <div class="settings-toolbar">
             <button class="backup-btn" id="update-btn" onclick="checkUpdate()" data-i18n-title="upd.check" title="Check for a new version" data-i18n="set.btnUpdate">🔄 Check for updates</button>
+            <span class="backup-status" id="app-version" style="opacity:.6;"></span>
           </div>
         </div>
 
@@ -1992,6 +1993,12 @@ async function load() {
       window.i18n.setLang(d.lang);
       if (typeof updateLangLabel === "function") updateLangLabel();
     }
+  } catch (e) { /* ignore */ }
+
+  // 🏷️ Έκδοση εφαρμογής — έρχεται από τον server (VERSION), δείχνει στην κάρτα Updates.
+  try {
+    const av = document.getElementById("app-version");
+    if (av && d.version) av.textContent = "v" + d.version;
   } catch (e) { /* ignore */ }
 
   // Στατιστικά ΜΕΣΑ στο privacy bubble (κλειδαριά · 100% · βίντεο · κανάλια — ΟΧΙ προβολές)

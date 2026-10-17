@@ -38,3 +38,14 @@ Thumbs.db
 
 # skills CLI (npx skills add) — μη το ανεβάζεις
 .agents/
+# Βίντεο δουλειάς + captures (βαρέα, όχι κώδικας)
+_video-work/
+# Fonts (μεγάλα zip/ttf — τα κατεβάζουμε αλλιώς)
+fonts/*.zip
+fonts/sfpro/
+# Build artifacts (PyInstaller) — τα ΑΛΗΘΙΝΑ
+dist_onedir/
+build_onedir_work/
+*.exe
+# Installer temp
+installer/_build_tmp.nsi

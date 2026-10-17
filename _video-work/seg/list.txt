@@ -1,8 +1,0 @@
-file 'A1t.mp4'
-file 'A2t.mp4'
-file 'A3t.mp4'
-file 'A4t.mp4'
-file 'B1t.mp4'
-file 'B2t.mp4'
-file 'B3t.mp4'
-file 'B4t.mp4'

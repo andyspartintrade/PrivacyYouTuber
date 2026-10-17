@@ -1,8 +1,8 @@
 {
-  "version": "1.4.4",
+  "version": "1.4.5",
   "update_kind": "full",
   "url": "https://andyspartinart.gumroad.com/l/yysgn",
   "download_url": "https://andyspartinart.gumroad.com/l/yysgn",
-  "notes": "New: hide the digging fox from Settings (on by default). / Νέο: κρύψε την αλεπού που σκάβει από τις Ρυθμίσεις (ενεργή από προεπιλογή).",
+  "notes": "New: much faster search (removed blocking embeddable check), lighter fox (WebP) + web-friendly CSS. / Νέο: πολύ πιο γρήγορη αναζήτηση (αφαιρέθηκε το μπλοκάρισμα embeddable), ελαφρύτερη αλεπού (WebP) + web-friendly γραφικά.",
   "frontend_url": "https://raw.githubusercontent.com/andyspartintrade/PrivacyYouTuber/main/index.html"
 }

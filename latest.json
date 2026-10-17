@@ -1,8 +1,8 @@
 {
-  "version": "1.4.3",
+  "version": "1.4.4",
   "update_kind": "full",
   "url": "https://andyspartinart.gumroad.com/l/yysgn",
   "download_url": "https://andyspartinart.gumroad.com/l/yysgn",
-  "notes": "Διορθώσεις: το backup/export δεν περιέχει πλέον το license key. Η έκδοση εμφανίζεται στις Ρυθμίσεις. Πιο αξιόπιστος έλεγχος άδειας χωρίς σύνδεση.",
+  "notes": "New: hide the digging fox from Settings (on by default). / Νέο: κρύψε την αλεπού που σκάβει από τις Ρυθμίσεις (ενεργή από προεπιλογή).",
   "frontend_url": "https://raw.githubusercontent.com/andyspartintrade/PrivacyYouTuber/main/index.html"
 }

@@ -35,7 +35,13 @@ SetCompressor /SOLID lzma
 !define MUI_ICON "..\assets\PrivacyYouTuber.ico"
 !define MUI_UNICON "..\assets\PrivacyYouTuber.ico"
 
-; Σελίδες installer
+; ── EULA: μία σελίδα αγγλικών όρων (default γλώσσα) ──
+!define MUI_LICENSEPAGE_TEXT_TOP "Please read the license terms before installing."
+!define MUI_LICENSEPAGE_TEXT_BOTTOM "If you accept the terms, click I Agree to continue."
+!define MUI_LICENSEPAGE_BUTTON "I Agree"
+!insertmacro MUI_PAGE_LICENSE "legal\EULA-EN.txt"
+
+; ── Σελίδες installer ──
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_COMPONENTS
@@ -45,9 +51,6 @@ SetCompressor /SOLID lzma
 ; Σελίδες uninstaller
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
-
-; ── Languages ──
-!insertmacro MUI_LANGUAGE "English"
 
 ; Σιωπηλό σφάλμα: αν τρέχει η εφαρμογή, κλείσ' την πριν αντικαταστήσεις αρχεία
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APP_EXE}"
@@ -106,6 +109,9 @@ LangString DESC_SEC_DESKTOP ${LANG_ENGLISH} "Add a shortcut to your desktop."
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC_CORE} $(DESC_SEC_CORE)
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC_DESKTOP} $(DESC_SEC_DESKTOP)
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
+
+; ── Γλώσσα: ΜΟΝΟ Αγγλικά (ΠΡΕΠΕΙ να είναι ΜΕΤΑ τις MUI_PAGE_*) ──
+!insertmacro MUI_LANGUAGE "English"
 
 ; ── Uninstaller ──
 Section "Uninstall"

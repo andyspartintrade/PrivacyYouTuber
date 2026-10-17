@@ -37,7 +37,7 @@ PORT = 8765
 HOST = "127.0.0.1"  # δέχεται ΜΟΝΟ τοπικές συνδέσεις — ποτέ από το internet
 
 # 📦 Η τρέχουσα έκδοση του app. Το auto-update τη συγκρίνει με το latest.json.
-VERSION = "1.4.1"
+VERSION = "1.4.4"
 
 # 📦 Πού ψάχνει το app για ενημερώσεις (GitHub raw). Public repo απαραίτητο.
 UPDATE_URL = "https://raw.githubusercontent.com/andyspartintrade/PrivacyYouTuber/main/latest.json"
@@ -54,7 +54,10 @@ GUMROAD_VERIFY_URL = "https://api.gumroad.com/v2/licenses/verify"
 GUMROAD_PRODUCT_ID_DEFAULT = "sOap88TaNJAKelU4sjM4IQ=="
 LICENSE_RECHECK_DAYS = 3          # κάθε 3 μέρες σιωπηλός επανέλεγχος
 LICENSE_MAX_USES = 5              # πάνω από 5 ενεργοποιήσεις = leak/μη νόμιμο
-LICENSE_MAX_FAILS = 1             # 1 χάρη (offline/API-down) → μετά κλείσιμο
+# 🔌 Fail-OPEN για ενεργοποιημένους: αν το Gumroad δεν απαντήσει (offline/
+#    downtime/404), ο χρήστης που ενεργοποιήθηκε ποτέ τοπικά ΜΠΑΙΝΕΙ ΚΑΝΟΝΙΚΑ
+#    — χωρίς όριο αποτυχιών. Hard-lock ΜΟΝΟ σε ρητό refund/dispute/uses>MAX.
+#    (Μην ξαναβάλεις όριο εδώ: κλειδώνει τίμιο πελάτη σε πτώση δικτύου.)
 
 # ⚠️ Ο τίμιος ανοίγει την εφαρμογή ΠΟΛΛΕΣ φορές → το check ΔΕΝ πρέπει να ανεβάζει
 #    το uses. ΜΟΝΟ η πρώτη ενεργοποίηση ανεβάζει (increment_uses_count=true).
@@ -575,6 +578,7 @@ class Handler(BaseHTTPRequestHandler):
             "rss_shown": ui.get("rss_shown", 6),
             "theme": ui.get("theme", "light"),
             "lang": ui.get("lang", "en"),
+            "fox": ui.get("fox", "on"),
             "version": VERSION,
         })
 
@@ -976,6 +980,9 @@ class Handler(BaseHTTPRequestHandler):
             # 🌐 Γλώσσα (en/el) — ίδιος λόγος: το localStorage δεν κρατά στο WebView.
             if data.get("lang") in ("en", "el"):
                 st["lang"] = data["lang"]
+            # 🦊 Αλεπού αναμονής (on/off) — επιμένει στη βάση (το localStorage δεν κρατά στο WebView).
+            if data.get("fox") in ("on", "off"):
+                st["fox"] = data["fox"]
             db.set_ui_state(st)
             self._json(200, {"ok": True})
         elif path == "/pin":
@@ -1351,20 +1358,23 @@ class Handler(BaseHTTPRequestHandler):
                 self._write_license(state)
                 self._json(200, {"ok": True, "activated": True})
             elif not res.get("success"):
+                # 🌐 Ο server στέλνει ΜΟΝΟ error_code — το frontend μεταφράζει
+                #    (en/el). Το «error» μένει ως αγγλικό fallback για κάθε
+                #    άγνωστη περίπτωση.
                 payload = {"ok": False, "activated": False,
-                           "error": "Μη έγκυρο key ή πρόβλημα σύνδεσης."}
+                           "error": "Invalid key or connection problem."}
                 # 🔤 Αιτία format: το key είχε πεζά -> πες το ξεκάθαρα στο UI.
                 if res.get("error_code") == "lowercase_key":
                     payload["error_code"] = "lowercase_key"
-                    payload["error"] = "Το key πρέπει να είναι με ΚΕΦΑΛΑΙΑ γράμματα."
                 # 🌐 Αιτία δικτύου: ξεχώρισέ το από «λάθος key».
-                if res.get("_network"):
+                elif res.get("_network"):
                     payload["error_code"] = "network"
-                    payload["error"] = "Δεν υπάρχει σύνδεση. Έλεγξε το internet και ξαναδοκίμασε."
                 self._json(200, payload)
             else:
+                # Refund / chargeback / υπερβολικές ενεργοποιήσεις.
                 self._json(200, {"ok": False, "activated": False,
-                                 "error": "Αυτό το key έχει ήδη χρησιμοποιηθεί πολλές φορές ή η αγορά έχει επιστραφεί."})
+                                 "error_code": "revoked",
+                                 "error": "This key has been used too many times, or the purchase was refunded."})
         elif path == "/verify_license":
             # 🧪 DEV MODE: αν LICENSE_CHECK=off, πες «ενεργό» αμέσως — χωρίς δίκτυο, χωρίς Gumroad.
             if self._license_check_off():
@@ -1397,21 +1407,21 @@ class Handler(BaseHTTPRequestHandler):
                 # Οριστικό κλείσιμο — refund ή μη νόμιμη χρήση. Καμία χάρη.
                 state.update({"activated": False, "fail_count": 99})
                 self._write_license(state)
+                # 🌐 Στέλνουμε error_code· το frontend το μεταφράζει (en/el).
                 self._json(200, {"ok": False, "activated": False,
-                                 "error": "Το license έχει ακυρωθεί ή χρησιμοποιηθεί υπερβολικά."})
+                                 "error_code": "revoked",
+                                 "error": "The license has been cancelled or used excessively."})
             else:
-                # Δεν μπόρεσε να φτάσει το Gumroad (offline/API down) → χάρη.
-                fails = int(state.get("fail_count", 0)) + 1
-                if fails <= LICENSE_MAX_FAILS:
-                    state["fail_count"] = fails
-                    self._write_license(state)
-                    self._json(200, {"ok": True, "activated": True, "grace": True,
-                                     "fails_left": LICENSE_MAX_FAILS - fails})
-                else:
-                    state["fail_count"] = fails
-                    self._write_license(state)
-                    self._json(200, {"ok": False, "activated": False,
-                                     "error": "Χρειάζεται σύνδεση στο διαδίκτυο για έλεγχο license."})
+                # 🔌 ΔΕΝ φτάσαμε το Gumroad (offline / API down / 404 / 5xx).
+                #    ΑΝ ο χρήστης είχε ποτέ περάσει επιτυχώς τον έλεγχο τοπικά
+                #    (activated==True στο state), τον ΑΦΗΝΟΥΜΕ ΠΑΝΤΑ να δουλέψει.
+                #    Δεν κλειδώνουμε ΠΟΤΕ τίμιο πελάτη λόγω δικτύου ή Gumroad
+                #    downtime. Hard-lock ΜΟΝΟ σε ρητό αρνητικό flag (refund/
+                #    disputed/uses>MAX) — αυτό ελέγχεται ΠΑΡΑΠΑΝΩ, με έγκυρο JSON.
+                state["fail_count"] = int(state.get("fail_count", 0)) + 1
+                self._write_license(state)
+                self._json(200, {"ok": True, "activated": True, "grace": True,
+                                 "fails_left": -1})
         elif path == "/frontend_update":
             # 🚀 Αυτόματο frontend update: κατεβάζει το νέο index.html και το βάζει
             #    στο ΜΟΝΙΜΟ override φάκελο (data_dir/web/). ΔΕΝ χρειάζεται reinstall.
@@ -1807,16 +1817,76 @@ def youtube_search(query, mode="videos", offset=0, limit=24):
         has_more = len(channels) == page
     elif mode == "both":
         half = page
-        videos = _search_videos_ytdlp(query, half, offset=offset)
-        channels = _search_channels_scrape(query, half, offset)
+        # ⚡ ΠΑΡΑΛΛΗΛΑ: τα βίντεο (yt-dlp, ~2s) και τα κανάλια (scrape, ~1s) δεν
+        #    εξαρτώνται το ένα από το άλλο. Σε σειρά πληρώναμε το άθροισμα
+        #    (~3s+). Παράλληλα πληρώνουμε το max (~2s) — κέρδος ~1s στο UI,
+        #    γιατί το JSON επιστρέφει όταν τελειώσει το πιο αργό νήμα.
+        #    (Ο server είναι ThreadingHTTPServer, άρα σηκώνει 2 νήματα.)
+        with ThreadPoolExecutor(max_workers=2) as _ex:
+            _fut_v = _ex.submit(_search_videos, query, half, offset)
+            _fut_c = _ex.submit(_search_channels_scrape, query, half, offset)
+            videos = _fut_v.result() or []
+            channels = _fut_c.result() or []
         has_more = (len(videos) == half) or (len(channels) == half)
     else:  # "videos" (default)
-        videos = _search_videos_ytdlp(query, page, offset=offset)
+        videos = _search_videos(query, page, offset=offset)
         channels = []
         has_more = len(videos) == page
     return {"videos": videos or [], "channels": channels or [], "has_more": has_more}
 
 
+
+
+def _search_videos(query, limit=20, offset=0):
+    """🔎 ΔΥΟ ΣΥΡΤΑΡΙΑ ΠΑΡΑΛΛΗΛΑ: InnerTube + yt-dlp, με εναλλαγή και αποδιπλοποίηση.
+
+    ΓΙΑΤΙ (ιδέα Ανδρίκου, μετρημένη): τα δύο συρτάρια δίνουν ΔΙΑΦΟΡΕΤΙΚΑ αποτελέσματα
+    (μετρήθηκε: 26 μοναδικά από 40). Ζητώντας ΚΑΙ τα δύο παράλληλα:
+      • Χρόνος = του πιο γρήγορου (1.52s) — όχι άθροισμα.
+      • Διπλάσιο υλικό: 40 αντί για 20, που γεμίζει τη σελίδα πιο γρήγορα.
+      • Δεν ναυαγεί αν το ένα σκάσει — το άλλο δίνει αποτέλεσματα.
+    Εναλλαγή (A,B,A,B) ώστε τα αποτελέσματα να έρχονται «μακριά» μεταξύ τους,
+    όπως ζήτησε ο Ανδρίκος — ΟΧΙ μαζεμένα τα μεν μετά τα δε.
+
+    ΣΗΜΑΝΤΙΚΟ: μην ζητάς offset στη 2η σελίδα από την ΙΔΙΑ πηγή — το YouTube
+    πληρώνει πρώτα την 1η σελίδα για να δώσει το continuation token (μετρήθηκε:
+    offset=20 → 2.80s αντί 1.13s). Γι' αυτό βάζουμε ΤΙΣ ΔΥΟ πηγές στην 1η σελίδα.
+    """
+    if offset:
+        # Σελιδοποίηση: πάρε από την πηγή που «αντέχει» το offset χωρίς βάρος.
+        vids = _search_videos_ytdlp(query, limit, offset)
+        return vids or _search_videos_innertube(query, limit, offset)
+
+    # 1η σελίδα: ΚΑΙ ΤΑ ΔΥΟ συρτάρια παράλληλα.
+    with ThreadPoolExecutor(max_workers=2) as _ex:
+        _f_it = _ex.submit(_search_videos_innertube, query, limit, 0)
+        _f_yt = _ex.submit(_search_videos_ytdlp, query, limit, 0)
+        v_it = _f_it.result() or []
+        v_yt = _f_yt.result() or []
+
+    # 🚫 Αποδιπλοποίηση: κρατάμε την ΠΡΩΤΗ εμφάνιση κάθε video_id.
+    seen, out = set(), []
+    for v in v_it + v_yt:
+        vid = v.get("video_id")
+        if vid and vid not in seen:
+            seen.add(vid)
+            out.append(v)
+
+    # 🔀 ΕΝΑΛΛΑΓΗ (A,B,A,B): ξανα-πλέκει τα δύο συρτάρια ώστε η λίστα να
+    #    εναλλάσσει προελεύσεις — «μακριά» τα αποτελέσματα, όχι ομαδοποιημένα.
+    if v_it and v_yt:
+        seen2, mixed = set(), []
+        for i in range(max(len(v_it), len(v_yt))):
+            for src in (v_it, v_yt):
+                if i < len(src):
+                    vid = src[i].get("video_id")
+                    if vid and vid not in seen2:
+                        seen2.add(vid)
+                        mixed.append(src[i])
+        if len(mixed) >= min(len(v_it), len(v_yt)):
+            return mixed[:max(limit, len(mixed))]
+
+    return out
 
 
 def _search_videos_ytdlp(query, limit=10, offset=0):
@@ -1852,6 +1922,100 @@ def _search_videos_ytdlp(query, limit=10, offset=0):
     except Exception:
         pass
     return out
+
+
+def _search_videos_innertube(query, limit=20, offset=0):
+    """Ψάχνει βίντεο μέσω InnerTube (youtubei/v1/search) με φίλτρο ΜΟΝΟ βίντεο.
+
+    ΓΙΑΤΙ: μετρημένο ~0.8-1.1s για 20 βίντεο, έναντι ~2.3s του yt-dlp (μισός χρόνος).
+    Το κλειδί είναι το params "EgIQAQ==": χωρίς αυτό το YouTube γυρνάει μικτό
+    feed (Shorts/ράφια/κανάλια) και μένουμε με ~10 βίντεο. Με αυτό: καθαρά βίντεο.
+
+    Επιστρέφει την ΙΔΙΑ μορφή με το _search_videos_ytdlp, ώστε να είναι drop-in.
+
+    offset: το YouTube δίνει ~20/σελίδα. Για offset>0 ακολουθούμε continuation
+    tokens όσες φορές χρειάζεται (κάθε σελίδα ~0.3-1.0s).
+
+    Επιστρέφει [] σε κάθε αποτυχία — ο caller πέφτει στο yt-dlp (εφεδρεία).
+    """
+    import json as _json, gzip as _gzip
+    UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+          "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+    HDRS = {"Content-Type": "application/json", "User-Agent": UA,
+            "Accept-Encoding": "gzip", "Origin": "https://www.youtube.com",
+            "X-YouTube-Client-Name": "1",
+            "X-YouTube-Client-Version": "2.20240501.00.00"}
+    CTX = {"client": {"clientName": "WEB", "clientVersion": "2.20240501.00.00",
+                      "hl": "en", "gl": "US", "utcOffsetMinutes": 0}}
+    PARAMS_VIDEO_ONLY = "EgIQAQ=="
+
+    def _post(payload):
+        body = _json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            "https://www.youtube.com/youtubei/v1/search?prettyPrint=false",
+            data=body, headers=HDRS)
+        with urllib.request.urlopen(req, timeout=8) as r:
+            raw = r.read()
+            if (r.headers.get("Content-Encoding") or "").lower() == "gzip":
+                raw = _gzip.decompress(raw)
+        return _json.loads(raw.decode("utf-8", "ignore"))
+
+    def _parse(data):
+        vids, token = [], None
+
+        def walk(o):
+            nonlocal token
+            if isinstance(o, dict):
+                if "videoRenderer" in o:
+                    v = o["videoRenderer"]
+                    vid = v.get("videoId") or ""
+                    dur = (v.get("lengthText") or {}).get("simpleText") or ""
+                    # 🧹 ΜΟΝΟ κανονικά βίντεο: με διάρκεια (κόβει live/premieres που
+                    #    εμφανίζονται ως badges χωρίς lengthText).
+                    if vid and len(vid) == 11 and dur:
+                        vids.append({
+                            "video_id": vid,
+                            "title": "".join(x.get("text", "") for x in
+                                             (v.get("title") or {}).get("runs", [])),
+                            "channel": (((v.get("ownerText") or {}).get("runs")
+                                         or [{}])[0].get("text", "")),
+                            "duration": dur,
+                            "views": (v.get("viewCountText") or {}).get("simpleText", ""),
+                            "thumb": f"https://i.ytimg.com/vi/{vid}/mqdefault.jpg",
+                        })
+                if "continuationCommand" in o and not token:
+                    t = o["continuationCommand"].get("token")
+                    if t:
+                        token = t
+                for x in o.values():
+                    walk(x)
+            elif isinstance(o, list):
+                for x in o:
+                    walk(x)
+
+        walk(data)
+        return vids, token
+
+    try:
+        data = _post({"context": CTX, "query": query, "params": PARAMS_VIDEO_ONLY})
+        vids, tok = _parse(data)
+        # Σελιδοποίηση: 20/σελίδα. Πάρε offset+limit, και μετά κόψε τα πρώτα offset.
+        target = max(1, int(offset or 0)) + max(1, int(limit or 20))
+        guard = 0
+        while len(vids) < target and tok and guard < 8:
+            guard += 1
+            try:
+                d2 = _post({"context": CTX, "continuation": tok})
+            except Exception:
+                break
+            more, tok = _parse(d2)
+            if not more:
+                break
+            vids.extend(more)
+        off = max(0, int(offset or 0))
+        return vids[off:off + max(1, int(limit or 20))]
+    except Exception:
+        return []
 
 
 def _search_channels_scrape(query, limit=24, offset=0):

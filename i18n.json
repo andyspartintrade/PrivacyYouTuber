@@ -1138,5 +1138,461 @@
   "misc.videoWord": {
     "en": " video",
     "el": " βίντεο"
+  },
+  "lic.paste": {
+    "en": "Paste",
+    "el": "Επικόλληση"
+  },
+  "lic.cut": {
+    "en": "Cut",
+    "el": "Αποκοπή"
+  },
+  "lic.selectall": {
+    "en": "Select all",
+    "el": "Επιλογή όλων"
+  },
+  "lic.pasteHint": {
+    "en": "Press Ctrl+V to paste",
+    "el": "Πάτησε Ctrl+V για επικόλληση"
+  },
+  "lic.pasteTip": {
+    "en": "Click 📋 Paste — or press Ctrl+V",
+    "el": "Πάτησε 📋 Επικόλληση — ή Ctrl+V"
+  },
+  "lic.errLower": {
+    "en": "The key must be in UPPERCASE letters. Copy it again from your email.",
+    "el": "Το key πρέπει να είναι με ΚΕΦΑΛΑΙΑ γράμματα. Αντίγραψέ το ξανά από το email."
+  },
+  "lic.errNetwork": {
+    "en": "No internet connection. Check it and try again.",
+    "el": "Δεν υπάρχει σύνδεση. Έλεγξε το internet και ξαναδοκίμασε."
+  },
+  "lic.pasteBtn": {
+    "en": "Paste",
+    "el": "Επικόλληση"
+  },
+  "lic.errRevoked": {
+    "en": "This key has been used too many times, or the purchase was refunded.",
+    "el": "Αυτό το key έχει χρησιμοποιηθεί πολλές φορές ή η αγορά έχει επιστραφεί."
+  },
+  "lic.errInactive": {
+    "en": "The license is not active.",
+    "el": "Το license δεν είναι ενεργό."
+  },
+  "search.dig.1": {
+    "en": "Digging through the internet… 🦊",
+    "el": "Σκάβω στο ίντερνετ… 🦊"
+  },
+  "search.dig.2": {
+    "en": "Sniffing out results! 👃",
+    "el": "Οσμίζομαι αποτελέσματα! 👃"
+  },
+  "search.dig.3": {
+    "en": "Hold on, I smell something good! 🐾",
+    "el": "Μισό, μυρίζομαι κάτι καλό! 🐾"
+  },
+  "search.dig.4": {
+    "en": "This hole goes deep… ⛏️",
+    "el": "Αυτή η τρύπα πάει βαθιά… ⛏️"
+  },
+  "search.dig.5": {
+    "en": "Almost there… probably… 🤞",
+    "el": "Σχεδόν… μάλλον… 🤞"
+  },
+  "search.dig.6": {
+    "en": "Found dirt. Looking for gold! 🥇",
+    "el": "Βρήκα χώμα. Ψάχνω χρυσό! 🥇"
+  },
+  "search.dig.7": {
+    "en": "Sniffing. Digging. Repeating. 🔁",
+    "el": "Οσμίζομαι. Σκάβω. Επαναλαμβάνω. 🔁"
+  },
+  "search.dig.8": {
+    "en": "Shhh… hunting results! 🤫",
+    "el": "Σσσς… κυνηγάω αποτελέσματα! 🤫"
+  },
+  "search.dig.9": {
+    "en": "My paws are working overtime! 💦",
+    "el": "Τα πόδια μου δουλεύουν υπερωρίες! 💦"
+  },
+  "search.dig.10": {
+    "en": "Wait, a bone or a video? 🦴",
+    "el": "Μισό, κόκαλο ήταν ή βίντεο; 🦴"
+  },
+  "search.dig.11": {
+    "en": "Down the rabbit hole we go! 🐇",
+    "el": "Κατεβαίνουμε στην τρύπα του λαγού! 🐇"
+  },
+  "search.dig.12": {
+    "en": "Tearing up the yard for this! 🌱",
+    "el": "Ξεριζώνω την αυλή γι' αυτό! 🌱"
+  },
+  "search.dig.13": {
+    "en": "This better be worth it! 😤",
+    "el": "Καλύτερα να αξίζει τον κόπο! 😤"
+  },
+  "search.dig.14": {
+    "en": "I can smell a good video! 📺",
+    "el": "Μυρίζομαι καλό βίντεο! 📺"
+  },
+  "search.dig.15": {
+    "en": "Digging at maximum speed! 🚀",
+    "el": "Σκάβω με τέρμα ταχύτητα! 🚀"
+  },
+  "search.dig.16": {
+    "en": "Bones? No. Videos? Maybe! 🎬",
+    "el": "Κόκαλα; Όχι. Βίντεο; Ίσως! 🎬"
+  },
+  "search.dig.17": {
+    "en": "Who buried all this? 🌍",
+    "el": "Ποιος έθαψε όλα αυτά; 🌍"
+  },
+  "search.dig.18": {
+    "en": "Getting my paws dirty! 🧤",
+    "el": "Λερώνομαι λίγο! 🧤"
+  },
+  "search.dig.19": {
+    "en": "Hold my shovel, I got this! 🛠️",
+    "el": "Κράτα το φτυάρι μου, το 'χω! 🛠️"
+  },
+  "search.dig.20": {
+    "en": "Suspiciously good results… 👀",
+    "el": "Ύποπτα καλά αποτελέσματα… 👀"
+  },
+  "search.dig.21": {
+    "en": "Not a bone, but I'll take it! 🎁",
+    "el": "Δεν είναι κόκαλο, αλλά το παίρνω! 🎁"
+  },
+  "search.dig.22": {
+    "en": "Digging like there's no tomorrow! ⏳",
+    "el": "Σκάβω λες και δεν υπάρχει αύριο! ⏳"
+  },
+  "search.dig.23": {
+    "en": "The internet is deep, so am I! 🕳️",
+    "el": "Το ίντερνετ είναι βαθύ, κι εγώ! 🕳️"
+  },
+  "search.dig.24": {
+    "en": "Found something shiny! ✨",
+    "el": "Βρήκα κάτι γυαλιστερό! ✨"
+  },
+  "search.dig.25": {
+    "en": "Careful, this part is tricky! ⚠️",
+    "el": "Προσοχή, εδώ είναι δύσκολο! ⚠️"
+  },
+  "search.dig.26": {
+    "en": "Sniff sniff… yep, results nearby! 🐕",
+    "el": "Σνιφ σνιφ… ναι, υπάρχουν αποτελέσματα! 🐕"
+  },
+  "search.dig.27": {
+    "en": "My tail is wagging already! 🎉",
+    "el": "Η ουρά μου κουνιέται ήδη! 🎉"
+  },
+  "search.dig.28": {
+    "en": "Digging underground business! 🏗️",
+    "el": "Σκάβω υπόγειες υποθέσεις! 🏗️"
+  },
+  "search.dig.29": {
+    "en": "Give me a sec, almost got it! ⏱️",
+    "el": "Δώσε μου ένα δευτερόλεπτο, το 'χω! ⏱️"
+  },
+  "search.dig.30": {
+    "en": "This dirt is stubborn! 😅",
+    "el": "Αυτό το χώμα είναι πεισματάρικο! 😅"
+  },
+  "search.dig.31": {
+    "en": "Hmm… interesting things down here! 🤔",
+    "el": "Χμμ… ενδιαφέροντα πράγματα εδώ κάτω! 🤔"
+  },
+  "search.dig.32": {
+    "en": "Treasure or trash? Let's see! 🏴‍☠️",
+    "el": "Θησαυρός ή σκουπίδια; Ας δούμε! 🏴‍☠️"
+  },
+  "search.dig.33": {
+    "en": "Dig dig dig… 🥁",
+    "el": "Σκάψε σκάψε σκάψε… 🥁"
+  },
+  "search.dig.34": {
+    "en": "I heard there's good stuff here! 👂",
+    "el": "Άκουσα ότι έχει καλά πράγματα εδώ! 👂"
+  },
+  "search.dig.35": {
+    "en": "Working harder than a mole! 🐭",
+    "el": "Δουλεύω πιο σκληρά από τυφλοπόντικα! 🐭"
+  },
+  "search.dig.36": {
+    "en": "No bones, but plenty of videos! 📼",
+    "el": "Όχι κόκαλα, αλλά άφθονα βίντεο! 📼"
+  },
+  "search.dig.37": {
+    "en": "Just a little deeper… 🕳️",
+    "el": "Λίγο πιο βαθιά ακόμα… 🕳️"
+  },
+  "search.dig.38": {
+    "en": "The shovel never lies! ⛏️",
+    "el": "Το φτυάρι δεν λέει ψέματα! ⛏️"
+  },
+  "search.dig.39": {
+    "en": "Making the internet a mess! 🌀",
+    "el": "Κάνω το ίντερνετ άνω-κάτω! 🌀"
+  },
+  "search.dig.40": {
+    "en": "Found it! …Or did I? 🤷",
+    "el": "Το βρήκα! …Ή μήπως όχι; 🤷"
+  },
+  "search.dig.41": {
+    "en": "Digging for the good stuff! 💎",
+    "el": "Σκάβω για τα καλά! 💎"
+  },
+  "search.dig.42": {
+    "en": "My shovel is getting hot! 🔥",
+    "el": "Το φτυάρι μου ζεσταίνεται! 🔥"
+  },
+  "search.dig.43": {
+    "en": "Something smells like a hit! 🎯",
+    "el": "Κάτι μυρίζει επιτυχία! 🎯"
+  },
+  "search.dig.44": {
+    "en": "Hold on, I'm onto something! 🕵️",
+    "el": "Μισό, κάτι βρήκα! 🕵️"
+  },
+  "search.dig.45": {
+    "en": "This better not be clickbait! 🙄",
+    "el": "Καλύτερα να μην είναι clickbait! 🙄"
+  },
+  "search.dig.46": {
+    "en": "I dig, therefore I am! 🧠",
+    "el": "Σκάβω, άρα υπάρχω! 🧠"
+  },
+  "search.dig.47": {
+    "en": "No bone left unturned! 🦴",
+    "el": "Δεν αφήνω κόκαλο άθαφτο! 🦴"
+  },
+  "search.dig.48": {
+    "en": "Dirt everywhere, but I'm happy! 😄",
+    "el": "Χώμα παντού, αλλά χαμογελάω! 😄"
+  },
+  "search.dig.49": {
+    "en": "Faster! Faster! Dig faster! 🏃",
+    "el": "Πιο γρήγορα! Πιο γρήγορα! 🏃"
+  },
+  "search.dig.50": {
+    "en": "I could do this all day! ☀️",
+    "el": "Θα το 'κανα όλη μέρα! ☀️"
+  },
+  "search.dig.51": {
+    "en": "We're going deep, people! 🌊",
+    "el": "Πάμε βαθιά, παιδιά! 🌊"
+  },
+  "search.dig.52": {
+    "en": "Results incoming… I can feel it! ⚡",
+    "el": "Έρχονται αποτελέσματα… το νιώθω! ⚡"
+  },
+  "search.dig.53": {
+    "en": "Patience, my friend, patience! 🧘",
+    "el": "Υπομονή, φίλε μου, υπομονή! 🧘"
+  },
+  "search.dig.54": {
+    "en": "My nose never fails me! 👃",
+    "el": "Η μύτη μου δεν με προδίδει ποτέ! 👃"
+  },
+  "search.dig.55": {
+    "en": "Is that a bone? No. Disappointed. 😔",
+    "el": "Κόκαλο; Όχι. Απογοήτευση. 😔"
+  },
+  "search.dig.56": {
+    "en": "Digging like a tiny excavator! 🚜",
+    "el": "Σκάβω σαν μικροσκοπικός εκσκαφέας! 🚜"
+  },
+  "search.dig.57": {
+    "en": "Hold on, my tail got stuck! 🌪️",
+    "el": "Μισό, κόλλησε η ουρά μου! 🌪️"
+  },
+  "search.dig.58": {
+    "en": "Worth every paw stroke! 🐾",
+    "el": "Αξίζει κάθε πατούσα! 🐾"
+  },
+  "search.dig.59": {
+    "en": "Just one more dig, promise! 🤙",
+    "el": "Ένα σκάψιμο ακόμα, το υπόσχομαι! 🤙"
+  },
+  "search.dig.60": {
+    "en": "The internet trembles before me! 👑",
+    "el": "Το ίντερνετ τρέμει μπροστά μου! 👑"
+  },
+  "search.dig.61": {
+    "en": "Tiny fox, big dreams! 🌟",
+    "el": "Μικρή αλεπού, μεγάλα όνειρα! 🌟"
+  },
+  "search.dig.62": {
+    "en": "Almost… almost… don't rush me! 😅",
+    "el": "Σχεδόν… σχεδόν… μη με βιάζεις! 😅"
+  },
+  "search.dig.63": {
+    "en": "I'm basically a search engine now! 🔍",
+    "el": "Είμαι πρακτικά μηχανή αναζήτησης! 🔍"
+  },
+  "search.dig.64": {
+    "en": "Sweat, dirt, and glory! 💪",
+    "el": "Ιδρώτας, χώμα, δόξα! 💪"
+  },
+  "search.dig.65": {
+    "en": "Woof! Wrong animal, but still digging! 🐶",
+    "el": "Γάβ! Λάθος ζώο, αλλά σκάβω! 🐶"
+  },
+  "search.dig.66": {
+    "en": "Brace yourself, results are coming! 🎢",
+    "el": "Κρατήσου, έρχονται αποτελέσματα! 🎢"
+  },
+  "search.dig.67": {
+    "en": "I smell Wi-Fi and victory! 📡",
+    "el": "Μυρίζομαι Wi-Fi και νίκη! 📡"
+  },
+  "search.dig.68": {
+    "en": "Even foxes deserve good videos! 🎬",
+    "el": "Ακόμα και οι αλεπούδες αξίζουν καλά βίντεο! 🎬"
+  },
+  "search.dig.69": {
+    "en": "Digging through the noise! 🔊",
+    "el": "Σκάβω μέσα στον θόρυβο! 🔊"
+  },
+  "search.dig.70": {
+    "en": "Focus… focus… almost got it! 🧐",
+    "el": "Συγκέντρωση… συγκέντρωση… το 'χω! 🧐"
+  },
+  "search.dig.71": {
+    "en": "One shovel at a time! ⛏️",
+    "el": "Ένα φτυάρι τη φορά! ⛏️"
+  },
+  "search.dig.72": {
+    "en": "I'm not lost, I'm exploring! 🗺️",
+    "el": "Δεν χάθηκα, εξερευνώ! 🗺️"
+  },
+  "search.dig.73": {
+    "en": "Where did I put that video? 🤔",
+    "el": "Πού το 'βαλα αυτό το βίντεο; 🤔"
+  },
+  "search.dig.74": {
+    "en": "Did someone say treats? No. Okay. 🍪",
+    "el": "Είπε κανείς λιχουδιές; Όχι. Εντάξει. 🍪"
+  },
+  "search.dig.75": {
+    "en": "Digging with style and grace! 💃",
+    "el": "Σκάβω με στιλ και χάρη! 💃"
+  },
+  "search.dig.76": {
+    "en": "The dirt is winning. For now. 😤",
+    "el": "Το χώμα κερδίζει. Προς το παρόν. 😤"
+  },
+  "search.dig.77": {
+    "en": "Blame the algorithm, not me! 🤖",
+    "el": "Φταίει ο αλγόριθμος, όχι εγώ! 🤖"
+  },
+  "search.dig.78": {
+    "en": "I found dust. Very exciting dust. 🧹",
+    "el": "Βρήκα σκόνη. Πολύ συναρπαστική σκόνη. 🧹"
+  },
+  "search.dig.79": {
+    "en": "Someone help me, I'm in too deep! 🆘",
+    "el": "Βοήθεια, μπήκα πολύ βαθιά! 🆘"
+  },
+  "search.dig.80": {
+    "en": "My paws need a raise! 💰",
+    "el": "Τα πόδια μου θέλουν αύξηση! 💰"
+  },
+  "search.dig.81": {
+    "en": "Digging like it's my job! Because it is! 👔",
+    "el": "Σκάβω σαν να είναι η δουλειά μου! Γιατί είναι! 👔"
+  },
+  "search.dig.82": {
+    "en": "Quiet… I hear videos whispering! 👻",
+    "el": "Ησυχία… ακούω βίντεο να ψιθυρίζουν! 👻"
+  },
+  "search.dig.83": {
+    "en": "Best fox for the job, obviously! 😎",
+    "el": "Η καλύτερη αλεπού για τη δουλειά, προφανώς! 😎"
+  },
+  "search.dig.84": {
+    "en": "This isn't dirt, it's a lifestyle! ✨",
+    "el": "Αυτό δεν είναι χώμα, είναι τρόπος ζωής! ✨"
+  },
+  "search.dig.85": {
+    "en": "Loading… loading… keep up! ⏳",
+    "el": "Φορτώνω… φορτώνω… ακολούθα! ⏳"
+  },
+  "search.dig.86": {
+    "en": "I deserve a nap after this! 😴",
+    "el": "Μου αξίζει ένας υπνάκος μετά! 😴"
+  },
+  "search.dig.87": {
+    "en": "Shovel? Check. Determination? Check! ✅",
+    "el": "Φτυάρι; Έτοιμο. Αποφασιστικότητα; Έτοιμη! ✅"
+  },
+  "search.dig.88": {
+    "en": "I don't give up, I dig up! 🔨",
+    "el": "Δεν τα παρατάω, τα ξεθάβω! 🔨"
+  },
+  "search.dig.89": {
+    "en": "Nothing beats fresh results! 🥕",
+    "el": "Τίποτα δεν ξεπερνά φρέσκα αποτελέσματα! 🥕"
+  },
+  "search.dig.90": {
+    "en": "Deep in thought. And in dirt. 🧠",
+    "el": "Χαμένη στις σκέψεις. Και στο χώμα. 🧠"
+  },
+  "search.dig.91": {
+    "en": "Warning: extremely cute fox at work! ⚠️",
+    "el": "Προσοχή: υπερβολικά χαριτωμένη αλεπού στη δουλειά! ⚠️"
+  },
+  "search.dig.92": {
+    "en": "The results owe me an apology! 😑",
+    "el": "Τα αποτελέσματα μου χρωστάνε συγγνώμη! 😑"
+  },
+  "search.dig.93": {
+    "en": "Digging so hard I forgot why! 🤪",
+    "el": "Σκάβω τόσο πολύ που ξέχασα γιατί! 🤪"
+  },
+  "search.dig.94": {
+    "en": "Every fox has her day! 🌈",
+    "el": "Κάθε αλεπού έχει τη μέρα της! 🌈"
+  },
+  "search.dig.95": {
+    "en": "Hold my coffee, I'm going in! ☕",
+    "el": "Κράτα τον καφέ μου, μπαίνω! ☕"
+  },
+  "search.dig.96": {
+    "en": "This hole has potential! 🕳️",
+    "el": "Αυτή η τρύπα έχει προοπτικές! 🕳️"
+  },
+  "search.dig.97": {
+    "en": "Sniff, dig, repeat — the fox way! 🔄",
+    "el": "Σνιφ, σκάψε, επανάλαβε — ο τρόπος της αλεπούς! 🔄"
+  },
+  "search.dig.98": {
+    "en": "Somewhere in here is a gem! 💠",
+    "el": "Κάπου εδώ μέσα είναι ένα στολίδι! 💠"
+  },
+  "search.dig.99": {
+    "en": "I'm 99% fox, 1% excavator! 🚧",
+    "el": "Είμαι 99% αλεπού, 1% εκσκαφέας! 🚧"
+  },
+  "search.dig.100": {
+    "en": "This is my favorite part! 🥳",
+    "el": "Αυτό είναι το αγαπημένο μου κομμάτι! 🥳"
+  },
+  "set.foxTitle": {
+    "en": "🦊 Digging fox",
+    "el": "🦊 Αλεπού που σκάβει"
+  },
+  "set.foxBody": {
+    "en": "The little fox that digs while searching. She can wait in her den if you prefer.",
+    "el": "Η μικρή αλεπού που σκάβει όσο ψάχνει. Μπορεί να περιμένει στη φωλιά της αν προτιμάς."
+  },
+  "set.foxOn": {
+    "en": "On",
+    "el": "Ενεργή"
+  },
+  "set.foxOff": {
+    "en": "Off",
+    "el": "Ανενεργή"
   }
 }

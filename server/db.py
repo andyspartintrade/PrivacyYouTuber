@@ -1017,16 +1017,28 @@ def _safe_cols(table, cols):
 
 
 def export_all():
-    """Σειριοποιεί ΟΛΟΥΣ τους πίνακες σε ένα dict (JSON-ready)."""
+    """Σειριοποιεί ΟΛΟΥΣ τους πίνακες σε ένα dict (JSON-ready).
+
+    ⚠️ ΚΑΝΟΝΑΣ: το LICENSE δεν βγαίνει ΠΟΤΕ στο export.
+    Είναι credential, όχι δεδομένο χρήστη. Το κλειδί ζει στη βάση του
+    πελάτη και δεν πρέπει να ταξιδεύει με το backup (αν το δώσει σε φίλο,
+    ο φίλος θα έμπαινε χωρίς δικό του κλειδί). Ίδιος κανόνας ισχύει για
+    ΚΑΘΕ μελλοντικό credential (API keys, tokens) που θα μπει στη βάση.
+    """
     out = {"version": 1, "tables": {}}
     with _conn() as c:
         for table in EXPORT_TABLES:
             t = _safe_table(table)
             rows = c.execute(f"SELECT * FROM {t}").fetchall()
             cols = [d[0] for d in c.execute(f"SELECT * FROM {t}").description]
+            rows = [list(r) for r in rows]
+            # 🔒 ui_state: πέτα τη γραμμή key='license' (κρατάμε key='ui').
+            if table == "ui_state":
+                ki = cols.index("key") if "key" in cols else 0
+                rows = [r for r in rows if r[ki] != "license"]
             out["tables"][table] = {
                 "columns": cols,
-                "rows": [list(r) for r in rows],
+                "rows": rows,
             }
     return out
 
@@ -1058,6 +1070,11 @@ def import_all(data, mode="replace"):
                 t = _safe_table(table)
                 col_list = ", ".join(cols)
                 ph = ", ".join("?" for _ in cols)
+                # 🔒 ui_state: ΑΓΝΟΗΣΕ τυχόν γραμμή key='license' από παλιά exports.
+                #    (το κλειδί δεν ταξιδεύει ποτέ με το backup — βλ. export_all)
+                if table == "ui_state":
+                    ki = cols.index("key") if "key" in cols else 0
+                    rows = [r for r in rows if (r[ki] if ki < len(r) else None) != "license"]
                 c.execute(f"DELETE FROM {t}")
                 c.executemany(
                     f"INSERT OR IGNORE INTO {t} ({col_list}) VALUES ({ph})",

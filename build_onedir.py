@@ -109,6 +109,13 @@ def main():
         cmd += ["--icon", icon]
         print(f"🎨 Icon: {icon}")
 
+    # 🏷️ Version info στα properties του exe (FileVersion/ProductVersion).
+    #    Χωρίς αυτό, δεξί κλικ → Properties → Details είναι ΚΕΝΟ.
+    vi = os.path.join("version_info.txt")
+    if os.path.exists(vi) and os.name == "nt":
+        cmd += ["--version-file", vi]
+        print(f"🏷️  Version info: {vi}")
+
     cmd.append("cli.py")
     print("🔨 Χτίζω (onedir):", " ".join(cmd))
     subprocess.check_call(cmd)

@@ -1,4 +1,4 @@
-﻿; Privacy YouTuber — NSIS installer (open source, zlib license).
+; Privacy YouTuber — NSIS installer (open source, zlib license).
 ;
 ; ΠΩΣ ΧΡΗΣΙΜΟΠΟΙΕΙΤΑΙ (αυτόματο — μην το τρέχεις χειροκίνητα):
 ;   1. Κάνε build το onedir:  python build_onedir.py
@@ -14,7 +14,7 @@
 
 ; ── Version: default fallback, το .bat το περνάει ως /DVERSION=… ──
 !ifndef VERSION
-  !define VERSION "1.0.0"
+  !error "VERSION not defined — pass /DVERSION=x.y.z (must NOT be 1.0.0)"
 !endif
 !define APP_NAME "Privacy YouTuber"
 !define APP_EXE "PrivacyYouTuber.exe"

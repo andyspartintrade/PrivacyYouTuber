@@ -139,6 +139,14 @@
     "en": "New videos",
     "el": "Νέα βίντεο"
   },
+  "ch.add": {
+    "en": "Add",
+    "el": "Πρόσθεσε"
+  },
+  "ch.added": {
+    "en": "Added",
+    "el": "Προστέθηκε"
+  },
   "ch.follow": {
     "en": "Follow",
     "el": "Παρακολούθησε"

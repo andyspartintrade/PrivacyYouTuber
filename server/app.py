@@ -37,7 +37,7 @@ PORT = 8765
 HOST = "127.0.0.1"  # δέχεται ΜΟΝΟ τοπικές συνδέσεις — ποτέ από το internet
 
 # 📦 Η τρέχουσα έκδοση του app. Το auto-update τη συγκρίνει με το latest.json.
-VERSION = "1.4.4"
+VERSION = "1.5.2"
 
 # 📦 Πού ψάχνει το app για ενημερώσεις (GitHub raw). Public repo απαραίτητο.
 UPDATE_URL = "https://raw.githubusercontent.com/andyspartintrade/PrivacyYouTuber/main/latest.json"
@@ -538,11 +538,10 @@ class Handler(BaseHTTPRequestHandler):
             "watch_count": v["watch_count"],
             "last_watched_at": v["last_watched_at"],
             "rank": v["rank"],
-            "pinned": v["pinned"],
+            "pinned": 0,                    # 🗑️ νεκρό (παλιό pin-ανά-βίντεο) — το pin είναι channel_watch.pinned
             "unseen": v.get("unseen") or 0,
             "rating": v.get("rating") or 0,
             "my_tags": (lambda s: json.loads(s) if s else [])(v.get("my_tags")),
-            "pin_top": v.get("pin_top") or 0,
             "cat_rank": v.get("cat_rank") or 0,
         }
 
@@ -985,16 +984,6 @@ class Handler(BaseHTTPRequestHandler):
                 st["fox"] = data["fox"]
             db.set_ui_state(st)
             self._json(200, {"ok": True})
-        elif path == "/pin":
-            # Νέο: δέχεται προαιρετικό "state" (0/1/2). Αν λείπει → legacy toggle.
-            raw_state = data.get("state")
-            if raw_state is None:
-                pinned = db.toggle_pin(data.get("video_id"))
-                self._json(200, {"ok": True, "pinned": pinned})
-            else:
-                state = int(raw_state)
-                new_state = db.set_pin(data.get("video_id"), state)
-                self._json(200, {"ok": True, "state": new_state})
         elif path == "/pin_channel":
             new_state = db.toggle_pin_channel(data.get("channel_id"))
             self._json(200, {"ok": True, "pinned": new_state})
@@ -1005,7 +994,12 @@ class Handler(BaseHTTPRequestHandler):
             db.reorder_cat_videos(data.get("ordered_ids") or [])
             self._json(200, {"ok": True})
         elif path == "/watch_channel":
-            db.set_channel_watch(data.get("channel_id"), data.get("enabled", True))
+            # 🎯 Δέχεται προαιρετικό name — ώστε το κανάλι να μην εμφανίζεται «?».
+            db.set_channel_watch(data.get("channel_id"), data.get("enabled", True), data.get("name"))
+            self._json(200, {"ok": True})
+        elif path == "/settle_channel":
+            # ⚪ Άνοιγμα κίτρινου καναλιού (χωρίς fetch) → «τακτοποιήθηκε» (enabled=1).
+            db.settle_channel(data.get("channel_id"))
             self._json(200, {"ok": True})
         elif path == "/check_new":
             self._check_new()
@@ -1087,10 +1081,11 @@ class Handler(BaseHTTPRequestHandler):
             #    (Ο βρόχος έκανε 5 κλήσεις × yt-dlp = 25s· μία κλήση ίδιου εύρους = ~6s.)
             res = youtube_search(q, mode=mode, offset=offset, limit=CHUNK)
             fresh = res["videos"] if mode != "channels" else res["channels"]
-            # 🧹 Φιλτράρισε non-embeddable — ΜΟΝΟ τα βίντεο (τα κανάλια δεν έχουν video_id).
-            if fresh and mode != "channels":
-                ok_ids = set(filter_embeddable([v["video_id"] for v in fresh]))
-                fresh = [v for v in fresh if v["video_id"] in ok_ids]
+            # ⚡ ΔΕΝ φιλτράρουμε embeddable ΕΔΩ — το filter_embeddable έκανε ~24-48 oEmbed
+            #    requests (Μ.Ο. ~840ms το καθένα) = ~1.7s ΜΠΛΟΚΑΡΙΣΜΑ πριν επιστρέψουν τα
+            #    αποτελέσματα. Τώρα: fail-open, όλα μπαίνουν αμέσως, και το lightbox
+            #    χειρίζεται το fallback (thumb + «άνοιξε στο YouTube») αν κάποιο δεν παίζει.
+            #    (Μετρημένο 17/10/2026: η αιτία των 8-10s στους αργούς υπολογιστές.)
             # 💾 Αποθήκευσε στη ΣΩΣΤΗ θέση:
             #    • offset=0 → νέα σελίδα 1: καθάρισε τα παλιά (replace_all=True).
             #    • offset>0 → βάλε τα νέα ΜΕΤΑ τα υπάρχοντα (θέση = offset), ΧΩΡΙΣ να σβήσεις τα προηγούμενα.
@@ -1225,7 +1220,10 @@ class Handler(BaseHTTPRequestHandler):
             # ΦΑΣΗ 2: δώσε από τη cache — ΜΗΔΕΝ δίκτυο.
             #   ⚠️ Το offset μετρά ΘΕΣΕΙΣ ΣΤΗ CACHE (όχι «πόσα νέα πήρα»): τα πρώτα πολλά
             #   είναι ήδη γνωστά/πεταμένα, γι' αυτό ένα σκέτο +24 θα ξαναδιάβαζε τις ίδιες θέσεις.
-            seen = set(db.all_video_ids())
+            #   🎯 FIX C: ΜΗΝ φιλτράρεις με «seen» (all_video_ids) ΕΔΩ — το dedup γίνεται ΗΔΗ στο
+            #   frontend (add_many + allVideos.some). Αλλιώς κανάλι με βίντεο στη βάση αλλά 0 cache
+            #   επιστρέφει 0 νέα (όλα «γνωστά») → «fetch κάνει spin αλλά δεν φέρνει τίποτα».
+            #   Κράτα ΜΟΝΟ το dismissed (τα ρητά πεταμένα), που ΔΕΝ πρέπει να ξανάρθουν ποτέ.
             dismissed = set(db.dismissed_ids())
             all_cached = db.get_cached_channel_videos(cid, offset=0, limit=5000)
             new_items = []
@@ -1233,7 +1231,7 @@ class Handler(BaseHTTPRequestHandler):
             for e in all_cached[offset:]:
                 cursor += 1
                 vid = e.get("video_id")
-                if not vid or vid in seen or vid in dismissed:
+                if not vid or vid in dismissed:
                     continue
                 new_items.append({
                     "video_id": vid,
@@ -1279,7 +1277,7 @@ class Handler(BaseHTTPRequestHandler):
                     "title": it.get("title") or vid,
                     "channel": ch,
                     "channel_id": cid,
-                    "unseen": bool(it.get("mark_unseen", True)),
+                    "unseen": False,   # 🚫 unseen flag ΚΑΤΑΡΓΗΘΗΚΕ (απορρίφθηκε η ιδέα) — πάντα 0.
                 })
                 added.append(vid)
             self._json(200, {"ok": True, "added": added})
@@ -1302,14 +1300,20 @@ class Handler(BaseHTTPRequestHandler):
                 "title": info.get("title") or vid,
                 "channel": chname,
                 "channel_id": cid,
-                "unseen": mark_unseen,
+                "unseen": False,   # 🚫 unseen flag ΚΑΤΑΡΓΗΘΗΚΕ — πάντα 0.
             })
+            # 🟡 Νέο κανάλι (από search ➕) → «κεχριμπάρι» (προς τακτοποίηση) — ΜΟΝΟ αν δεν
+            #    υπάρχει ήδη (δεν ξανα-κεχριμπαρίζουμε κάτι που έχεις ήδη fetch-άρει).
+            if cid:
+                db.ensure_channel_new(cid, chname)
             self._json(200, {"ok": True, "video_id": vid, "title": info.get("title") or vid})
         elif path == "/mark_seen":
-            db.mark_video_seen(data.get("video_id"))
-            self._json(200, {"ok": True})
-        elif path == "/mark_unseen_off":
-            db.mark_video_unseen_off(data.get("video_id"))
+            vid = data.get("video_id")
+            db.mark_video_seen(vid)
+            # ⚪ Play βίντεο → «τακτοποίησέ» το κανάλι του (χάνει το κεχριμπάρι).
+            cid = db.video_channel_id(vid)
+            if cid:
+                db.settle_channel(cid)
             self._json(200, {"ok": True})
         elif path == "/embeddable":
             vid = data.get("video_id")

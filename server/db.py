@@ -78,7 +78,8 @@ CREATE TABLE IF NOT EXISTS tag_stats (
 
 CREATE TABLE IF NOT EXISTS channel_watch (
     channel_id      TEXT PRIMARY KEY,
-    enabled         INTEGER DEFAULT 1
+    enabled         INTEGER DEFAULT 1,
+    pinned          INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS dismissed (
@@ -164,6 +165,17 @@ def init():
         wcols = [r[1] for r in c.execute("PRAGMA table_info(channel_watch)").fetchall()]
         if "name" not in wcols:
             c.execute("ALTER TABLE channel_watch ADD COLUMN name TEXT")
+        # 🎯 pin ανά ΚΑΝΑΛΙ (v1.5.0): το pin είναι ιδιότητα του καναλιού, ΟΧΙ του βίντεο.
+        if "pinned" not in wcols:
+            c.execute("ALTER TABLE channel_watch ADD COLUMN pinned INTEGER DEFAULT 0")
+            # Μετάφερε τυχόν ήδη-pinned κανάλια από το videos.pinned → channel_watch.pinned.
+            c.execute("""
+                UPDATE channel_watch SET pinned = 1
+                WHERE channel_id IN (SELECT DISTINCT channel_id FROM videos WHERE pinned = 1)
+            """)
+        # 🎯 Εξυγίανση (idempotent, τρέχει σε κάθε εκκίνηση): pin = τακτοποίηση,
+        #    άρα ΚΑΝΕΝΑ κανάλι δεν μπορεί να είναι ΚΑΙ μοβ ΚΑΙ κίτρινο (pinned + enabled=0).
+        c.execute("UPDATE channel_watch SET enabled = 1 WHERE pinned = 1 AND enabled = 0")
         # ⚡ Cache embeddable ΑΝΕΞΑΡΤΗΤΗ από τον πίνακα videos — ώστε να θυμάται και βίντεο
         #    που βρέθηκαν στην αναζήτηση (δεν είναι στη βιβλιοθήκη, άρα το UPDATE videos δεν έπιανε).
         c.execute(
@@ -212,20 +224,18 @@ def record_watch(event):
                     watch_count      = watch_count + 1,
                     title            = COALESCE(NULLIF(?, ''), title),
                     channel          = COALESCE(NULLIF(?, ''), channel),
-                    channel_id       = COALESCE(NULLIF(?, ''), channel_id),
-                    unseen           = ?
+                    channel_id       = COALESCE(NULLIF(?, ''), channel_id)
                 WHERE video_id = ?
                 """,
-                (now, event.get("title", ""), event.get("channel"), event.get("channel_id"),
-                 1 if event.get("unseen") else 0, vid),
+                (now, event.get("title", ""), event.get("channel"), event.get("channel_id"), vid),
             )
         else:
             c.execute(
                 """
                 INSERT INTO videos
                     (video_id, title, channel, channel_id, description, category, tags,
-                     first_seen_at, last_watched_at, unseen)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     first_seen_at, last_watched_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     vid,
@@ -237,7 +247,6 @@ def record_watch(event):
                     json.dumps(event.get("tags", []), ensure_ascii=False),
                     now,
                     now,
-                    1 if event.get("unseen") else 0,
                 ),
             )
         c.execute(
@@ -351,52 +360,28 @@ def update_video_meta(video_id, channel_id=None, channel=None, title=None):
             )
 
 
-def set_pin(video_id, state):
-    """Καρφιτσώνει ένα βίντεο με 3 καταστάσεις:
-       state = 0 → unpinned (καθόλου)
-       state = 1 → in-place (καρφιτσωμένο στη θέση του)
-       state = 2 → top (πάνω-πάνω)
-    Επιστρέφει τη νέα κατάσταση."""
-    with _conn() as c:
-        cur = c.execute("SELECT pinned FROM videos WHERE video_id = ?", (video_id,)).fetchone()
-        if not cur:
-            return 0
-        if state == 2:
-            mx = c.execute("SELECT COALESCE(MAX(rank), 0) FROM videos").fetchone()[0]
-            c.execute("UPDATE videos SET pinned = 1, pin_top = 1, rank = ? WHERE video_id = ?", (mx + 1, video_id))
-        elif state == 1:
-            c.execute("UPDATE videos SET pinned = 1, pin_top = 0 WHERE video_id = ?", (video_id,))
-        else:
-            c.execute("UPDATE videos SET pinned = 0, pin_top = 0 WHERE video_id = ?", (video_id,))
-        return state
-
-
 def toggle_pin_channel(channel_id):
-    """Toggle pin για όλο το κανάλι. Επιστρέφει τη νέα κατάσταση (1/0)."""
+    """Toggle pin για όλο το κανάλι (ιδιότητα του ΚΑΝΑΛΙΟΥ, όχι των βίντεο).
+    Επιστρέφει τη νέα κατάσταση (1/0)."""
+    channel_id = (channel_id or "").strip()
+    if not channel_id:
+        return 0
     with _conn() as c:
         cur = c.execute(
-            "SELECT pinned FROM videos WHERE channel_id = ? LIMIT 1", (channel_id,)
+            "SELECT pinned FROM channel_watch WHERE channel_id = ?", (channel_id,)
         ).fetchone()
-        if not cur:
-            return 0
-        new = 0 if cur["pinned"] else 1
-        c.execute("UPDATE videos SET pinned = ? WHERE channel_id = ?", (new, channel_id))
+        new = 0 if (cur and cur["pinned"]) else 1
+        c.execute(
+            "INSERT INTO channel_watch (channel_id, enabled, pinned) VALUES (?, 1, ?) "
+            "ON CONFLICT(channel_id) DO UPDATE SET pinned = excluded.pinned",
+            (channel_id, new),
+        )
         return new
 
 
 def toggle_pin(video_id):
-    """Καρφιτσώνει (pin) ή ξεκαρφιτσώνει ένα βίντεο. Επιστρέφει τη νέα κατάσταση (1/0)."""
-    with _conn() as c:
-        cur = c.execute("SELECT pinned FROM videos WHERE video_id = ?", (video_id,)).fetchone()
-        if not cur:
-            return 0
-        new = 0 if cur[0] else 1
-        if new:
-            mx = c.execute("SELECT COALESCE(MAX(rank), 0) FROM videos").fetchone()[0]
-            c.execute("UPDATE videos SET pinned = 1, rank = ? WHERE video_id = ?", (mx + 1, video_id))
-        else:
-            c.execute("UPDATE videos SET pinned = 0 WHERE video_id = ?", (video_id,))
-        return new
+    """DEPRECATED — αφαιρέθηκε. Το pin είναι πλέον ΜΟΝΟ ανά-ΚΑΝΑΛΙ (toggle_pin_channel)."""
+    return 0
 
 
 def reorder_videos(ordered_ids):
@@ -467,20 +452,11 @@ def set_video_rating(video_id, rating):
 
 
 def mark_video_seen(video_id):
-    """Μαρκάρει ένα βίντεο ως «ανοιγμένο» (last_watched_at) — ΔΕΝ ξεμοβίζει το ΝΕΟ (unseen αλλάζει χειροκίνητα)."""
+    """Μαρκάρει ένα βίντεο ως «ανοιγμένο» (last_watched_at)."""
     with _conn() as c:
         c.execute(
             "UPDATE videos SET last_watched_at = COALESCE(last_watched_at, ?) WHERE video_id = ?",
             (now_iso(), video_id),
-        )
-
-
-def mark_video_unseen_off(video_id):
-    """Ξεμοβίζει χειροκίνητα το «ΝΕΟ» (unseen=0) — καλείται από το κουμπί «✓ το είδα»."""
-    with _conn() as c:
-        c.execute(
-            "UPDATE videos SET unseen = 0 WHERE video_id = ?",
-            (video_id,),
         )
 
 
@@ -707,11 +683,22 @@ def all_categories():
 
 
 def set_channel_watch(channel_id, enabled, name=None):
-    """Ορίζει αν ένα κανάλι παρακολουθείται από το RSS watchdog (toggle ανά κανάλι)."""
+    """Ορίζει αν ένα κανάλι παρακολουθείται (toggle). Απλό: enabled 0=κίτρινο, 1=άσπρο.
+    Αν ΔΕΝ δοθεί name, αυτογεμίζεται από τα βίντεο του καναλιού (για να μη βγαίνει «?»)."""
     channel_id = (channel_id or "").strip()
     if not channel_id:
         return
+    name = (name or "").strip() or None
     with _conn() as c:
+        # 🎯 Αυτογέμισμα name: αν λείπει, βρες το από το ΠΙΟ ΠΡΟΣΦΑΤΟ βίντεο του καναλιού.
+        if not name:
+            r = c.execute(
+                "SELECT channel FROM videos WHERE channel_id = ? AND channel IS NOT NULL AND channel != '' "
+                "ORDER BY last_watched_at DESC LIMIT 1",
+                (channel_id,),
+            ).fetchone()
+            if r:
+                name = r[0]
         if name:
             c.execute(
                 "INSERT INTO channel_watch (channel_id, enabled, name) VALUES (?, ?, ?) "
@@ -724,6 +711,45 @@ def set_channel_watch(channel_id, enabled, name=None):
                 "ON CONFLICT(channel_id) DO UPDATE SET enabled = excluded.enabled",
                 (channel_id, 1 if enabled else 0),
             )
+
+
+def ensure_channel_new(channel_id, name=None):
+    """🟡 Βάζει ένα κανάλι ως «νέο» (enabled=0 = κεχριμπάρι) ΜΟΝΟ αν δεν υπάρχει ήδη.
+    (Αν το κανάλι έχει ήδη fetch-άρει → enabled=1 → ΔΕΝ το ξανακάνουμε κεχριμπάρι.)"""
+    channel_id = (channel_id or "").strip()
+    if not channel_id:
+        return
+    with _conn() as c:
+        c.execute(
+            "INSERT OR IGNORE INTO channel_watch (channel_id, enabled, name) VALUES (?, 0, ?)",
+            (channel_id, name or ""),
+        )
+
+
+def settle_channel(channel_id):
+    """⚪ «Τακτοποίησέ» ένα κανάλι (play βίντεό του) → enabled=1 (χάνει το κεχριμπάρι).
+    Μόνο αν ΥΠΑΡΧΕΙ ήδη στο channel_watch (δεν προσθέτουμε τυχαία κανάλια)."""
+    channel_id = (channel_id or "").strip()
+    if not channel_id:
+        return
+    with _conn() as c:
+        c.execute(
+            "UPDATE channel_watch SET enabled = 1 WHERE channel_id = ?",
+            (channel_id,),
+        )
+
+
+def video_channel_id(video_id):
+    """Το channel_id ενός βίντεο (ή None). Χρησιμοποιείται για να «τακτοποιήσουμε»
+    το κανάλι του όταν ο χρήστης παίξει βίντεό του."""
+    video_id = (video_id or "").strip()
+    if not video_id:
+        return None
+    with _conn() as c:
+        row = c.execute(
+            "SELECT channel_id FROM videos WHERE video_id = ?", (video_id,)
+        ).fetchone()
+        return (row[0] or "").strip() if row and row[0] else None
 
 
 def watch_channels():
@@ -743,11 +769,11 @@ def all_channel_watch():
 
 
 def channel_watch_meta():
-    """Map channel_id -> {enabled, name} (για εμφάνιση εισαγμένων καναλιών στη λίστα)."""
+    """Map channel_id -> {enabled, name, pinned} (για εμφάνιση καναλιών στη λίστα)."""
     with _conn() as c:
         out = {}
-        for r in c.execute("SELECT channel_id, enabled, name FROM channel_watch").fetchall():
-            out[r[0]] = {"enabled": r[1], "name": r[2] or ""}
+        for r in c.execute("SELECT channel_id, enabled, name, pinned FROM channel_watch").fetchall():
+            out[r[0]] = {"enabled": r[1], "name": r[2] or "", "pinned": r[3] or 0}
         return out
 
 
@@ -1010,10 +1036,13 @@ def _safe_cols(table, cols):
     cols = [str(c) for c in (cols or [])]
     with _conn() as c:
         valid = {r[1] for r in c.execute(f"PRAGMA table_info({_safe_table(table)})").fetchall()}
-    for col in cols:
-        if col not in valid:
-            raise ValueError(f"Μη επιτρεπτή στήλη για {table}: {col}")
-    return cols
+    # 🎯 FIX: αγνόησε (φίλτραρε) στήλες που ΔΕΝ υπάρχουν πια στο σχήμα (νεκρές στήλες
+    #    από παλιότερες εκδόσεις, π.χ. channel_watch.placement) — αντί να κάνει raise
+    #    και να σπάει το import. Raise ΜΟΝΟ αν ΟΛΕΣ οι στήλες είναι άγνωστες (κακόβουλο/διεφθαρμένο).
+    kept = [col for col in cols if col in valid]
+    if cols and not kept:
+        raise ValueError(f"Μη επιτρεπτή στήλη για {table}: {cols[0]}")
+    return kept
 
 
 def export_all():
@@ -1055,9 +1084,26 @@ def import_all(data, mode="replace"):
 
     def _spec(table):
         s = tables.get(table) or {}
-        cols = s.get("columns") or []
+        raw_cols = s.get("columns") or []
         rows = s.get("rows") or []
-        return cols, rows
+        if not raw_cols:
+            return [], []
+        # 🎯 FIX IMPORT: «σώζω ό,τι state ξέρω, αγνοώ ό,τι δεν υπάρχει πια».
+        #    Φιλτράρισε τις ΝΕΚΡΕΣ στήλες (π.χ. channel_watch.placement) ΚΑΙ από τα cols
+        #    ΚΑΙ από κάθε row, ώστε στήλες==τιμές. Ασφαλές: ποτέ δεν ακουμπά το σχήμα της βάσης.
+        valid_indexes = []
+        kept_cols = []
+        with _conn() as _c:
+            valid = {r[1] for r in _c.execute(f"PRAGMA table_info({_safe_table(table)})").fetchall()}
+        for i, col in enumerate(raw_cols):
+            if col in valid:
+                valid_indexes.append(i)
+                kept_cols.append(col)
+        # Αν ΔΕΝ έμεινε καμία έγκυρη στήλη → κακόβουλο/διεφθαρμένο export.
+        if raw_cols and not kept_cols:
+            raise ValueError(f"Μη επιτρεπτή στήλη για {table}: {raw_cols[0]}")
+        rows = [[r[i] for i in valid_indexes] for r in rows]
+        return kept_cols, rows
 
     with _conn() as c:
         if mode == "replace":

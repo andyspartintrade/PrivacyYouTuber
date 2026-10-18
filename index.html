@@ -651,14 +651,6 @@
   .channel-head:hover .channel-name { color: var(--accent); }
   .chevron { color: var(--muted); font-size: 16px; transition: transform .25s cubic-bezier(.4,0,.2,1); flex-shrink: 0; }
   .channel-group.collapsed .chevron { transform: rotate(-90deg); }
-  /* 🟣 ΚΑΡΦΙΤΣΩΜΕΝΑ κανάλια (pinned) → μωβ banner (κάρτα) */
-  .channel-group.pinned .channel-head {
-    background: linear-gradient(90deg, rgba(139, 92, 246, .16), rgba(139, 92, 246, .05));
-    box-shadow: var(--silk-extruded), 0 0 0 2px rgba(139, 92, 246, .45);
-  }
-  .channel-group.pinned .channel-head:hover {
-    box-shadow: var(--silk-extruded), 0 0 0 2px #8b5cf6;
-  }
   /* 🔵 Νέο κανάλι (μόλις προστέθηκε) — ίδιο μπλε με τα «νέα» βίντεα (.vrow.unseen) */
   .channel-group.new .channel-head {
     background: linear-gradient(90deg, rgba(59, 130, 246, .16), rgba(56, 189, 248, .07));
@@ -675,7 +667,20 @@
   }
   .channel-group.imported .channel-head:hover {
     border-color: #f59e0b;
-    box-shadow: 0 10px 28px rgba(245, 158, 11, .25);
+    box-shadow: var(--silk-extruded), 0 0 0 2px #f59e0b;
+  }
+  /* 📌 ΚΑΡΦΙΤΣΩΜΕΝΑ (pinned) — ΠΡΕΠΕΙ να νικάνε τα νέο/εισαγμένο όταν συνυπάρχουν.
+      Ο ίδιος selector (".channel-group.X .channel-head") με τα new/imported → ό,τι
+      δηλώνεται ΤΕΛΕΥΤΑΙΟ κερδίζει. Γι' αυτό το pin μένει ΕΔΩ (μετά) ώστε το μωβ
+      να υπερισχύει: ο χρήστης που καρφίτσωσε ρητά ένα κανάλι θέλει ΜΩΒ, όχι μπλε. */
+  .channel-group.pinned .channel-head {
+    background: linear-gradient(90deg, rgba(139, 92, 246, .16), rgba(139, 92, 246, .05));
+    box-shadow: var(--silk-extruded), 0 0 0 2px rgba(139, 92, 246, .45);
+    border-color: rgba(139, 92, 246, .5);
+  }
+  .channel-group.pinned .channel-head:hover {
+    box-shadow: var(--silk-extruded), 0 0 0 2px #8b5cf6;
+    border-color: #8b5cf6;
   }
   /* Accordion animation: ξεδίπλωμα/μάζεμα του σώματος (βίντεα + rss) */
   .channel-body {
@@ -1005,6 +1010,14 @@
     cursor: pointer; z-index: 2; box-shadow: var(--silk-extruded-soft);
     display: flex; align-items: center; justify-content: center;
     transition: transform .12s, box-shadow .12s;
+  }
+  /* 🔧 Το «✕» στο CHANNEL preview προεξέχει ΠΑΝΩ-ΔΕΞΙΑ από τη γωνία (μετέωρο),
+        ΟΧΙ χωνεμένο. Ο wrapper είναι relative, το «✕» absolute έξω από το dialog. */
+  .cw-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+  .cw-close {
+    position: absolute; top: -16px; right: -16px; z-index: 10;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 12px rgba(0,0,0,.4);   /* 🔧 σκούρα σκιά — ΟΧΙ silk glow */
   }
   .lb-close:hover { transform: scale(1.1); }
   .lb-close:active { box-shadow: var(--silk-inset-soft); }
@@ -1713,15 +1726,28 @@
 
   /* 👁️ Channel window (eye) — σαν το video lightbox */
   .cw-dialog {
-    background: var(--bg); border: none; border-radius: 20px;
-    width: min(560px, 92vw); max-height: 82vh; overflow-y: auto;
-    padding: 22px; position: relative; box-shadow: var(--silk-extruded), 0 24px 80px rgba(0,0,0,.4);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 20px;
+    width: min(560px, 92vw); max-height: 82vh;
+    overflow: hidden;                        /* 🔧 το ΔΙΑΛΟΓ δεν κάνει scroll — μόνο η λίστα βίντεο */
+    padding: 22px; position: relative;
+    box-shadow: 0 24px 80px rgba(0,0,0,.45);  /* 🔧 ΜΟΝΟ σκούρα σκιά από κάτω — ΟΧΙ silk-extruded (όχι glow) */
   }
   .cw-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
   .cw-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
   .cw-title { flex: 1; font-size: 18px; font-weight: 700; line-height: 1.3; min-width: 0; }
   .cw-videos-title { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
-  .cw-videos { display: flex; flex-direction: column; gap: 8px; }
+  /* 🔧 Η ΛΙΣΤΑ κάνει scroll (όχι όλο το dialog) → το scrollbar:
+        - ξεκινάει ΚΑΤΩ από το head (δεν πέφτει πάνω στο «✕»)
+        - τελειώνει λίγο ΠΙΟ ΜΕΣΑ (margin-bottom)
+        - έχει padding-right ώστε να μην κολλάει στα βίντεο */
+  .cw-videos {
+    display: flex; flex-direction: column; gap: 8px;
+    max-height: min(58vh, 480px);
+    overflow-x: hidden; overflow-y: auto;
+    padding-right: 8px;                      /* το scrollbar πιο μέσα από το δεξί άκρο */
+    margin-bottom: 6px;
+    scrollbar-width: thin;
+  }
   .cw-video { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; background: var(--bg, #111); cursor: pointer; }
   .cw-video:hover { background: color-mix(in srgb, var(--card) 60%, var(--accent) 14%); }
   .cw-video-thumb { width: 96px; aspect-ratio: 16/9; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
@@ -2129,6 +2155,19 @@ async function load() {
     // (Τα ολοκαίνουρια κανάλια μένουν όπως τα δηλώνει το backend μετά το επόμενο restart.)
   }
   channelOrder = d.order || [];
+  // 🎯 ΑΠΛΟ: εξυγίανε τη σειρά σε ΜΟΒ-πρώτα, χώρος μετά (η σειρά σου επιμένει).
+  channelOrder = _zoneSortOrder(channelOrder);
+  // 🎯 ΝΕΑ ΚΑΝΑΛΙΑ (χωρίς αποθηκευμένη θέση) → ΟΛΑ μπαίνουν ΑΜΕΣΩΣ ΜΕΤΑ ΤΑ ΜΟΒ (κορυφή χώρου).
+  //    Καμία διάκριση search/import — το κίτρινο πάει πάντα κορυφή (να το βλέπεις).
+  try {
+    const known = new Set(channelOrder);
+    const newKeys = Object.keys(WATCHED_META).filter(k => !known.has(k));
+    if (newKeys.length) {
+      const firstSpace = channelOrder.findIndex(k => !isPinnedKey(k));
+      const insertAt = firstSpace === -1 ? channelOrder.length : firstSpace;
+      channelOrder.splice(insertAt, 0, ...newKeys);
+    }
+  } catch (e) {}
   catOrder = d.cat_order || [];
   expandedCats = new Set();   // ✅ ΟΛΕΣ οι κατηγορίες ΚΛΕΙΣΤΕΣ σε κάθε ΕΚΚΙΝΗΣΗ (όπως τα κανάλια).
   pinnedCats = new Set(d.cat_pinned || []);
@@ -2366,6 +2405,7 @@ let collapsedChannels = new Set();  // legacy (συμβατότητα με πα�
 let expandedChannels  = new Set();  // ✅ ΝΕΟ: ποια κανάλια ΑΝΟΙΞΕ ο χρήστης (default: ΟΛΑ ΚΛΕΙΣΤΑ)
 let ACTIVE_FILTER = false;          // true όταν τρέχει φίλτρο (αναζήτηση/αστεράκια/tag) → matching ανοιχτά
 let _initialized = false;           // true μετά το πρώτο load (ο κανόνας "watched→κλειστό" ισχύει μόνο αρχικά)
+let _toggleAllRun = 0;              // 🎯 FIX F: run-token για το chunked «άνοιξε/κλείσε όλα» — σταματά το παλιό loop
 let channelOrder = [];              // από τη βάση (επιμένει & στο incognito)
 let WATCHED_CHANNELS = {};          // map channel_id -> 1/0 (RSS watchdog toggle)
 let WATCHED_META = {};              // map channel_id -> {enabled, name} (εισαγμένα subscriptions)
@@ -2816,28 +2856,48 @@ function rateVideo(videoId, rating) {
   });
 }
 
-/* --- Seen (άνοιξε το βίντεο → ιστορικό + ξεμόβισμα του NEW) --- */
+/* --- Seen (άνοιξε το βίντεο → ιστορικό + ξε-κεχριμπάρισμα) --- */
 function markSeen(videoId) {
-  // Καταγράφει ιστορικό + ξεμοβίζει το «NEW» badge — ΣΙΩΠΗΛΑ, χωρίς full re-render.
-  // (Απλά σβήνει το unseen στο allVideos + αφαιρεί το badge από την καρτέλα στο DOM.)
+  // Καταγράφει ιστορικό (μέσω /mark_seen, που κάνει και settle_channel) + ξε-κεχριμπαρίζει.
   fetch("/mark_seen", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ video_id: videoId }),
-  }).catch(() => {});
-  fetch("/mark_unseen_off", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ video_id: videoId }),
   }).then(() => {
     const v = allVideos.find(x => x.video_id === videoId);
-    if (v) v.unseen = 0;
+    // 🟡→⚪ Ο χρήστης «είδε» το κανάλι (έπαιξε βίντεό του) → ξε-κεχριμπάρισε ΜΟΝΙΜΑ.
+    //    Ενημέρωσε ΤΟ WATCHED_META.enabled = 1 (ώστε να επιμένει και στο επόμενο re-render),
+    //    ΟΧΙ μόνο το DOM class (που θα ξαναέμπαινε imported στο επόμενο renderCurrent()).
+    const _cid = v && (v.channel_id || v.channel);
+    if (_cid) {
+      if (!WATCHED_META[_cid]) WATCHED_META[_cid] = {};
+      WATCHED_META[_cid].enabled = 1;
+    }
     // 🎯 αφαίρεσε το NEW badge + το unseen class από την καρτέλα (χωρίς reload)
     const card = document.querySelector(`.v-card[data-id="${CSS.escape(videoId)}"]`);
     if (card) {
       card.classList.remove("unseen");
       const badge = card.querySelector(".new-badge");
       if (badge) badge.remove();
+      // 🟡→⚪ Ο χρήστης «είδε» το κανάλι (έπαιξε βίντεό του) → ξε-κεχριμπάρισε
+      //    το κεχριμπαρένιο (imported) κανάλι, ΜΟΝΟ το χρώμα. Χωρίς re-render, τίποτα άλλο δεν αλλάζει.
+      const grp = card.closest(".channel-group");
+      if (grp && grp.classList.contains("imported")) {
+        grp.classList.remove("imported");
+        grp.classList.remove("new");
+      }
+    } else {
+      // 🟡 Fallback: η καρτέλα μπορεί να μην είναι (ακόμα) στο DOM (imported χωρίς ανοιγμένο grid).
+      //    Βρες το κανάλι από το allVideos (channel_id) και ξε-κεχριμπάρισέ το.
+      const rec = allVideos.find(x => x.video_id === videoId);
+      const cid = rec && (rec.channel_id || rec.channel);
+      if (cid) {
+        const grp2 = document.querySelector(`.channel-group[data-key="${CSS.escape(cid)}"]`);
+        if (grp2 && grp2.classList.contains("imported")) {
+          grp2.classList.remove("imported");
+          grp2.classList.remove("new");
+        }
+      }
     }
   }).catch(() => {});
 }
@@ -3050,7 +3110,9 @@ function toggleWatch(channelId, btn) {
   const isOn = (WATCHED_CHANNELS[channelId] === 1) ? 1 : 0;
   const target = 1;   // πάντα on (το fetch δεν κλείνει πια — μόνο φέρνει)
   WATCHED_CHANNELS[channelId] = target;
-  if (target === 1) NEW_CHANNELS.add(channelId);
+  // 🟡→⚪ Το fetch «τακτοποιεί» το κανάλι → enabled=1 → χάνει το κεχριμπάρι.
+  if (!WATCHED_META[channelId]) WATCHED_META[channelId] = {};
+  WATCHED_META[channelId].enabled = 1;
   const group = btn ? btn.closest(".channel-group") : document.querySelector(`.channel-group[data-key="${CSS.escape(channelId)}"]`);
   const setSpin = (spinning) => {
     if (btn) {
@@ -3075,6 +3137,7 @@ function toggleWatch(channelId, btn) {
   if (group && group.classList.contains("collapsed")) {
     group.classList.remove("collapsed");
     expandedChannels.add(channelId);
+    fillChannelGrid(group);   // ✅ LAZY: ζωγράφισε ΑΜΕΣΩΣ ό,τι ήδη υπάρχει (πριν έρθουν τα νέα fetch)
     saveUiState();
     updateToggleAllBtn();
   }
@@ -3118,9 +3181,23 @@ function fetchChannelNext(cid, btn, setSpinFn) {
     const videos = (d && d.videos) || [];
     const wasImported = group.classList.contains("imported");
 
+    // 🟡→⚪ ΤΟ ΞΕΚΙΤΡΙΝΙΣΜΑ ΓΙΝΕΤΑΙ ΠΑΝΤΑ (όχι μόνο αν ήρθαν νέα βίντεο):
+    //    αν το κανάλι ήταν imported (κεχριμπάρικο), γίνεται κανονικό ΕΔΩ — ακόμα κι αν
+    //    το fetch έφερε 0 νέα (έτσι δεν χρειάζεται 2ο πάτημα / κλείσιμο-άνοιγμα).
+    // 🎯 FIX B: αν ΔΕΝ υπάρχει grid (κενό/γυμνό κανάλι), φτιάξε τον ΠΡΙΝ το append —
+    //    είτε imported είτε όχι. Αλλιώς το append γίνεται σε null → silent fail.
+    if (wasImported || !grid) {
+      promoteChannelToFull(cid);
+      grid = group.querySelector(".v-card-grid");
+    }
+
     if (videos.length) {
-      // 🟡→⚪ κίτρινο → πλήρες κανάλι, πριν από τα υπόλοιπα κίτρινα.
-      if (wasImported) { promoteChannelToFull(cid); grid = group.querySelector(".v-card-grid"); }
+      // 🎯 FIX D2: σβήσε το placeholder «· 0 βίντεο» (αν υπάρχει) ΠΡΙΝ βάλεις τα πραγματικά βίντεα —
+      //    αλλιώς το «0 βίντεο» μένει και πιάνει χώρο δίπλα στις νέες καρτέλες.
+      if (grid) {
+        const ph = grid.querySelector(".yt-empty");
+        if (ph) ph.remove();
+      }
       try {
         await fetch("/add_many", { method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ items: videos.map(v => ({ video_id: v.video_id, title: v.title || v.video_id,
@@ -3139,8 +3216,8 @@ function fetchChannelNext(cid, btn, setSpinFn) {
       const muted = group.querySelector(".muted");
       if (muted) muted.textContent = "· " + group.querySelectorAll(".v-card").length + t('misc.videosN');
       try { setupDrag(); } catch (e) {}
-      if (wasImported) { try { placeBeforeFirstImported(cid); } catch (e) {} }
     }
+    // 🎯 Το (τώρα άσπρο) κανάλι ΜΕΝΕΙ στη θέση του — ΔΕΝ μετακινείται (απόφαση: μόνο τα ΜΟΒ κλειδωμένα).
     if (btn) {
       // 🔚 Δύο μόνο μηνύματα: «Επόμενα →» ή «Τέλος». Χωρίς τίποτα άλλο.
       if (videos.length && d && d.has_more === true) { btn.textContent = t('btn.next'); btn.disabled = false; }
@@ -3335,11 +3412,26 @@ function appendVideoToChannel(cid, v) {
 function promoteChannelToFull(cid) {
   const group = document.querySelector(`.channel-group[data-key="${CSS.escape(cid)}"]`);
   if (!group) return null;
-  const head = group.querySelector(".channel-head");
   const body = group.querySelector(".channel-body");
   if (!body) return null;
 
-  // 1) Μετρητής βίντεο (το κίτρινο δεν τον έχει)
+  // 1) Φτιάξε ΔΟΜΗ (μετρητής + grid + κουμπί «Επόμενα») — ΧΩΡΙΣ αλλαγή χρώματος.
+  ensureChannelGrid(group);
+
+  // 2) Ξε-κίτρινο: μόνο ΕΔΩ (fetch ωρίμανση) γίνεται κανονικό άσπρο κανάλι.
+  group.classList.remove("imported");
+  return group;
+}
+
+// 🎯 FIX E: ΔΟΜΙΚΗ προετοιμασία μόνο (grid + μετρητής + κουμπί), ΧΩΡΙΣ ξε-κίτρινο.
+//    Χρησιμοποιείται από fillChannelGrid («άνοιξέ με, δείξε μου» ΟΧΙ = τακτοποίηση) ώστε το
+//    «άνοιξε όλα» να ΜΗΝ ασπρίζει τα κίτρινα κανάλια. Το ξε-κίτρινο γίνεται ΜΟΝΟ σε fetch/play.
+function ensureChannelGrid(group) {
+  const head = group.querySelector(".channel-head");
+  const body = group.querySelector(".channel-body");
+  if (!body) return;
+
+  // Μετρητής βίντεο (αν λείπει)
   if (head && !head.querySelector(".muted")) {
     const sp = head.querySelector(".head-spacer");
     const muted = document.createElement("span");
@@ -3350,47 +3442,26 @@ function promoteChannelToFull(cid) {
     else head.appendChild(muted);
   }
 
-  // 2) Grid βίντεο + κουμπί «Επόμενα» (αν λείπουν)
+  // Grid βίντεο (αν λείπει)
   let grid = body.querySelector(".v-card-grid");
   if (!grid) {
-    // Το rss-slot μένει ΠΡΩΤΟ (το News Feed πάει πάνω-πάνω), μετά το grid.
     grid = document.createElement("div");
     grid.className = "v-card-grid";
     const slot = body.querySelector(".rss-slot");
     if (slot) slot.after(grid); else body.appendChild(grid);
   }
+
+  // Κουμπί «Επόμενα» (αν λείπει)
   if (!body.querySelector(".yt-next-wrap")) {
     const nx = document.createElement("div");
     nx.className = "yt-next-wrap";
-    nx.innerHTML = `<button class="yt-next-btn" onclick="fetchChannelNext(this.dataset.cid, this)" data-cid="${esc(cid)}"><span data-i18n="btn.next">Next →</span></button>`;
+    nx.innerHTML = `<button class="yt-next-btn" onclick="fetchChannelNext(this.dataset.cid, this)" data-cid="${esc(group.dataset.key)}"><span data-i18n="btn.next">Next →</span></button>`;
     grid.after(nx);
   }
-
-  // 3) Ξε-κίτρινο: γίνεται κανονικό άσπρο κανάλι
-  group.classList.remove("imported");
-  if (!Object.prototype.hasOwnProperty.call(collapsedChannels, cid)) {
-    // (κρατά ό,τι κατάσταση είχε· δεν την πειράζουμε)
-  }
-  return group;
 }
 
-// Τοποθετεί το (τώρα άσπρο) κανάλι ΜΕΣΑ στη ζώνη των άσπρων:
-// ΑΜΕΣΩΣ ΠΡΙΝ από το πρώτο κίτρινο (δηλαδή μετά το τελευταίο άσπρο). Αν δεν υπάρχει
-// κίτρινο, το βάζει στο τέλος. Έτσι ένα κανάλι που «ωρίμασε» δεν μένει σφηνωμένο
-// ανάμεσα στα κίτρινα — πάει με τα δικά του.
-function placeBeforeFirstImported(cid) {
-  const group = document.querySelector(`.channel-group[data-key="${CSS.escape(cid)}"]`);
-  const host = document.getElementById("videos");
-  if (!group || !host) return;
-  const imported = [...host.querySelectorAll(".channel-group.imported")];
-  if (imported.length) {
-    imported[0].before(group);        // ← αμέσως πριν το ΠΡΩΤΟ κίτρινο
-  } else {
-    host.appendChild(group);          // κανένα κίτρινο → τέλος
-  }
-  // Κράτα τη σειρά για το επόμενο load.
-  try { saveChannelOrder(); } catch (e) {}
-}
+// (Καταργήθηκε η placeBeforeFirstImported: το κίτρινο→άσπρο ΜΕΝΕΙ στη θέση του.
+//  Μόνο τα ΜΟΒ είναι κλειδωμένα· ο χώρος κίτρινο/άσπρο διατηρεί τη σειρά του.)
 
 function dismissFromRSS(cid, videoId) {
   fetch("/dismiss_video", {
@@ -3404,12 +3475,22 @@ function dismissFromRSS(cid, videoId) {
 }
 
 function renderVideos(videos) {
-  if (!videos.length) return '<span class="empty"><span data-i18n="msg.empty">Empty — watch a video on YouTube.</span></span>';
+  // 🟠 Ακόμα κι αν δεν υπάρχουν βίντεο, πρέπει να δείχνουμε τα imported (κίτρινα) κανάλια.
+  const _noFilterEarly = !ACTIVE_FILTER && selectedTags.size === 0 && searchRating === 0
+                         && !(document.getElementById("search-input") || {}).value;
+  const _hasImported = _noFilterEarly && Object.keys(WATCHED_META || {}).some(cid => {
+    // imported = δεν έχει βίντεο στο allVideos (ή enabled!==1)
+    return !allVideos.some(v => (v.channel_id || v.channel) === cid);
+  });
+  if (!videos.length && !_hasImported) return '<span class="empty"><span data-i18n="msg.empty">Empty — watch a video on YouTube.</span></span>';
   // Όταν υπάρχει ενεργό φίλτρο (αναζήτηση/αστεράκια/tag), ΟΛΑ τα matching ΑΝΟΙΓΟΥΝ.
   // ✅ ΝΕΟ: κλειστό = ΔΕΝ είναι στο expandedChannels. Όλα κλειστά by default.
   //    (Το key ελέγχεται απευθείας στο loop — δεν χρειάζεται το arr.)
   const isCollapsed = (key) => !ACTIVE_FILTER && !expandedChannels.has(key);
   const orderIndex = new Map(channelOrder.map((k, i) => [k, i]));
+  // 🚫 Τα κίτρινα (imported) εμφανίζονται ΜΟΝΟ χωρίς φίλτρο (αλλιώς δεκάδες raw channel_id).
+  const _noFilter = !ACTIVE_FILTER && selectedTags.size === 0 && searchRating === 0
+                    && !(document.getElementById("search-input") || {}).value;
   // group ανά κανάλι
   const groups = new Map();
   for (const v of videos) {
@@ -3417,19 +3498,28 @@ function renderVideos(videos) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(v);
   }
-  // ταξινόμηση groups (Keep-στυλ): pinned ζώνη πάνω → unpinned ζώνη κάτω → channelOrder εντός ζώνης.
+  // 🎯 ΤΑΞΙΝΟΜΗΣΗ: ΜΟΝΟ το ΜΟΒ ξεχωρίζει (pinned → πάνω). Ο χώρος κίτρινο/άσπρο
+  //    κρατάει τη χειροκίνητη σειρά του channelOrder — το ΧΡΩΜΑ δεν καθορίζει θέση.
+  const sortKey = (key) => (isPinnedKey(key) ? 0 : 1);   // 0=μοβ, 1=χώρος (κίτρινο+άσπρο μαζί)
+  // ταξινόμηση groups: πρώτα κατά ζώνη (0<1<2), μετά κατά channelOrder εντός ζώνης.
   const arr = [...groups.entries()].sort((a, b) => {
-    const pinnedA = a[1].some(v => v.pinned) ? 1 : 0;
-    const pinnedB = b[1].some(v => v.pinned) ? 1 : 0;
-    if (pinnedB !== pinnedA) return pinnedB - pinnedA;   // pinned πάνω
+    const za = sortKey(a[0]);
+    const zb = sortKey(b[0]);
+    if (za !== zb) return za - zb;
     const ia = orderIndex.has(a[0]) ? orderIndex.get(a[0]) : 9999;
     const ib = orderIndex.has(b[0]) ? orderIndex.get(b[0]) : 9999;
     if (ia !== ib) return ia - ib;
     return (b[1][0].last_watched_at || "") > (a[1][0].last_watched_at || "") ? 1 : -1;
   });
   let html = "";
+  let _amberInserted = false;   // 🟠 παρεμβολή κίτρινων ΜΟΝΟ χωρίς βίντεο (αν υπάρχουν)
   for (const [key, vids] of arr) {
     const first = vids[0];
+    // 🎯 Παρεμβολή: μόλις τελειώσουν τα μοβ, βάλε τα κίτρινα-χωρίς-βίντεο εδώ (αν υπάρχουν).
+    if (!_amberInserted && sortKey(key) >= 1) {
+      html += renderImportedChannelsHtml(_noFilter, groups);
+      _amberInserted = true;
+    }
     const sorted = vids.slice().sort((a, b) =>
       (b.rank || 0) - (a.rank || 0) || (b.watch_count || 0) - (a.watch_count || 0)
     );
@@ -3438,7 +3528,7 @@ function renderVideos(videos) {
     const chanHref = first.channel_id
       ? `https://www.youtube.com/channel/${esc(first.channel_id)}`
       : `https://www.youtube.com/results?search_query=${encodeURIComponent(first.channel || "")}`;
-    html += `<div class="channel-group ${isCollapsed(key) ? 'collapsed' : ''} ${first.pinned ? 'pinned' : ''} ${NEW_CHANNELS.has(key) ? 'new' : ''}" data-key="${esc(key)}">
+    html += `<div class="channel-group ${isCollapsed(key) ? 'collapsed' : ''} ${(WATCHED_META[key] && WATCHED_META[key].pinned) ? 'pinned' : ''} ${(WATCHED_META[key] && WATCHED_META[key].enabled !== 1) ? 'imported' : ''}" data-key="${esc(key)}">
       <div class="channel-head" onclick="toggleChannel(this)">
         <span class="chevron">▾</span>
         <a class="chan-link" href="${chanHref}" target="_blank" rel="noopener" onclick="event.stopPropagation()" draggable="false" data-i18n-title="ch.openYouTube" title="Open channel on YouTube">
@@ -3449,7 +3539,7 @@ function renderVideos(videos) {
         <span class="muted">· ${vids.length}${vidsWord(vids.length)}</span>
         <button class="icon-btn tag-btn" style="width:32px;height:32px;font-size:16px" data-i18n-title="ch.tagsAll" title="Channel tags (on all videos)" onclick="event.stopPropagation();openTagPop(this, 'channel', '${esc(key)}')">🏷️</button>
         <button class="icon-btn watch-tgl" style="width:32px;height:32px;font-size:17px" data-i18n-title="ch.fetchNew" title="Fetch new videos" onclick="event.stopPropagation();toggleWatch('${esc(key)}', this)">${watchBellHtml(false)}</button>
-        <button class="icon-btn ch-pin ${first.pinned ? 'active top' : ''}" data-i18n-title="misc.pinTop" title="Pin (to top)" onclick="event.stopPropagation();togglePinChannel('${esc(key)}', this)">${first.pinned ? '🔴' : '📌'}</button>
+        <button class="icon-btn ch-pin ${(WATCHED_META[key] && WATCHED_META[key].pinned) ? 'active top' : ''}" data-i18n-title="misc.pinTop" title="Pin (to top)" onclick="event.stopPropagation();togglePinChannel('${esc(key)}', this)">${(WATCHED_META[key] && WATCHED_META[key].pinned) ? '🔴' : '📌'}</button>
         <button class="icon-btn" data-i18n-title="ch.moveUp" title="Channel one position up" onclick="event.stopPropagation();moveChannel(this, -1)">↑</button>
         <button class="icon-btn" data-i18n-title="ch.moveDown" title="Channel one position down" onclick="event.stopPropagation();moveChannel(this, 1)">↓</button>
         <button class="icon-btn del" data-i18n-title="ch.delete" title="Delete channel" onclick="event.stopPropagation();confirmDeleteChannel('${esc(key)}', this)">−</button>
@@ -3461,21 +3551,31 @@ function renderVideos(videos) {
       </div>
     </div>`;
   }
-  // 📡 Εισαγμένα κανάλια (συνδρομές, χωρίς βίντεο) — στο κάτω μέρος, κίτρινο banner.
-  // 🚫 ΜΟΝΟ όταν ΔΕΝ υπάρχει φίλτρο: με φίλτρο δείχνουμε ΜΟΝΟ ό,τι ταιριάζει.
-  //    (Αλλιώς, με tag filter, δεκάδες κανάλια χωρίς ταιριαστά βίντεο γίνονταν
-  //     κίτρινα με το raw channel_id — το bug του χρήστη.)
-  const _noFilter = !ACTIVE_FILTER && selectedTags.size === 0 && searchRating === 0
-                    && !(document.getElementById("search-input") || {}).value;
+  // 🟠 Αν ΔΕΝ υπήρχαν καθόλου μοβ/άσπρα (άδειο arr), το loop δεν έτρεξε → βάλε τα κίτρινα εδώ.
+  if (!_amberInserted) {
+    html += renderImportedChannelsHtml(_noFilter, groups);
+  }
+  return html;
+}
+
+// 🟠 Τα ΚΙΤΡΙΝΑ κανάλια (εισαγμένα/νέα, χωρίς βίντεο) — ως HTML, για παρεμβολή στη μέση.
+function renderImportedChannelsHtml(_noFilter, groups) {
+  if (!_noFilter) return "";
   const existingKeys = new Set(groups.keys());
-  for (const cid of (_noFilter ? Object.keys(WATCHED_META) : [])) {
-    if (existingKeys.has(cid)) continue;  // ήδη εμφανίζεται (έχει βίντεο)
+  let out = "";
+  for (const cid of Object.keys(WATCHED_META)) {
+    if (existingKeys.has(cid)) continue;  // έχει βίντεο → το χειρίζεται το regular loop
     const meta = WATCHED_META[cid] || {};
-    // 📛 Όνομα: meta.name → από τα βίντεο → «Άγνωστο κανάλι» (ΠΟΤΕ raw channel_id)
     const _vn = allVideos.find(x => x.channel_id === cid && x.channel);
     const name = meta.name || (_vn ? _vn.channel : "") || t('msg.unknownChannel');
     const isOn = meta.enabled === 1;
-    html += `<div class="channel-group imported" data-key="${esc(cid)}">
+    // 🎯 FIX A: το «κίτρινο» (imported) εξαρτάται από το STATE (enabled), ΟΧΙ από το «έχει βίντεο».
+    //    enabled !== 1 → κίτρινο (νέο/προς τακτοποίηση). enabled === 1 → άσπρο (κανονικό, έστω κι αν είναι κενό).
+    // 🎯 FIX A2: το κανάλι μπαίνει ΚΛΕΙΣΤΟ (collapsed) — όπως ΟΛΑ σε κάθε εκκίνηση (απόφαση χρήστη).
+    //    Χρησιμοποιεί την ΙΔΙΑ λογική με το renderVideos: κλειστό αν ΟΧΙ ενεργό φίλτρο ΚΑΙ δεν το άνοιξες.
+    //    ⚠️ ΔΕΝ καλεί το τοπικό isCollapsed (είναι μέσα στο renderVideos) — ίδια λογική εδώ με global.
+    const _closed = !ACTIVE_FILTER && !expandedChannels.has(cid);
+    out += `<div class="channel-group ${isOn ? '' : 'imported'} ${_closed ? 'collapsed' : ''}" data-key="${esc(cid)}">
         <div class="channel-head" onclick="toggleChannel(this)">
           <span class="chevron">▾</span>
           <a class="chan-link" href="https://www.youtube.com/channel/${esc(cid)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" draggable="false" data-i18n-title="ch.openYouTube" title="Open channel on YouTube">
@@ -3494,8 +3594,35 @@ function renderVideos(videos) {
           <div class="rss-slot"></div>
         </div>
       </div>`;
-    }
-  return html;
+  }
+  return out;
+}
+
+// 🎯 GLOBAL ζώνη καναλιού: 0=ΜΟΒ (pinned), 1=ΚΕΧΡΙΜΠΑΡΙ (νέο/imported), 2=ΑΣΠΡΟ (κανονικό).
+//    Χρησιμοποιείται ΑΠΟ ΠΑΝΤΟΥ (render, moveChannel, pin, placeBeforeImported) για να
+//    κρατά τις τρεις ζώνες απαραβίαστες.
+function channelZone(key) {
+  // 🎯 ΠΡΟΤΕΡΑΙΟΤΗΤΑ: το PIN (μοβ) κερδίζει ΠΑΝΤΑ — πάνω από κίτρινο και άσπρο.
+  //    Το pin είναι ιδιότητα του ΚΑΝΑΛΙΟΥ (WATCHED_META[key].pinned), όχι του βίντεο.
+  if (WATCHED_META[key] && WATCHED_META[key].pinned) return 0;             // μοβ (πάνω-πάνω)
+  if (WATCHED_META[key] && WATCHED_META[key].enabled !== 1) return 1;      // κεχριμπάρι (μέση)
+  return 2;                                                               // άσπρο (κάτω)
+}
+
+// 🎯 ΟΙ 2 ΥΠΕΡ-ΟΜΑΔΕΣ (για blocking κίνησης): ΜΟΒ (pinned) vs ΧΩΡΟΣ (κίτρινο+άσπρο μαζί).
+//    Τα βελάκια/drag μπλοκάρουν ΜΟΝΟ το όριο ΜΟΒ ↔ χώρος. Κίτρινο ↔ άσπρο είναι ΕΛΕΥΘΕΡΑ.
+function isPinnedKey(key) {
+  return !!(WATCHED_META[key] && WATCHED_META[key].pinned);
+}
+
+// 🎯 Σταθεροποιεί τη σειρά στο load: ΜΟΝΟ τα ΜΟΒ βγαίνουν κορυφή (pinned), ο χώρος
+//    (κίτρινο + άσπρο) κρατάει την αποθηκευμένη του σειρά. Stable — δεν αλλάζει τίποτα
+//    μέσα σε κάθε ομάδα.
+function _zoneSortOrder(keys) {
+  const arr = (keys || []).slice();
+  const pinned = arr.filter(isPinnedKey);
+  const space = arr.filter(k => !isPinnedKey(k));
+  return [...pinned, ...space];
 }
 
 function avatarHtml(v) {
@@ -3521,19 +3648,20 @@ function cardHtml(v, ctx) {
   }
   stars += `</span>`;
   const title = highlightTitle(v.title, info);
-  const unseen = v.unseen ? true : false;
+  // 🚫 unseen flag ΚΑΤΑΡΓΗΘΗΚΕ (απορρίφθηκε η ιδέα) — κανένα NEW badge στα βίντεο.
+  //    Το «νέο» το δείχνει πλέον ΜΟΝΟ το κεχριμπάρι κανάλι (imported).
   const notes = VIDEO_NOTES[v.video_id] || [];
   const noteChip = notes.length
     ? `<span class="note-chip" title="${esc(notes.map(n => `▶ ${fmtTs(n.timestamp_sec)} ${n.title || n.note || ""}`).join(" · "))}">⏱️ ${notes.length}</span>`
     : '';
   return `
-    <div class="v-card ${unseen ? 'unseen' : ''}" data-id="${esc(v.video_id)}">
+    <div class="v-card" data-id="${esc(v.video_id)}">
       <div class="v-card-thumb-wrap" onclick="openLightbox('${esc(v.video_id)}', '${ctx2}')" data-i18n-title="card.play" title="Play video">
         <div class="v-card-thumb-ph" data-vid="${esc(v.video_id)}" ${v.color ? `style="background:${v.color}"` : ''}></div>
         <img class="v-card-thumb" src="/thumb/${esc(v.video_id)}" loading="lazy" decoding="async" onload="this.classList.add('loaded')" onerror="this.style.display='none'" alt="">
         <span class="v-card-play">▶</span>
       </div>
-      <div class="v-card-title">${title}${unseen ? '<span class="new-badge"><span data-i18n="misc.newBadge">NEW</span></span>' : ''}</div>
+      <div class="v-card-title">${title}</div>
       <div class="v-card-meta">
         ${v.category ? `<span class="cat-chip">${esc(v.category)}</span>` : ''}
         ${stars}
@@ -3632,9 +3760,9 @@ function setupDrag() {
       const head = el;   // το head είναι το draggable
       const group = head.closest(".channel-group, .cat-group");
       const rect = head.getBoundingClientRect();
-      // 🔒 ΑΠΟΘΗΚΕΥΣΕ το pin state ΤΩΡΑ (πριν φύγει το head στο body — αλλιώς χάνεται).
+      // 🔒 ΑΠΟΘΗΚΕΥΣΕ τη «ΜΟΒ/χώρος» ΤΩΡΑ (πριν φύγει το head στο body — αλλιώς χάνεται).
       d.dragPinned = (d.type === "channel")
-        ? !!head.querySelector(".ch-pin.active")
+        ? isPinnedKey(group.dataset.key)                    // true=ΜΟΒ, false=χώρος
         : group.classList.contains("pinned");
       // Placeholder στη θέση ΤΟΥ GROUP (κρατά τη θέση στη λίστα).
       dropSlot = document.createElement("div");
@@ -3692,8 +3820,8 @@ function setupDrag() {
       for (const h of heads) {
         const grp = h.closest(".channel-group, .cat-group");
         if (grp === d.group) continue;
-        const tgtPinned = d.type === "channel" ? !!grp.querySelector(".ch-pin.active") : grp.classList.contains("pinned");
-        if (dragPinned !== tgtPinned) continue;   // 🚫 zoning (ίδιο με βελάκι)
+        const tgtPinned = d.type === "channel" ? isPinnedKey(grp.dataset.key) : grp.classList.contains("pinned");
+        if (dragPinned !== tgtPinned) continue;   // 🚫 όριο ΜΟΒ ↔ χώρος (κίτρινο↔άσπρο ελεύθερα)
         const r = h.getBoundingClientRect();
         const dd = Math.abs((r.top + r.height / 2) - gcy);
         if (dd < minD) { minD = dd; best = grp; }
@@ -3966,11 +4094,26 @@ function saveOrder() {
   });
 }
 
-function saveChannelOrder() {
-  // 🔧 Αγνόησε τυχόν groups που είναι προσωρινά κρυμμένα (σε drag) — δεν πρέπει να μπουν στη σειρά.
-  channelOrder = [...document.querySelectorAll(".channel-group")]
+// 🎯 ΖΩΝΗ-ΑΣΦΑΛΗΣ σειρά: διαβάζει το DOM ΑΛΛΑ εξασφαλίζει πως ΜΟΝΟ τα ΜΟΒ είναι κορυφή.
+//    Τα υπόλοιπα (κίτρινο + άσπρο) μένουν ΣΤΗ ΣΕΙΡΑ ΤΟΥ DOM (ελεύθερος χώρος) — δεν τους
+//    επιβάλλεται χρωματική ζώνη. Έτσι η σειρά του χρήστη στον χώρο επιμένει.
+function channelOrderFromDom() {
+  const keys = [...document.querySelectorAll(".channel-group")]
     .filter(g => g.style.display !== "none")
-    .map(g => g.dataset.key);
+    .map(g => g.dataset.key)
+    .filter(Boolean);
+  // Αφαίρεσε διπλότυπα (διατήρησε πρώτη εμφάνιση).
+  const seen = new Set();
+  const dedup = keys.filter(k => !seen.has(k) && seen.add(k));
+  // 🎯 Σταθερό: ΜΟΒ πρώτα (pinned), μετά ο χώρος στη σειρά του DOM (αμετάβλητη).
+  const pinned = dedup.filter(isPinnedKey);
+  const space = dedup.filter(k => !isPinnedKey(k));
+  return [...pinned, ...space];
+}
+
+function saveChannelOrder() {
+  // 🎯 ΖΩΝΗ-ΑΣΦΑΛΗΣ: ομαδοποιεί ανά ζώνη πριν αποθηκεύσει (η σαλάτα δεν γίνεται μόνιμη).
+  channelOrder = channelOrderFromDom();
   saveUiState();
 }
 
@@ -4046,8 +4189,15 @@ function doDeleteChannel(key) {
    Χρησιμοποιείται από: toggleChannel, toggleAllChannels, και μετά από re-render. */
 function fillChannelGrid(group) {
   if (!group) return;
-  const g = group.querySelector(".v-card-grid");
-  if (!g) return;
+  let g = group.querySelector(".v-card-grid");
+  // 🎯 FIX E: αν το κανάλι είναι ΓΥΜΝΟ (χωρίς grid), φτιάξε ΜΟΝΟ τη ΔΟΜΗ (ensureChannelGrid),
+  //    ΧΩΡΙΣ ξε-κίτρινο. Αλλιώς το «άνοιξε όλα» θα ασπρίζε τα κίτρινα κανάλια άθελά του.
+  //    Το ξε-κίτρινο (remove imported) γίνεται ΜΟΝΟ με fetch (promoteChannelToFull).
+  if (!g) {
+    ensureChannelGrid(group);
+    g = group.querySelector(".v-card-grid");
+    if (!g) return;
+  }
   // 🔑 Το cache ισχύει ΜΟΝΟ για το ΙΔΙΟ φίλτρο. Άλλαξε το φίλτρο → ξαναγέμισε.
   const filterKey = [...selectedTags].sort().join("|") + "#" + searchRating
                     + "#" + (document.getElementById("search-input").value || "").trim();
@@ -4064,7 +4214,13 @@ function fillChannelGrid(group) {
   }
   const sorted = vids.slice().sort((a, b) =>
     (b.rank || 0) - (a.rank || 0) || (b.watch_count || 0) - (a.watch_count || 0));
-  g.innerHTML = sorted.map(v => cardHtml(v, "channel")).join("");
+  // 🎯 FIX D: αν το κανάλι ΔΕΝ έχει βίντεο (κενό — valid state), δείξε καθαρό μήνυμα
+  //    αντί για κενό σκοτάδι που μοιάζει σπασμένο.
+  if (!sorted.length) {
+    g.innerHTML = `<div class="yt-empty"><span data-i18n="ch.zeroVideos">· 0 videos</span></div>`;
+  } else {
+    g.innerHTML = sorted.map(v => cardHtml(v, "channel")).join("");
+  }
   g.dataset.filled = "1";
   g.dataset.filterKey = filterKey;
   applyI18n(g);
@@ -4083,11 +4239,25 @@ function toggleChannel(head) {
   const group = head.closest(".channel-group");
   const key = group.dataset.key;
 
-  // 🟡 ImOorted (κίτρινο) κανάλι: το πάτημα στο banner = «υιοθέτησέ το» → αυτόματο fetch (spin),
-  // αφαιρεί το κίτρινο και το κάνει άσπρο. Μόνο την ΠΡΩΤΗ φορά (μετά γίνεται άσπρο).
+  // 🟡 Κίτρινο (imported) κανάλι: το πάτημα = ΑΝΟΙΓΜΑ + δείξε τα βίντεό του + γίνεται άσπρο.
+  //    ⚠️ ΟΧΙ fetch — το fetch γίνεται ΜΟΝΟ με το κουμπί 🔄 (toggleWatch), όποτε το θες.
   if (group.classList.contains("imported")) {
-    const refreshBtn = group.querySelector(".watch-tgl");
-    toggleWatch(key, refreshBtn);
+    // «Τακτοποίησέ» το → άσπρο (enabled=1) στο DOM + μνήμη.
+    group.classList.remove("imported");
+    if (!WATCHED_META[key]) WATCHED_META[key] = {};
+    WATCHED_META[key].enabled = 1;
+    // 📡 Ενημέρωσε και τη βάση (ώστε να επιμένει μετά από restart).
+    fetch("/settle_channel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel_id: key }),
+    }).catch(() => {});
+    // Άνοιξέ το + δείξε ό,τι βίντεο ήδη έχει.
+    group.classList.remove("collapsed");
+    expandedChannels.add(key);
+    fillChannelGrid(group);
+    saveUiState();
+    updateToggleAllBtn();
     return;
   }
 
@@ -4112,15 +4282,37 @@ function toggleChannel(head) {
 }
 
 function toggleAllChannels() {
+  // 🎯 FIX F: Ακύρωσε τυχόν τρέχον chunked loop (άνοιγμα σε εξέλιξη) πριν κάνεις οτιδήποτε.
+  //    Αλλιώς όταν πατάς «κλείσε όλα» ενώ τρέχει το «άνοιξε όλα», το loop συνεχίζει
+  //    στο background και ξανανοίγει τα κάτω κανάλια («τα κάτω μένουν ανοιχτά»).
+  _toggleAllRun++;
+  const myRun = _toggleAllRun;
+
   // Αν ΟΛΑ είναι κλειστά → άνοιξε όλα. Αλλιώς → κλείσε όλα.
   const groups = [...document.querySelectorAll("#videos .channel-group")];
   const keys = groups.map(g => g.dataset.key);
   const allClosed = keys.length > 0 && keys.every(k => !expandedChannels.has(k));
 
   if (allClosed) {
-    // άνοιξε όλα
-    groups.forEach(g => { g.classList.remove("collapsed"); fillChannelGrid(g); });  // ✅ LAZY: γέμισε κάθε grid
+    // 📦 PROGRESSIVE: άνοιξε σε ΔΟΣΕΙΣ (chunks) για να μην μπλοκάρει το UI όταν έχεις
+    //    χιλιάδες κάρτες (104 κανάλια → 4000+ thumbnails). Κάθε frame ανοίγει λίγα κανάλια·
+    //    το βελάκι γυρίζει ΑΜΕΣΩΣ, τα υπόλοιπα έρχονται σιγά-σιγά (εικόνες lazy από browser).
     keys.forEach(k => expandedChannels.add(k));
+    const CHUNK = 6;                 // κανάλια ανά frame (αρκετό για ταχύτητα, αρκετά μικρό για να ανασαίνει)
+    let idx = 0;
+    const step = () => {
+      // 🎯 FIX F: αν στο μεταξύ άλλαξε ο run (άλλο κλικ), ΣΤΑΜΑΤΑ — μη συνεχίσεις να ανοίγεις.
+      if (myRun !== _toggleAllRun) return;
+      const end = Math.min(idx + CHUNK, groups.length);
+      for (let i = idx; i < end; i++) {
+        groups[i].classList.remove("collapsed");
+        fillChannelGrid(groups[i]);
+      }
+      idx = end;
+      if (idx < groups.length) requestAnimationFrame(step);
+      else updateToggleAllBtn();
+    };
+    requestAnimationFrame(step);
   } else {
     // κλείσε όλα
     groups.forEach(g => {
@@ -4172,40 +4364,79 @@ function saveUiState() {
 }
 
 function togglePinChannel(key, btn) {
-  // 📌 Keep-στυλ: απλό toggle (pinned ↔ unpinned), χωρίς popup.
+  // 📌 Pin/unpin — ΚΑΘΕ πάτημα = «τακτοποίηση» (παύει κίτρινο).
   if (btn) { btn.classList.add("pinning"); }
-  fetch("/pin_channel", {
+  const wasUntouched = !(WATCHED_META[key] && WATCHED_META[key].enabled === 1);
+
+  const doPin = () => fetch("/pin_channel", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ channel_id: key }),
   }).then(r => r.json()).then((d) => {
-    // ⚡ Αντί για load() (fetch+render 3556 κάρτες): άλλαξε τη σειρά ΤΟΠΙΚΑ και
-    //    ξαναχτίσε ΜΟΝΟ τη λίστα — χωρίς νέο fetch στο backend.
-    try {
-      const i = channelOrder.indexOf(key);
-      if (i >= 0) channelOrder.splice(i, 1);
-      if (d && d.pinned) channelOrder.unshift(key);
-      else channelOrder.push(key);
-    } catch (e) { /* ignore */ }
-    renderCurrent();   // τοπικό re-render (χωρίς δίκτυο)
+    const pinned = !!(d && d.pinned);
+    // 🎯 Το pin είναι ιδιότητα του ΚΑΝΑΛΙΟΥ (WATCHED_META) — ΟΧΙ του βίντεο.
+    if (!WATCHED_META[key]) WATCHED_META[key] = {};
+    WATCHED_META[key].pinned = pinned ? 1 : 0;
+    // 🎯 ΚΑΘΕ pin/unpin = τακτοποίηση → enabled=1 → ΠΟΤΕ ξανά κίτρινο.
+    WATCHED_META[key].enabled = 1;
+    repositionInChannelOrder(key, pinned);
+    renderCurrent();
   }).catch(() => {});
+
+  if (wasUntouched) {
+    // 🟠 Κίτρινο → pin = πρώτα FETCH (φέρνει βίντεα, ώστε να μπορεί να γίνει μοβ).
+    fetchChannelNext(key, null, null);
+    setTimeout(doPin, 700);
+  } else {
+    doPin();
+  }
 }
 
-// Μετακινεί το κανάλι μία θέση πάνω/κάτω στη λίστα — ΣΕΒΕΤΑΙ τη ζώνη (pinned/unpinned).
+// 🎯 Τοποθετεί το key στη ΣΩΣΤΗ θέση του channelOrder ανά ζώνη:
+//    pin → ΤΕΛΟΣ μοβ ζώνης · unpin → ΑΜΕΣΩΣ ΜΕΤΑ το τελευταίο μοβ (κορυφή χώρου).
+//    (Ο χώρος κίτρινο/άσπρο = ελεύθερος· το unpin δεν «πέφτει κάτω στα κίτρινα».)
+function repositionInChannelOrder(key, toPinned) {
+  // 🎯 Πρώτα ΚΑΝΟΝΙΚΟΠΟΙΗΣΕ τη λίστα: μοβ (pinned) πρώτα — ώστε «μετά το τελευταίο μοβ»
+  //    να σημαίνει ΠΑΝΤΑ κορυφή του χώρου, ανεξάρτητα από το αν τα μοβ ήταν σκόρπια.
+  channelOrder = _zoneSortOrder(channelOrder);
+  const i = channelOrder.indexOf(key);
+  if (i >= 0) channelOrder.splice(i, 1);
+  if (toPinned) {
+    // τέλος μοβ = μετά το τελευταίο μοβ
+    const pinnedKeys = channelOrder.filter(isPinnedKey);
+    if (pinnedKeys.length) {
+      const lastIdx = channelOrder.indexOf(pinnedKeys[pinnedKeys.length - 1]);
+      channelOrder.splice(lastIdx + 1, 0, key);
+    } else {
+      channelOrder.unshift(key);
+    }
+  } else {
+    // unpin → αμέσως ΜΕΤΑ το τελευταίο μοβ (δηλ. πριν τον υπόλοιπο χώρο)
+    const pinnedKeys = channelOrder.filter(isPinnedKey);
+    if (pinnedKeys.length) {
+      const lastIdx = channelOrder.indexOf(pinnedKeys[pinnedKeys.length - 1]);
+      channelOrder.splice(lastIdx + 1, 0, key);
+    } else {
+      channelOrder.unshift(key);   // κανένα μοβ → κορυφή χώρου
+    }
+  }
+  saveUiState();
+}
+
+// Μετακινεί το κανάλι μία θέση πάνω/κάτω — μπλοκάρει ΜΟΝΟ το όριο ΜΟΒ ↔ χώρος.
+//    (Κίτρινο ↔ άσπρο κινούνται ΕΛΕΥΘΕΡΑ μεταξύ τους — είναι ο ίδιος χώρος.)
 function moveChannel(btn, dir) {
   const group = btn.closest(".channel-group");
   if (!group) return;
-  const isGroupPinned = !!group.querySelector(".ch-pin.active");
+  const zGroup = isPinnedKey(group.dataset.key);   // true=ΜΟΒ, false=χώρος
   const sibling = dir < 0 ? group.previousElementSibling : group.nextElementSibling;
   if (sibling && sibling.classList.contains("channel-group")) {
-    // Keep-στυλ: unpinned ΔΕΝ προσπερνά pinned (και αντίστροφα).
-    const isSiblingPinned = !!sibling.querySelector(".ch-pin.active");
-    if (isGroupPinned !== isSiblingPinned) return;   // δεν αλλάζουν ζώνη
+    const zSibling = isPinnedKey(sibling.dataset.key);
+    if (zGroup !== zSibling) return;   // 🚫 ΜΟΒ ↔ χώρος: δεν περνιέται με βελάκι
     const parent = group.parentNode;
     if (dir < 0) parent.insertBefore(group, sibling);
     else parent.insertBefore(sibling, group);
-    // ενημέρωσε το channelOrder ώστε να επιμένει
-    channelOrder = [...document.querySelectorAll(".channel-group")].map(g => g.dataset.key);
+    channelOrder = channelOrderFromDom();   // 🎯 ζώνη-ασφαλές (μόνο ΜΟΒ ομαδοποιεί, τα υπόλοιπα = χώρος)
     saveUiState();
   }
 }
@@ -4667,7 +4898,7 @@ function appendSearchSkeletons(box) {
       html += `<div class="yt-channel skeleton">
         <div class="yt-channel-logo-wrap"><div class="sk-avatar"></div></div>
         <div class="yt-channel-name"><span class="skeleton-line" style="width:70%"></span></div>
-        <button class="yt-btn add yt-add-btn" disabled><span data-i18n="ch.follow">➕ Follow</span></button>
+        <button class="yt-btn add yt-add-btn" disabled><span data-i18n="ch.add">➕ Add</span></button>
       </div>`;
     }
     host.insertAdjacentHTML("beforeend", html);
@@ -4700,7 +4931,7 @@ function showSearchSkeletons() {
         <div class="yt-channel skeleton">
           <div class="yt-channel-logo-wrap"><div class="sk-avatar"></div></div>
           <div class="yt-channel-name"><span class="skeleton-line" style="width:70%"></span></div>
-          <button class="yt-btn add yt-add-btn" disabled><span data-i18n="ch.follow">➕ Follow</span></button>
+          <button class="yt-btn add yt-add-btn" disabled><span data-i18n="ch.add">➕ Add</span></button>
         </div>`;
     }
     html += `</div>`;
@@ -4853,8 +5084,8 @@ function channelCardHtml(c) {
         <img class="yt-channel-avatar" src="/avatar/${esc(c.channel_id)}" onload="this.classList.add('loaded')" alt="" onerror="this.style.display='none'">
       </div>
       <div class="yt-channel-name">${esc(c.name)}</div>
-      <button class="yt-btn ${watched ? "watched" : "add"} yt-add-btn" onclick="event.stopPropagation();watchChannelFromSearch('${esc(c.channel_id)}')">
-        ${watched ? t('ch.following') : t('ch.follow')}
+      <button class="yt-btn ${watched ? "watched" : "add"} yt-add-btn" data-cid="${esc(c.channel_id)}" onclick="event.stopPropagation();watchChannelFromSearch('${esc(c.channel_id)}', '${esc(c.name)}')">
+        ${watched ? t('ch.added') : t('ch.add')}
       </button>
     </div>`;
 }
@@ -4933,20 +5164,22 @@ function addVideoFromSearch(videoId, btn) {
   }).catch(() => alert(t('msg.connErr')));
 }
 
-function watchChannelFromSearch(channelId) {
-  const want = WATCHED_CHANNELS[channelId] === 1 ? 0 : 1;
+function watchChannelFromSearch(channelId, chName) {
+  // 📌 «Add» = πρόσθεσε το κανάλι ως ΝΕΟ (κεχριμπάρι, enabled=0) — ΟΧΙ ενεργό RSS.
+  //    (Το αυτόματο RSS δεν τρέχει ποτέ· όλα χειροκίνητα με fetch.)
   fetch("/watch_channel", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ channel_id: channelId, enabled: want === 1 }),
+    body: JSON.stringify({ channel_id: channelId, enabled: false, name: chName || "" }),   // κεχριμπάρι + name
   }).then(r => r.json()).then(() => {
-    WATCHED_CHANNELS[channelId] = want;
-    // Νέο κανάλι → μπλε banner (μέχρι να το «δει»/ανοίξει ο χρήστης).
-    if (want === 1) NEW_CHANNELS.add(channelId);
-    const q = document.getElementById("yt-search-input").value.trim();
-    if (q) renderYTSearch(window._lastSearchVideos || [], window._lastSearchChannels || [], q);
-    // ξαναφέρε τα αποτελέσματα με ενημερωμένο state — απλά ξαναψάξε
-    doYouTubeSearch();
+    WATCHED_CHANNELS[channelId] = 1;
+    if (!WATCHED_META[channelId]) WATCHED_META[channelId] = {};
+    WATCHED_META[channelId].enabled = 0;   // κεχριμπάρι μέχρι fetch/play
+    // 🎯 Ίδιο στυλ με το addVideoFromSearch: πράσινο «✓ Add».
+    const btn = document.querySelector(`.yt-add-btn[data-cid="${CSS.escape(channelId)}"]`);
+    if (btn) { btn.innerHTML = "✓ Add"; btn.classList.remove("watched"); btn.classList.add("added"); }
+    // 🔄 Reload ώστε το νέο κανάλι να μπει στη λίστα (μετά τα μοβ).
+    setTimeout(() => { try { load(); } catch (e) {} }, 420);
   }).catch(() => alert(t('msg.connErr')));
 }
 
@@ -4960,6 +5193,28 @@ function openSearchVideo(videoId) {
 }
 
 let CW_CHANNEL_ID = null;
+const CW_CACHE = {};   // 🎯 Cache channel preview (channel_id → {data, at}) — ακαριαίο στα επαναλαμβανόμενα κλικ
+const CW_CACHE_TTL = 5 * 60 * 1000;   // 5 λεπτά
+
+function renderCWPreview(channelId, p) {
+  document.getElementById("cw-title").textContent = p.name || channelId;
+  const av = document.getElementById("cw-avatar");
+  if (p.avatar) {
+    av.src = p.avatar;
+    av.style.display = "";
+    av.onerror = function () { this.src = "/avatar/" + channelId; };
+  }
+  const vids = document.getElementById("cw-videos");
+  if (!p.videos || !p.videos.length) {
+    vids.innerHTML = '<div class="yt-empty"><span data-i18n="msg.noRecentVideos">No recent videos.</span></div>';
+    return;
+  }
+  vids.innerHTML = p.videos.map(v => `
+    <div class="cw-video" onclick="openVidInTab('${esc(v.video_id)}')" data-i18n-title="card.seeYouTube" title="See on YouTube">
+      <img class="cw-video-thumb" src="${v.thumb}" loading="lazy" decoding="async" alt="" onerror="this.style.display='none'">
+      <span class="cw-video-title">${esc(v.title)}</span>
+    </div>`).join("");
+}
 
 function openChannelPreview(channelId, nameFallback) {
   CW_CHANNEL_ID = channelId;
@@ -4970,10 +5225,17 @@ function openChannelPreview(channelId, nameFallback) {
   document.getElementById("cw-title").textContent = nameFallback || channelId;
   const watchBtn = document.getElementById("cw-watch");
   const watched = WATCHED_CHANNELS[channelId] === 1;
-  watchBtn.textContent = watched ? t('ch.following') : t('ch.follow');
+  watchBtn.textContent = watched ? t('ch.added') : t('ch.add');
   watchBtn.classList.toggle("watched", watched);
   watchBtn.classList.toggle("add", !watched);
   document.getElementById("cw-videos").innerHTML = '<div class="yt-empty"><span data-i18n="msg.loadingVideo">…loading videos…</span></div>';
+
+  // 🎯 CACHE: αν το preview είναι πρόσφατο, δείξ' το ακαριαία (όχι ξανά YouTube).
+  const cached = CW_CACHE[channelId];
+  if (cached && (Date.now() - cached.at) < CW_CACHE_TTL) {
+    renderCWPreview(channelId, cached.data);
+    return;
+  }
 
   fetch("/channel_preview", {
     method: "POST",
@@ -4985,24 +5247,8 @@ function openChannelPreview(channelId, nameFallback) {
       return;
     }
     const p = d.preview;
-    document.getElementById("cw-title").textContent = p.name || channelId;
-    const av = document.getElementById("cw-avatar");
-    if (p.avatar) {
-      av.src = p.avatar;
-      av.style.display = "";
-      // fallback στο δικό μας /avatar endpoint αν σπάσει το og:image
-      av.onerror = function () { this.src = "/avatar/" + channelId; };
-    }
-    const vids = document.getElementById("cw-videos");
-    if (!p.videos || !p.videos.length) {
-      vids.innerHTML = '<div class="yt-empty"><span data-i18n="msg.noRecentVideos">No recent videos.</span></div>';
-      return;
-    }
-    vids.innerHTML = p.videos.map(v => `
-      <div class="cw-video" onclick="openVidInTab('${esc(v.video_id)}')" data-i18n-title="card.seeYouTube" title="See on YouTube">
-        <img class="cw-video-thumb" src="${v.thumb}" loading="lazy" decoding="async" alt="" onerror="this.style.display='none'">
-        <span class="cw-video-title">${esc(v.title)}</span>
-      </div>`).join("");
+    CW_CACHE[channelId] = { data: p, at: Date.now() };   // 🎯 αποθήκευση στο cache
+    renderCWPreview(channelId, p);
   }).catch(() => {
     document.getElementById("cw-videos").innerHTML = '<div class="yt-empty"><span data-i18n="msg.connectionError">Connection error.</span></div>';
   });
@@ -5020,7 +5266,7 @@ function watchChannelFromWindow() {
   // ενημέρωσε το κουμπί στο window
   const watched = WATCHED_CHANNELS[channelId] === 1;
   const btn = document.getElementById("cw-watch");
-  btn.textContent = watched ? t('ch.following') : t('ch.follow');
+  btn.textContent = watched ? t('ch.added') : t('ch.add');
   btn.classList.toggle("watched", watched);
   btn.classList.toggle("add", !watched);
 }
@@ -7072,16 +7318,18 @@ window.addEventListener('load', updateLangLabel);
 
 <div id="cw" class="lb" style="display:none">
   <div class="lb-backdrop" onclick="closeChannelPreview()"></div>
-  <div class="cw-dialog" role="dialog" aria-modal="true">
-    <button class="lb-close" onclick="closeChannelPreview()" data-i18n-title="misc.closeEsc" title="Close (Esc)">✕</button>
-    <div class="cw-head">
-      <img class="cw-avatar" id="cw-avatar" alt="" onerror="this.style.display='none'">
-      <div class="cw-title" id="cw-title"></div>
-      <button class="yt-btn add" id="cw-watch" onclick="watchChannelFromWindow()"><span data-i18n="ch.follow">➕ Follow</span></button>
+    <div class="cw-wrap">
+      <button class="lb-close cw-close" onclick="closeChannelPreview()" data-i18n-title="misc.closeEsc" title="Close (Esc)">✕</button>
+      <div class="cw-dialog" role="dialog" aria-modal="true">
+      <div class="cw-head">
+        <img class="cw-avatar" id="cw-avatar" alt="" onerror="this.style.display='none'">
+        <div class="cw-title" id="cw-title"></div>
+        <button class="yt-btn add" id="cw-watch" onclick="watchChannelFromWindow()"><span data-i18n="ch.add">➕ Add</span></button>
+      </div>
+      <div class="cw-videos-title"><span data-i18n="ch.recent">Recent videos</span></div>
+      <div class="cw-videos" id="cw-videos"></div>
+      </div>
     </div>
-    <div class="cw-videos-title"><span data-i18n="ch.recent">Recent videos</span></div>
-    <div class="cw-videos" id="cw-videos"></div>
-  </div>
 </div>
 </body>
 </html>

@@ -53,8 +53,9 @@ for /f "usebackq tokens=3 delims= " %%v in (`findstr /r /c:"^VERSION = " "%~dp0s
     set "VERSION=!VERSION:"=!"
 )
 if not defined VERSION (
-    echo  [WARN] Δεν βρέθηκε VERSION στο server/app.py — χρησιμοποιώ 1.0.0
-    set "VERSION=1.0.0"
+    echo  [ERROR] Δεν βρέθηκε VERSION στο server/app.py — ΜΗΝ χτίσεις installer χωρίς version.
+    pause
+    exit /b 1
 )
 echo  [OK] Version: !VERSION!
 
@@ -73,7 +74,7 @@ REM --- 4. Compile ----------------------------------------------
 echo.
 echo  Compiling... (μπορεί να πάρει 1-2 λεπτά)
 echo ──────────────────────────────────────────────
-"!MAKENSIS!" /V2 "%~dp0installer\PrivacyYouTuber.nsi" /DVERSION="!VERSION!"
+"!MAKENSIS!" -DVERSION=!VERSION! -INPUTCHARSET UTF8 /V2 "%~dp0installer\PrivacyYouTuber.nsi"
 
 if errorlevel 1 (
     echo.

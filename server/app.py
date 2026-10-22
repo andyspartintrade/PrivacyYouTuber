@@ -37,7 +37,7 @@ PORT = 8765
 HOST = "127.0.0.1"  # δέχεται ΜΟΝΟ τοπικές συνδέσεις — ποτέ από το internet
 
 # 📦 Η τρέχουσα έκδοση του app. Το auto-update τη συγκρίνει με το latest.json.
-VERSION = "1.5.2"
+VERSION = "1.5.3"
 
 # 📦 Πού ψάχνει το app για ενημερώσεις (GitHub raw). Public repo απαραίτητο.
 UPDATE_URL = "https://raw.githubusercontent.com/andyspartintrade/PrivacyYouTuber/main/latest.json"
@@ -770,24 +770,58 @@ class Handler(BaseHTTPRequestHandler):
             }.get(os.path.splitext(name)[1], "application/octet-stream")
             self._serve_static(name, ctype)
         elif path == "/api/dashboard":
+            # 🔒 LICENSE GATE (1.5.3): τα data GET endpoints κλειδώνονται κι αυτά.
+            #    Τα static (index.html/js/css/εικόνες) μένουν ελεύθερα για να δει
+            #    ο χρήστης το πινακάκι ενεργοποίησης. /health, /version, /update_check
+            #    μένουν κι αυτά ελεύθερα (δεν εκθέτουν δεδομένα χρήστη).
+            if not self._is_activated():
+                self._json(403, {"ok": False, "locked": True, "needs_activation": True,
+                                 "error": "Product not activated."})
+                return
             self._dashboard()
         elif path == "/api/suggest":
+            if not self._is_activated():
+                self._json(403, {"ok": False, "locked": True, "needs_activation": True})
+                return
             q = parse_qs(parsed.query).get("q", [""])[0]
             self._suggest(q)
         elif path == "/api/search":
+            if not self._is_activated():
+                self._json(403, {"ok": False, "locked": True, "needs_activation": True})
+                return
             q = parse_qs(parsed.query).get("q", [""])[0]
             self._search(q)
         elif path.startswith("/thumb/"):
+            if not self._is_activated():
+                self._json(403, {"ok": False, "locked": True})
+                return
             self._serve_thumb(path.split("/thumb/", 1)[1])
         elif path.startswith("/thumb_small/"):
+            if not self._is_activated():
+                self._json(403, {"ok": False, "locked": True})
+                return
             self._serve_thumb_small(path.split("/thumb_small/", 1)[1])
         elif path.startswith("/avatar/"):
+            if not self._is_activated():
+                self._json(403, {"ok": False, "locked": True})
+                return
             self._serve_avatar(path.split("/avatar/", 1)[1])
         elif path == "/health":
+            # 🔒 Για μη-activated, μην εκθέτεις τον αριθμό βίντεο (privacy). Το health
+            #    μένει ελεύθερο (για liveness) αλλά χωρίς δεδομένα χρήστη.
+            if not self._is_activated():
+                self._json(200, {"ok": True})
+                return
             self._json(200, {"ok": True, "videos": db.count_videos()})
         elif path == "/version":
             self._json(200, {"version": VERSION})
         elif path == "/update_check":
+            # 🔒 LICENSE GATE (1.5.3): κι αυτό κλειδώνει — αλλιώς ο χρήστης μπορεί
+            #    μέσω "Check for updates" να κλείσει το activation overlay και να
+            #    χειριστεί το app χωρίς key.
+            if not self._is_activated():
+                self._json(403, {"ok": False, "locked": True, "needs_activation": True})
+                return
             # 🔄 Ελέγχει το latest.json (GitHub) για νεότερη έκδοση. Δεν κατεβάζει τίποτα.
             try:
                 req = urllib.request.Request(UPDATE_URL, headers={"User-Agent": "PrivacyYouTuber/1.0"})
@@ -809,8 +843,14 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 self._json(200, {"ok": False, "error": str(e), "current": VERSION})
         elif path == "/api/recent-searches":
+            if not self._is_activated():
+                self._json(403, {"ok": False, "locked": True, "needs_activation": True})
+                return
             self._json(200, {"searches": db.get_recent_searches()})
         elif path == "/api/video-notes":
+            if not self._is_activated():
+                self._json(403, {"ok": False, "locked": True, "needs_activation": True})
+                return
             vid = parse_qs(parsed.query).get("video_id", [""])[0]
             self._json(200, {"notes": db.get_video_notes(vid)})
         elif path.startswith("/fonts/"):
@@ -843,12 +883,6 @@ class Handler(BaseHTTPRequestHandler):
     # ─────────────────────────────────────────────────────────────
     # 🔑 LICENSING — βοηθητικά (license.json + Gumroad verify)
     # ─────────────────────────────────────────────────────────────
-    def _license_check_off(self):
-        """🧪 DEV MODE: αν το .env έχει LICENSE_CHECK=off, το licensing ΠΑΡΑΚΑΜΠΤΕΤΑΙ.
-        Χρησιμοποιείται ΜΟΝΟ στο dev μηχάνημα (Desktop build) για εύκολες δοκιμές.
-        Το .env ΔΕΝ μπαίνει στο installer build → ο πελάτης έχει ΠΑΝΤΑ check ενεργό."""
-        return (_env("LICENSE_CHECK", "").strip().lower() == "off")
-
     def _license_path(self):
         """⚠️ DEPRECATED — το license state πάει ΠΛΕΟΝ ΣΤΗ ΒΑΣΗ (όχι αρχείο).
         Κράτησε τη μέθοδο για backward-compat αλλά ΔΕΝ χρησιμοποιείται."""
@@ -858,6 +892,11 @@ class Handler(BaseHTTPRequestHandler):
         # 🔑 Το license state ζει ΣΤΗ ΒΑΣΗ (ui_state key='license'),
         #    ΟΧΙ σε αρχείο — ώστε να επιζεί από update/uninstall/reinstall.
         return db.get_key("license") or {}
+
+    def _is_activated(self):
+        """🔒 True αν το license είναι activated στη βάση (χρησιμοποιείται
+        ως gate πριν από ΚΑΘΕ data endpoint — βλ. _handle_post)."""
+        return bool((self._read_license() or {}).get("activated"))
 
     def _write_license(self, state):
         db.set_key("license", state)
@@ -915,6 +954,14 @@ class Handler(BaseHTTPRequestHandler):
         return res
 
     def _handle_post(self, path, data):
+        # 🔒 LICENSE GATE (1.5.3): κλείδωσε ΟΛΑ τα data endpoints αν το app
+        #    δεν είναι activated. Μόνο τα 2 endpoints ενεργοποίησης περνάνε.
+        #    Αυτό μπλοκάρει το «τράβηξε το πινακάκι» — χωρίς key δεν σερβίρεται τίποτα.
+        if not self._is_activated():
+            if path not in ("/verify_license", "/activate_license"):
+                self._json(403, {"ok": False, "locked": True, "needs_activation": True,
+                                 "error": "Product not activated."})
+                return
         if path == "/watch":
             db.record_watch(data)
             # Lazy backfill: αν λείπει το channel_id, ανακτήσου το ασύγχρονα (δεν καθυστερεί το response).
@@ -1337,13 +1384,6 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/import_subscriptions":
             self._import_subscriptions()
         elif path == "/activate_license":
-            # 🧪 DEV MODE: αν LICENSE_CHECK=off, «ενεργοποίησε» αμέσως — χωρίς key.
-            if self._license_check_off():
-                state = {"activated": True, "license_key": "DEV-BYPASS",
-                         "last_check": datetime.now().isoformat(), "fail_count": 0}
-                self._write_license(state)
-                self._json(200, {"ok": True, "activated": True, "dev": True})
-                return
             # 🔑 ΠΡΩΤΗ ενεργοποίηση (online υποχρεωτικά). Ανεβάζει το uses.
             key = (data.get("license_key") or "").strip()
             if not key:
@@ -1380,10 +1420,6 @@ class Handler(BaseHTTPRequestHandler):
                                  "error_code": "revoked",
                                  "error": "This key has been used too many times, or the purchase was refunded."})
         elif path == "/verify_license":
-            # 🧪 DEV MODE: αν LICENSE_CHECK=off, πες «ενεργό» αμέσως — χωρίς δίκτυο, χωρίς Gumroad.
-            if self._license_check_off():
-                self._json(200, {"ok": True, "activated": True, "dev": True})
-                return
             # 🔑 Σιωπηλός επανέλεγχος (3 μέρες, ΔΕΝ ανεβάζει uses). Ο τίμιος δεν βλέπει τίποτα.
             state = self._read_license()
             key = state.get("license_key") or (data.get("license_key") or "").strip()

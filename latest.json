@@ -3,6 +3,6 @@
   "update_kind": "full",
   "url": "https://andyspartinart.gumroad.com/l/yysgn",
   "download_url": "https://andyspartinart.gumroad.com/l/yysgn",
-  "notes": "New: 3-zone ordering (pinned → new → regular) that keeps manual order; removed the unused 'unseen' badge. / Νέο: ταξινόμηση 3 ζωνών (μοβ → κίτρινο → άσπρο) που κρατά τη χειροκίνητη σειρά· αφαιρέθηκε το αχρησιμοποίητο «unseen».",
+  "notes": "Security update: the app now locks until you enter your license key (no more bypass); restored the native window + YouTube search. / Ενημέρωση ασφαλείας: η εφαρμογή κλειδώνει μέχρι να βάλεις το κλειδί σου· επαναφέρθηκε το ενσωματωμένο παράθυρο + η αναζήτηση YouTube.",
   "frontend_url": "https://raw.githubusercontent.com/andyspartintrade/PrivacyYouTuber/main/index.html"
 }

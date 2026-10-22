@@ -404,6 +404,16 @@
   .del-confirm .dc-no { background: var(--card); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
   .del-confirm .dc-no:hover { background: var(--border); }
 
+  /* 🔒 LICENSE GATE (1.5.3): full-screen backdrop που «νεκρώνει» όλο το app
+     όταν δεν είναι activated. Καλύπτει ΟΛΟ το UI (pointer-events: all) ώστε
+     κανένα κλικ/κουμπί/rollover από κάτω να μην φτάνει. Πάνω του κάθεται μόνο
+     το license-pop (z-index 2000). */
+  .license-backdrop {
+    position: fixed; inset: 0; z-index: 1999;
+    background: var(--bg, #0e1116);      /* αδιαφανές — κρύβει το app από κάτω */
+    pointer-events: all;                  /* «τρώει» όλα τα κλικ/events */
+  }
+
   /* Popover για tagging */
   .tag-pop {
     position: fixed; z-index: 1000; width: 220px;
@@ -2108,6 +2118,13 @@ async function load() {
   if (loadingEl) loadingEl.classList.add("show");
   const d = await (await fetch("/api/dashboard")).json();
 
+  // 🔒 LICENSE GATE (1.5.3): αν ο server πει «κλείδωτο», σταμάτα και δείξε την
+  //    ενεργοποίηση — ΔΕΝ φορτώνεις τίποτα άλλο (ούτε κενό UI στο background).
+  if (d.locked || d.needs_activation) {
+    showActivationScreen();
+    return;
+  }
+
   // 🌐 ΓΛΩΣΣΑ: διάβασέ τη από τη βάση (επιμένει μετά από κλείσιμο — το localStorage
   //    δεν κρατά στο WebView). ΠΡΙΝ το πρώτο render, ώστε όλα να φτιαχτούν σωστά.
   try {
@@ -3004,6 +3021,8 @@ function closeUpdatePopup() {
   if (p) p.remove();
   const lp = document.getElementById("license-pop");
   if (lp) lp.remove();
+  const lb = document.getElementById("license-backdrop");
+  if (lb) lb.remove();
 }
 
 function doFrontendUpdate(url) {
@@ -7031,6 +7050,13 @@ function checkLicenseAndBoot() {
 
 function showActivationScreen() {
   closeUpdatePopup();
+  // 🔒 (1.5.3) Φτιάξε το full-screen backdrop ΠΡΩΤΑ — «νεκρώνει» όλο το app
+  //    από κάτω. Κανένα κλικ/rollover δεν φτάνει στα tabs/κουμπιά/κάρτες.
+  const backdrop = document.createElement("div");
+  backdrop.className = "license-backdrop";
+  backdrop.id = "license-backdrop";
+  document.body.appendChild(backdrop);
+
   const pop = document.createElement("div");
   pop.className = "del-confirm center";
   pop.id = "license-pop";
@@ -7136,6 +7162,12 @@ function activateLicense() {
 
 function showLicenseBlocked(msg) {
   closeUpdatePopup();
+  // 🔒 (1.5.3) backdrop — νεκρώνει το app από κάτω (ίδια λογική με activation).
+  const backdrop = document.createElement("div");
+  backdrop.className = "license-backdrop";
+  backdrop.id = "license-backdrop";
+  document.body.appendChild(backdrop);
+
   const pop = document.createElement("div");
   pop.className = "del-confirm center";
   pop.id = "license-pop";
@@ -7144,7 +7176,6 @@ function showLicenseBlocked(msg) {
       <span class="muted" style="font-size:12.5px;">${esc(msg || "")}</span></div>
     <div class="dc-btns">
       <button class="dc-yes" onclick="closeUpdatePopup(); activateLicense()"><span data-i18n="lic.reenter">🔑 Enter key again</span></button>
-      <button class="dc-no" onclick="this.closest('#license-pop').remove()"><span data-i18n="btn.close">Close</span></button>
     </div>`;
   document.body.appendChild(pop);
   applyI18n(pop);

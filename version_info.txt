@@ -16,12 +16,12 @@ VSVersionInfo(
         '040904B0',
         [StringStruct('CompanyName', 'Andreas Antoniadis'),
          StringStruct('FileDescription', 'PrivacyYouTuber'),
-         StringStruct('FileVersion', '1.5.2'),
+         StringStruct('FileVersion', '1.5.3'),
          StringStruct('InternalName', 'PrivacyYouTuber'),
          StringStruct('LegalCopyright', 'Andreas Antoniadis'),
          StringStruct('OriginalFilename', 'PrivacyYouTuber.exe'),
          StringStruct('ProductName', 'PrivacyYouTuber'),
-         StringStruct('ProductVersion', '1.5.2')])
+         StringStruct('ProductVersion', '1.5.3')])
     ]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])
   ]
